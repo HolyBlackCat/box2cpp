@@ -1,8 +1,11 @@
 #pragma once
 
 #include "box2c/include/box2d/box2d.h"
+#include "box2c/include/box2d/color.h"
+#include "box2c/include/box2d/distance.h"
 #include "box2c/include/box2d/dynamic_tree.h"
 #include "box2c/include/box2d/math.h"
+#include "box2c/include/box2d/timer.h"
 
 #include <cstddef>
 #include <concepts>
@@ -11,6 +14,756 @@
 
 namespace b2
 {
+    using Capsule = b2Capsule;
+    using Circle = b2Circle;
+    using DebugDraw = b2DebugDraw;
+    using Polygon = b2Polygon;
+    using Segment = b2Segment;
+    using Manifold = b2Manifold;
+    /// Version numbering scheme.
+    /// See http://en.wikipedia.org/wiki/Software_versioning
+    using Version = b2Version;
+    /// Result of computing the distance between two line segments
+    using SegmentDistanceResult = b2SegmentDistanceResult;
+    /// A distance proxy is used by the GJK algorithm. It encapsulates any shape.
+    using DistanceProxy = b2DistanceProxy;
+    /// Used to warm start b2Distance.
+    /// Set count to zero on first call.
+    using DistanceCache = b2DistanceCache;
+    /// Input for b2Distance.
+    /// You have to option to use the shape radii
+    /// in the computation. Even
+    using DistanceInput = b2DistanceInput;
+    /// Output for b2Distance.
+    using DistanceOutput = b2DistanceOutput;
+    /// Input parameters for b2ShapeCast
+    using ShapeCastPairInput = b2ShapeCastPairInput;
+    /// This describes the motion of a body/shape for TOI computation. Shapes are defined with respect to the body origin,
+    /// which may not coincide with the center of mass. However, to support dynamics we must interpolate the center of mass
+    /// position.
+    using Sweep = b2Sweep;
+    /// Input parameters for b2TimeOfImpact
+    using TOIInput = b2TOIInput;
+    /// Output parameters for b2TimeOfImpact.
+    using TOIOutput = b2TOIOutput;
+    using RayCastInput = b2RayCastInput;
+    using ShapeCastInput = b2ShapeCastInput;
+    /// A node in the dynamic tree. The user does not interact with this directly.
+    /// 16 + 16 + 8 + pad(8)
+    using TreeNode = b2TreeNode;
+    /// A begin touch event is generated when a shape starts to overlap a sensor shape.
+    using SensorBeginTouchEvent = b2SensorBeginTouchEvent;
+    /// An end touch event is generated when a shape stops overlapping a sensor shape.
+    using SensorEndTouchEvent = b2SensorEndTouchEvent;
+    /// Sensor events are buffered in the Box2D world and are available
+    ///	as begin/end overlap event arrays after the time step is complete.
+    ///	Note: these may become invalid if bodies and/or shapes are destroyed
+    using SensorEvents = b2SensorEvents;
+    /// A begin touch event is generated when two shapes begin touching. By convention the manifold
+    /// normal points from shape A to shape B.
+    using ContactBeginTouchEvent = b2ContactBeginTouchEvent;
+    /// An end touch event is generated when two shapes stop touching.
+    using ContactEndTouchEvent = b2ContactEndTouchEvent;
+    /// Contact events are buffered in the Box2D world and are available
+    ///	as event arrays after the time step is complete.
+    ///	Note: these may become invalid if bodies and/or shapes are destroyed
+    using ContactEvents = b2ContactEvents;
+    /// The contact data for two shapes. By convention the manifold normal points
+    ///	from shape A to shape B.
+    using ContactData = b2ContactData;
+    /// Triggered when a body moves from simulation. Not reported for bodies moved by the user.
+    /// This also has a flag to indicate that the body went to sleep so the application can also
+    /// sleep that actor/entity/object associated with the body.
+    /// On the other hand if the flag does not indicate the body went to sleep then the application
+    /// can treat the actor/entity/object associated with the body as awake.
+    using BodyMoveEvent = b2BodyMoveEvent;
+    /// Body events are buffered in the Box2D world and are available
+    ///	as event arrays after the time step is complete.
+    ///	Note: this date becomes invalid if bodies are destroyed
+    using BodyEvents = b2BodyEvents;
+    using Hull = b2Hull;
+    /// Low level ray-cast or shape-cast output data
+    using CastOutput = b2CastOutput;
+    /// This holds the mass data computed for a shape.
+    using MassData = b2MassData;
+    /// A smooth line segment with one-sided collision. Only collides on the right side.
+    /// Several of these are generated for a chain shape.
+    /// ghost1 -> point1 -> point2 -> ghost2
+    using SmoothSegment = b2SmoothSegment;
+    /// World identifier
+    using WorldId = b2WorldId;
+    /// Body identifier
+    using BodyId = b2BodyId;
+    /// References a shape instance
+    using ShapeId = b2ShapeId;
+    /// References a joint instance
+    using JointId = b2JointId;
+    /// References a chain instances
+    using ChainId = b2ChainId;
+    /// A manifold point is a contact point belonging to a contact
+    /// manifold. It holds details related to the geometry and dynamics
+    /// of the contact points.
+    using ManifoldPoint = b2ManifoldPoint;
+    /// 2D vector
+    /// This can be used to represent a point or free vector
+    using Vec2 = b2Vec2;
+    /// A 2D rigid transform
+    using Transform = b2Transform;
+    /// A 2-by-2 Matrix
+    using Mat22 = b2Mat22;
+    /// Color for debug drawing. Each value has the range [0,1].
+    using Color = b2Color;
+    /// Timer for profiling. This has platform specific code and may not work on every platform.
+    using Timer = b2Timer;
+    /// Result from b2World_RayCastClosest
+    using RayResult = b2RayResult;
+    /// This holds contact filtering data.
+    using Filter = b2Filter;
+    /// This holds contact filtering data.
+    using QueryFilter = b2QueryFilter;
+    /// Profiling data. Times are in milliseconds.
+    using Profile = b2Profile;
+    /// Counters that give details of the simulation size
+    using Counters = b2Counters;
+
+    enum class JointType
+    { 
+        DistanceJoint = b2_distanceJoint, 
+        MotorJoint = b2_motorJoint, 
+        MouseJoint = b2_mouseJoint, 
+        PrismaticJoint = b2_prismaticJoint, 
+        RevoluteJoint = b2_revoluteJoint, 
+        WeldJoint = b2_weldJoint, 
+        WheelJoint = b2_wheelJoint, 
+    };
+
+    /// All the colors! Credit to wherever I got this from, I forget.
+    enum class HexColor
+    { 
+        AliceBlue = b2_colorAliceBlue, 
+        AntiqueWhite = b2_colorAntiqueWhite, 
+        AntiqueWhite1 = b2_colorAntiqueWhite1, 
+        AntiqueWhite2 = b2_colorAntiqueWhite2, 
+        AntiqueWhite3 = b2_colorAntiqueWhite3, 
+        AntiqueWhite4 = b2_colorAntiqueWhite4, 
+        Aqua = b2_colorAqua, 
+        Aquamarine = b2_colorAquamarine, 
+        Aquamarine1 = b2_colorAquamarine1, 
+        Aquamarine2 = b2_colorAquamarine2, 
+        Aquamarine3 = b2_colorAquamarine3, 
+        Aquamarine4 = b2_colorAquamarine4, 
+        Azure = b2_colorAzure, 
+        Azure1 = b2_colorAzure1, 
+        Azure2 = b2_colorAzure2, 
+        Azure3 = b2_colorAzure3, 
+        Azure4 = b2_colorAzure4, 
+        Beige = b2_colorBeige, 
+        Bisque = b2_colorBisque, 
+        Bisque1 = b2_colorBisque1, 
+        Bisque2 = b2_colorBisque2, 
+        Bisque3 = b2_colorBisque3, 
+        Bisque4 = b2_colorBisque4, 
+        Black = b2_colorBlack, 
+        BlanchedAlmond = b2_colorBlanchedAlmond, 
+        Blue = b2_colorBlue, 
+        Blue1 = b2_colorBlue1, 
+        Blue2 = b2_colorBlue2, 
+        Blue3 = b2_colorBlue3, 
+        Blue4 = b2_colorBlue4, 
+        BlueViolet = b2_colorBlueViolet, 
+        Brown = b2_colorBrown, 
+        Brown1 = b2_colorBrown1, 
+        Brown2 = b2_colorBrown2, 
+        Brown3 = b2_colorBrown3, 
+        Brown4 = b2_colorBrown4, 
+        Burlywood = b2_colorBurlywood, 
+        Burlywood1 = b2_colorBurlywood1, 
+        Burlywood2 = b2_colorBurlywood2, 
+        Burlywood3 = b2_colorBurlywood3, 
+        Burlywood4 = b2_colorBurlywood4, 
+        CadetBlue = b2_colorCadetBlue, 
+        CadetBlue1 = b2_colorCadetBlue1, 
+        CadetBlue2 = b2_colorCadetBlue2, 
+        CadetBlue3 = b2_colorCadetBlue3, 
+        CadetBlue4 = b2_colorCadetBlue4, 
+        Chartreuse = b2_colorChartreuse, 
+        Chartreuse1 = b2_colorChartreuse1, 
+        Chartreuse2 = b2_colorChartreuse2, 
+        Chartreuse3 = b2_colorChartreuse3, 
+        Chartreuse4 = b2_colorChartreuse4, 
+        Chocolate = b2_colorChocolate, 
+        Chocolate1 = b2_colorChocolate1, 
+        Chocolate2 = b2_colorChocolate2, 
+        Chocolate3 = b2_colorChocolate3, 
+        Chocolate4 = b2_colorChocolate4, 
+        Coral = b2_colorCoral, 
+        Coral1 = b2_colorCoral1, 
+        Coral2 = b2_colorCoral2, 
+        Coral3 = b2_colorCoral3, 
+        Coral4 = b2_colorCoral4, 
+        CornflowerBlue = b2_colorCornflowerBlue, 
+        Cornsilk = b2_colorCornsilk, 
+        Cornsilk1 = b2_colorCornsilk1, 
+        Cornsilk2 = b2_colorCornsilk2, 
+        Cornsilk3 = b2_colorCornsilk3, 
+        Cornsilk4 = b2_colorCornsilk4, 
+        Crimson = b2_colorCrimson, 
+        Cyan = b2_colorCyan, 
+        Cyan1 = b2_colorCyan1, 
+        Cyan2 = b2_colorCyan2, 
+        Cyan3 = b2_colorCyan3, 
+        Cyan4 = b2_colorCyan4, 
+        DarkBlue = b2_colorDarkBlue, 
+        DarkCyan = b2_colorDarkCyan, 
+        DarkGoldenrod = b2_colorDarkGoldenrod, 
+        DarkGoldenrod1 = b2_colorDarkGoldenrod1, 
+        DarkGoldenrod2 = b2_colorDarkGoldenrod2, 
+        DarkGoldenrod3 = b2_colorDarkGoldenrod3, 
+        DarkGoldenrod4 = b2_colorDarkGoldenrod4, 
+        DarkGray = b2_colorDarkGray, 
+        DarkGreen = b2_colorDarkGreen, 
+        DarkKhaki = b2_colorDarkKhaki, 
+        DarkMagenta = b2_colorDarkMagenta, 
+        DarkOliveGreen = b2_colorDarkOliveGreen, 
+        DarkOliveGreen1 = b2_colorDarkOliveGreen1, 
+        DarkOliveGreen2 = b2_colorDarkOliveGreen2, 
+        DarkOliveGreen3 = b2_colorDarkOliveGreen3, 
+        DarkOliveGreen4 = b2_colorDarkOliveGreen4, 
+        DarkOrange = b2_colorDarkOrange, 
+        DarkOrange1 = b2_colorDarkOrange1, 
+        DarkOrange2 = b2_colorDarkOrange2, 
+        DarkOrange3 = b2_colorDarkOrange3, 
+        DarkOrange4 = b2_colorDarkOrange4, 
+        DarkOrchid = b2_colorDarkOrchid, 
+        DarkOrchid1 = b2_colorDarkOrchid1, 
+        DarkOrchid2 = b2_colorDarkOrchid2, 
+        DarkOrchid3 = b2_colorDarkOrchid3, 
+        DarkOrchid4 = b2_colorDarkOrchid4, 
+        DarkRed = b2_colorDarkRed, 
+        DarkSalmon = b2_colorDarkSalmon, 
+        DarkSeaGreen = b2_colorDarkSeaGreen, 
+        DarkSeaGreen1 = b2_colorDarkSeaGreen1, 
+        DarkSeaGreen2 = b2_colorDarkSeaGreen2, 
+        DarkSeaGreen3 = b2_colorDarkSeaGreen3, 
+        DarkSeaGreen4 = b2_colorDarkSeaGreen4, 
+        DarkSlateBlue = b2_colorDarkSlateBlue, 
+        DarkSlateGray = b2_colorDarkSlateGray, 
+        DarkSlateGray1 = b2_colorDarkSlateGray1, 
+        DarkSlateGray2 = b2_colorDarkSlateGray2, 
+        DarkSlateGray3 = b2_colorDarkSlateGray3, 
+        DarkSlateGray4 = b2_colorDarkSlateGray4, 
+        DarkTurquoise = b2_colorDarkTurquoise, 
+        DarkViolet = b2_colorDarkViolet, 
+        DeepPink = b2_colorDeepPink, 
+        DeepPink1 = b2_colorDeepPink1, 
+        DeepPink2 = b2_colorDeepPink2, 
+        DeepPink3 = b2_colorDeepPink3, 
+        DeepPink4 = b2_colorDeepPink4, 
+        DeepSkyBlue = b2_colorDeepSkyBlue, 
+        DeepSkyBlue1 = b2_colorDeepSkyBlue1, 
+        DeepSkyBlue2 = b2_colorDeepSkyBlue2, 
+        DeepSkyBlue3 = b2_colorDeepSkyBlue3, 
+        DeepSkyBlue4 = b2_colorDeepSkyBlue4, 
+        DimGray = b2_colorDimGray, 
+        DodgerBlue = b2_colorDodgerBlue, 
+        DodgerBlue1 = b2_colorDodgerBlue1, 
+        DodgerBlue2 = b2_colorDodgerBlue2, 
+        DodgerBlue3 = b2_colorDodgerBlue3, 
+        DodgerBlue4 = b2_colorDodgerBlue4, 
+        Firebrick = b2_colorFirebrick, 
+        Firebrick1 = b2_colorFirebrick1, 
+        Firebrick2 = b2_colorFirebrick2, 
+        Firebrick3 = b2_colorFirebrick3, 
+        Firebrick4 = b2_colorFirebrick4, 
+        FloralWhite = b2_colorFloralWhite, 
+        ForestGreen = b2_colorForestGreen, 
+        Fuchsia = b2_colorFuchsia, 
+        Gainsboro = b2_colorGainsboro, 
+        GhostWhite = b2_colorGhostWhite, 
+        Gold = b2_colorGold, 
+        Gold1 = b2_colorGold1, 
+        Gold2 = b2_colorGold2, 
+        Gold3 = b2_colorGold3, 
+        Gold4 = b2_colorGold4, 
+        Goldenrod = b2_colorGoldenrod, 
+        Goldenrod1 = b2_colorGoldenrod1, 
+        Goldenrod2 = b2_colorGoldenrod2, 
+        Goldenrod3 = b2_colorGoldenrod3, 
+        Goldenrod4 = b2_colorGoldenrod4, 
+        Gray = b2_colorGray, 
+        Gray0 = b2_colorGray0, 
+        Gray1 = b2_colorGray1, 
+        Gray10 = b2_colorGray10, 
+        Gray100 = b2_colorGray100, 
+        Gray11 = b2_colorGray11, 
+        Gray12 = b2_colorGray12, 
+        Gray13 = b2_colorGray13, 
+        Gray14 = b2_colorGray14, 
+        Gray15 = b2_colorGray15, 
+        Gray16 = b2_colorGray16, 
+        Gray17 = b2_colorGray17, 
+        Gray18 = b2_colorGray18, 
+        Gray19 = b2_colorGray19, 
+        Gray2 = b2_colorGray2, 
+        Gray20 = b2_colorGray20, 
+        Gray21 = b2_colorGray21, 
+        Gray22 = b2_colorGray22, 
+        Gray23 = b2_colorGray23, 
+        Gray24 = b2_colorGray24, 
+        Gray25 = b2_colorGray25, 
+        Gray26 = b2_colorGray26, 
+        Gray27 = b2_colorGray27, 
+        Gray28 = b2_colorGray28, 
+        Gray29 = b2_colorGray29, 
+        Gray3 = b2_colorGray3, 
+        Gray30 = b2_colorGray30, 
+        Gray31 = b2_colorGray31, 
+        Gray32 = b2_colorGray32, 
+        Gray33 = b2_colorGray33, 
+        Gray34 = b2_colorGray34, 
+        Gray35 = b2_colorGray35, 
+        Gray36 = b2_colorGray36, 
+        Gray37 = b2_colorGray37, 
+        Gray38 = b2_colorGray38, 
+        Gray39 = b2_colorGray39, 
+        Gray4 = b2_colorGray4, 
+        Gray40 = b2_colorGray40, 
+        Gray41 = b2_colorGray41, 
+        Gray42 = b2_colorGray42, 
+        Gray43 = b2_colorGray43, 
+        Gray44 = b2_colorGray44, 
+        Gray45 = b2_colorGray45, 
+        Gray46 = b2_colorGray46, 
+        Gray47 = b2_colorGray47, 
+        Gray48 = b2_colorGray48, 
+        Gray49 = b2_colorGray49, 
+        Gray5 = b2_colorGray5, 
+        Gray50 = b2_colorGray50, 
+        Gray51 = b2_colorGray51, 
+        Gray52 = b2_colorGray52, 
+        Gray53 = b2_colorGray53, 
+        Gray54 = b2_colorGray54, 
+        Gray55 = b2_colorGray55, 
+        Gray56 = b2_colorGray56, 
+        Gray57 = b2_colorGray57, 
+        Gray58 = b2_colorGray58, 
+        Gray59 = b2_colorGray59, 
+        Gray6 = b2_colorGray6, 
+        Gray60 = b2_colorGray60, 
+        Gray61 = b2_colorGray61, 
+        Gray62 = b2_colorGray62, 
+        Gray63 = b2_colorGray63, 
+        Gray64 = b2_colorGray64, 
+        Gray65 = b2_colorGray65, 
+        Gray66 = b2_colorGray66, 
+        Gray67 = b2_colorGray67, 
+        Gray68 = b2_colorGray68, 
+        Gray69 = b2_colorGray69, 
+        Gray7 = b2_colorGray7, 
+        Gray70 = b2_colorGray70, 
+        Gray71 = b2_colorGray71, 
+        Gray72 = b2_colorGray72, 
+        Gray73 = b2_colorGray73, 
+        Gray74 = b2_colorGray74, 
+        Gray75 = b2_colorGray75, 
+        Gray76 = b2_colorGray76, 
+        Gray77 = b2_colorGray77, 
+        Gray78 = b2_colorGray78, 
+        Gray79 = b2_colorGray79, 
+        Gray8 = b2_colorGray8, 
+        Gray80 = b2_colorGray80, 
+        Gray81 = b2_colorGray81, 
+        Gray82 = b2_colorGray82, 
+        Gray83 = b2_colorGray83, 
+        Gray84 = b2_colorGray84, 
+        Gray85 = b2_colorGray85, 
+        Gray86 = b2_colorGray86, 
+        Gray87 = b2_colorGray87, 
+        Gray88 = b2_colorGray88, 
+        Gray89 = b2_colorGray89, 
+        Gray9 = b2_colorGray9, 
+        Gray90 = b2_colorGray90, 
+        Gray91 = b2_colorGray91, 
+        Gray92 = b2_colorGray92, 
+        Gray93 = b2_colorGray93, 
+        Gray94 = b2_colorGray94, 
+        Gray95 = b2_colorGray95, 
+        Gray96 = b2_colorGray96, 
+        Gray97 = b2_colorGray97, 
+        Gray98 = b2_colorGray98, 
+        Gray99 = b2_colorGray99, 
+        Green = b2_colorGreen, 
+        Green1 = b2_colorGreen1, 
+        Green2 = b2_colorGreen2, 
+        Green3 = b2_colorGreen3, 
+        Green4 = b2_colorGreen4, 
+        GreenYellow = b2_colorGreenYellow, 
+        Honeydew = b2_colorHoneydew, 
+        Honeydew1 = b2_colorHoneydew1, 
+        Honeydew2 = b2_colorHoneydew2, 
+        Honeydew3 = b2_colorHoneydew3, 
+        Honeydew4 = b2_colorHoneydew4, 
+        HotPink = b2_colorHotPink, 
+        HotPink1 = b2_colorHotPink1, 
+        HotPink2 = b2_colorHotPink2, 
+        HotPink3 = b2_colorHotPink3, 
+        HotPink4 = b2_colorHotPink4, 
+        IndianRed = b2_colorIndianRed, 
+        IndianRed1 = b2_colorIndianRed1, 
+        IndianRed2 = b2_colorIndianRed2, 
+        IndianRed3 = b2_colorIndianRed3, 
+        IndianRed4 = b2_colorIndianRed4, 
+        Indigo = b2_colorIndigo, 
+        Ivory = b2_colorIvory, 
+        Ivory1 = b2_colorIvory1, 
+        Ivory2 = b2_colorIvory2, 
+        Ivory3 = b2_colorIvory3, 
+        Ivory4 = b2_colorIvory4, 
+        Khaki = b2_colorKhaki, 
+        Khaki1 = b2_colorKhaki1, 
+        Khaki2 = b2_colorKhaki2, 
+        Khaki3 = b2_colorKhaki3, 
+        Khaki4 = b2_colorKhaki4, 
+        Lavender = b2_colorLavender, 
+        LavenderBlush = b2_colorLavenderBlush, 
+        LavenderBlush1 = b2_colorLavenderBlush1, 
+        LavenderBlush2 = b2_colorLavenderBlush2, 
+        LavenderBlush3 = b2_colorLavenderBlush3, 
+        LavenderBlush4 = b2_colorLavenderBlush4, 
+        LawnGreen = b2_colorLawnGreen, 
+        LemonChiffon = b2_colorLemonChiffon, 
+        LemonChiffon1 = b2_colorLemonChiffon1, 
+        LemonChiffon2 = b2_colorLemonChiffon2, 
+        LemonChiffon3 = b2_colorLemonChiffon3, 
+        LemonChiffon4 = b2_colorLemonChiffon4, 
+        LightBlue = b2_colorLightBlue, 
+        LightBlue1 = b2_colorLightBlue1, 
+        LightBlue2 = b2_colorLightBlue2, 
+        LightBlue3 = b2_colorLightBlue3, 
+        LightBlue4 = b2_colorLightBlue4, 
+        LightCoral = b2_colorLightCoral, 
+        LightCyan = b2_colorLightCyan, 
+        LightCyan1 = b2_colorLightCyan1, 
+        LightCyan2 = b2_colorLightCyan2, 
+        LightCyan3 = b2_colorLightCyan3, 
+        LightCyan4 = b2_colorLightCyan4, 
+        LightGoldenrod = b2_colorLightGoldenrod, 
+        LightGoldenrod1 = b2_colorLightGoldenrod1, 
+        LightGoldenrod2 = b2_colorLightGoldenrod2, 
+        LightGoldenrod3 = b2_colorLightGoldenrod3, 
+        LightGoldenrod4 = b2_colorLightGoldenrod4, 
+        LightGoldenrodYellow = b2_colorLightGoldenrodYellow, 
+        LightGray = b2_colorLightGray, 
+        LightGreen = b2_colorLightGreen, 
+        LightPink = b2_colorLightPink, 
+        LightPink1 = b2_colorLightPink1, 
+        LightPink2 = b2_colorLightPink2, 
+        LightPink3 = b2_colorLightPink3, 
+        LightPink4 = b2_colorLightPink4, 
+        LightSalmon = b2_colorLightSalmon, 
+        LightSalmon1 = b2_colorLightSalmon1, 
+        LightSalmon2 = b2_colorLightSalmon2, 
+        LightSalmon3 = b2_colorLightSalmon3, 
+        LightSalmon4 = b2_colorLightSalmon4, 
+        LightSeaGreen = b2_colorLightSeaGreen, 
+        LightSkyBlue = b2_colorLightSkyBlue, 
+        LightSkyBlue1 = b2_colorLightSkyBlue1, 
+        LightSkyBlue2 = b2_colorLightSkyBlue2, 
+        LightSkyBlue3 = b2_colorLightSkyBlue3, 
+        LightSkyBlue4 = b2_colorLightSkyBlue4, 
+        LightSlateBlue = b2_colorLightSlateBlue, 
+        LightSlateGray = b2_colorLightSlateGray, 
+        LightSteelBlue = b2_colorLightSteelBlue, 
+        LightSteelBlue1 = b2_colorLightSteelBlue1, 
+        LightSteelBlue2 = b2_colorLightSteelBlue2, 
+        LightSteelBlue3 = b2_colorLightSteelBlue3, 
+        LightSteelBlue4 = b2_colorLightSteelBlue4, 
+        LightYellow = b2_colorLightYellow, 
+        LightYellow1 = b2_colorLightYellow1, 
+        LightYellow2 = b2_colorLightYellow2, 
+        LightYellow3 = b2_colorLightYellow3, 
+        LightYellow4 = b2_colorLightYellow4, 
+        Lime = b2_colorLime, 
+        LimeGreen = b2_colorLimeGreen, 
+        Linen = b2_colorLinen, 
+        Magenta = b2_colorMagenta, 
+        Magenta1 = b2_colorMagenta1, 
+        Magenta2 = b2_colorMagenta2, 
+        Magenta3 = b2_colorMagenta3, 
+        Magenta4 = b2_colorMagenta4, 
+        Maroon = b2_colorMaroon, 
+        Maroon1 = b2_colorMaroon1, 
+        Maroon2 = b2_colorMaroon2, 
+        Maroon3 = b2_colorMaroon3, 
+        Maroon4 = b2_colorMaroon4, 
+        MediumAquamarine = b2_colorMediumAquamarine, 
+        MediumBlue = b2_colorMediumBlue, 
+        MediumOrchid = b2_colorMediumOrchid, 
+        MediumOrchid1 = b2_colorMediumOrchid1, 
+        MediumOrchid2 = b2_colorMediumOrchid2, 
+        MediumOrchid3 = b2_colorMediumOrchid3, 
+        MediumOrchid4 = b2_colorMediumOrchid4, 
+        MediumPurple = b2_colorMediumPurple, 
+        MediumPurple1 = b2_colorMediumPurple1, 
+        MediumPurple2 = b2_colorMediumPurple2, 
+        MediumPurple3 = b2_colorMediumPurple3, 
+        MediumPurple4 = b2_colorMediumPurple4, 
+        MediumSeaGreen = b2_colorMediumSeaGreen, 
+        MediumSlateBlue = b2_colorMediumSlateBlue, 
+        MediumSpringGreen = b2_colorMediumSpringGreen, 
+        MediumTurquoise = b2_colorMediumTurquoise, 
+        MediumVioletRed = b2_colorMediumVioletRed, 
+        MidnightBlue = b2_colorMidnightBlue, 
+        MintCream = b2_colorMintCream, 
+        MistyRose = b2_colorMistyRose, 
+        MistyRose1 = b2_colorMistyRose1, 
+        MistyRose2 = b2_colorMistyRose2, 
+        MistyRose3 = b2_colorMistyRose3, 
+        MistyRose4 = b2_colorMistyRose4, 
+        Moccasin = b2_colorMoccasin, 
+        NavajoWhite = b2_colorNavajoWhite, 
+        NavajoWhite1 = b2_colorNavajoWhite1, 
+        NavajoWhite2 = b2_colorNavajoWhite2, 
+        NavajoWhite3 = b2_colorNavajoWhite3, 
+        NavajoWhite4 = b2_colorNavajoWhite4, 
+        Navy = b2_colorNavy, 
+        NavyBlue = b2_colorNavyBlue, 
+        OldLace = b2_colorOldLace, 
+        Olive = b2_colorOlive, 
+        OliveDrab = b2_colorOliveDrab, 
+        OliveDrab1 = b2_colorOliveDrab1, 
+        OliveDrab2 = b2_colorOliveDrab2, 
+        OliveDrab3 = b2_colorOliveDrab3, 
+        OliveDrab4 = b2_colorOliveDrab4, 
+        Orange = b2_colorOrange, 
+        Orange1 = b2_colorOrange1, 
+        Orange2 = b2_colorOrange2, 
+        Orange3 = b2_colorOrange3, 
+        Orange4 = b2_colorOrange4, 
+        OrangeRed = b2_colorOrangeRed, 
+        OrangeRed1 = b2_colorOrangeRed1, 
+        OrangeRed2 = b2_colorOrangeRed2, 
+        OrangeRed3 = b2_colorOrangeRed3, 
+        OrangeRed4 = b2_colorOrangeRed4, 
+        Orchid = b2_colorOrchid, 
+        Orchid1 = b2_colorOrchid1, 
+        Orchid2 = b2_colorOrchid2, 
+        Orchid3 = b2_colorOrchid3, 
+        Orchid4 = b2_colorOrchid4, 
+        PaleGoldenrod = b2_colorPaleGoldenrod, 
+        PaleGreen = b2_colorPaleGreen, 
+        PaleGreen1 = b2_colorPaleGreen1, 
+        PaleGreen2 = b2_colorPaleGreen2, 
+        PaleGreen3 = b2_colorPaleGreen3, 
+        PaleGreen4 = b2_colorPaleGreen4, 
+        PaleTurquoise = b2_colorPaleTurquoise, 
+        PaleTurquoise1 = b2_colorPaleTurquoise1, 
+        PaleTurquoise2 = b2_colorPaleTurquoise2, 
+        PaleTurquoise3 = b2_colorPaleTurquoise3, 
+        PaleTurquoise4 = b2_colorPaleTurquoise4, 
+        PaleVioletRed = b2_colorPaleVioletRed, 
+        PaleVioletRed1 = b2_colorPaleVioletRed1, 
+        PaleVioletRed2 = b2_colorPaleVioletRed2, 
+        PaleVioletRed3 = b2_colorPaleVioletRed3, 
+        PaleVioletRed4 = b2_colorPaleVioletRed4, 
+        PapayaWhip = b2_colorPapayaWhip, 
+        PeachPuff = b2_colorPeachPuff, 
+        PeachPuff1 = b2_colorPeachPuff1, 
+        PeachPuff2 = b2_colorPeachPuff2, 
+        PeachPuff3 = b2_colorPeachPuff3, 
+        PeachPuff4 = b2_colorPeachPuff4, 
+        Peru = b2_colorPeru, 
+        Pink = b2_colorPink, 
+        Pink1 = b2_colorPink1, 
+        Pink2 = b2_colorPink2, 
+        Pink3 = b2_colorPink3, 
+        Pink4 = b2_colorPink4, 
+        Plum = b2_colorPlum, 
+        Plum1 = b2_colorPlum1, 
+        Plum2 = b2_colorPlum2, 
+        Plum3 = b2_colorPlum3, 
+        Plum4 = b2_colorPlum4, 
+        PowderBlue = b2_colorPowderBlue, 
+        Purple = b2_colorPurple, 
+        Purple1 = b2_colorPurple1, 
+        Purple2 = b2_colorPurple2, 
+        Purple3 = b2_colorPurple3, 
+        Purple4 = b2_colorPurple4, 
+        RebeccaPurple = b2_colorRebeccaPurple, 
+        Red = b2_colorRed, 
+        Red1 = b2_colorRed1, 
+        Red2 = b2_colorRed2, 
+        Red3 = b2_colorRed3, 
+        Red4 = b2_colorRed4, 
+        RosyBrown = b2_colorRosyBrown, 
+        RosyBrown1 = b2_colorRosyBrown1, 
+        RosyBrown2 = b2_colorRosyBrown2, 
+        RosyBrown3 = b2_colorRosyBrown3, 
+        RosyBrown4 = b2_colorRosyBrown4, 
+        RoyalBlue = b2_colorRoyalBlue, 
+        RoyalBlue1 = b2_colorRoyalBlue1, 
+        RoyalBlue2 = b2_colorRoyalBlue2, 
+        RoyalBlue3 = b2_colorRoyalBlue3, 
+        RoyalBlue4 = b2_colorRoyalBlue4, 
+        SaddleBrown = b2_colorSaddleBrown, 
+        Salmon = b2_colorSalmon, 
+        Salmon1 = b2_colorSalmon1, 
+        Salmon2 = b2_colorSalmon2, 
+        Salmon3 = b2_colorSalmon3, 
+        Salmon4 = b2_colorSalmon4, 
+        SandyBrown = b2_colorSandyBrown, 
+        SeaGreen = b2_colorSeaGreen, 
+        SeaGreen1 = b2_colorSeaGreen1, 
+        SeaGreen2 = b2_colorSeaGreen2, 
+        SeaGreen3 = b2_colorSeaGreen3, 
+        SeaGreen4 = b2_colorSeaGreen4, 
+        Seashell = b2_colorSeashell, 
+        Seashell1 = b2_colorSeashell1, 
+        Seashell2 = b2_colorSeashell2, 
+        Seashell3 = b2_colorSeashell3, 
+        Seashell4 = b2_colorSeashell4, 
+        Sienna = b2_colorSienna, 
+        Sienna1 = b2_colorSienna1, 
+        Sienna2 = b2_colorSienna2, 
+        Sienna3 = b2_colorSienna3, 
+        Sienna4 = b2_colorSienna4, 
+        Silver = b2_colorSilver, 
+        SkyBlue = b2_colorSkyBlue, 
+        SkyBlue1 = b2_colorSkyBlue1, 
+        SkyBlue2 = b2_colorSkyBlue2, 
+        SkyBlue3 = b2_colorSkyBlue3, 
+        SkyBlue4 = b2_colorSkyBlue4, 
+        SlateBlue = b2_colorSlateBlue, 
+        SlateBlue1 = b2_colorSlateBlue1, 
+        SlateBlue2 = b2_colorSlateBlue2, 
+        SlateBlue3 = b2_colorSlateBlue3, 
+        SlateBlue4 = b2_colorSlateBlue4, 
+        SlateGray = b2_colorSlateGray, 
+        SlateGray1 = b2_colorSlateGray1, 
+        SlateGray2 = b2_colorSlateGray2, 
+        SlateGray3 = b2_colorSlateGray3, 
+        SlateGray4 = b2_colorSlateGray4, 
+        Snow = b2_colorSnow, 
+        Snow1 = b2_colorSnow1, 
+        Snow2 = b2_colorSnow2, 
+        Snow3 = b2_colorSnow3, 
+        Snow4 = b2_colorSnow4, 
+        SpringGreen = b2_colorSpringGreen, 
+        SpringGreen1 = b2_colorSpringGreen1, 
+        SpringGreen2 = b2_colorSpringGreen2, 
+        SpringGreen3 = b2_colorSpringGreen3, 
+        SpringGreen4 = b2_colorSpringGreen4, 
+        SteelBlue = b2_colorSteelBlue, 
+        SteelBlue1 = b2_colorSteelBlue1, 
+        SteelBlue2 = b2_colorSteelBlue2, 
+        SteelBlue3 = b2_colorSteelBlue3, 
+        SteelBlue4 = b2_colorSteelBlue4, 
+        Tan = b2_colorTan, 
+        Tan1 = b2_colorTan1, 
+        Tan2 = b2_colorTan2, 
+        Tan3 = b2_colorTan3, 
+        Tan4 = b2_colorTan4, 
+        Teal = b2_colorTeal, 
+        Thistle = b2_colorThistle, 
+        Thistle1 = b2_colorThistle1, 
+        Thistle2 = b2_colorThistle2, 
+        Thistle3 = b2_colorThistle3, 
+        Thistle4 = b2_colorThistle4, 
+        Tomato = b2_colorTomato, 
+        Tomato1 = b2_colorTomato1, 
+        Tomato2 = b2_colorTomato2, 
+        Tomato3 = b2_colorTomato3, 
+        Tomato4 = b2_colorTomato4, 
+        Turquoise = b2_colorTurquoise, 
+        Turquoise1 = b2_colorTurquoise1, 
+        Turquoise2 = b2_colorTurquoise2, 
+        Turquoise3 = b2_colorTurquoise3, 
+        Turquoise4 = b2_colorTurquoise4, 
+        Violet = b2_colorViolet, 
+        VioletRed = b2_colorVioletRed, 
+        VioletRed1 = b2_colorVioletRed1, 
+        VioletRed2 = b2_colorVioletRed2, 
+        VioletRed3 = b2_colorVioletRed3, 
+        VioletRed4 = b2_colorVioletRed4, 
+        WebGray = b2_colorWebGray, 
+        WebGreen = b2_colorWebGreen, 
+        WebMaroon = b2_colorWebMaroon, 
+        WebPurple = b2_colorWebPurple, 
+        Wheat = b2_colorWheat, 
+        Wheat1 = b2_colorWheat1, 
+        Wheat2 = b2_colorWheat2, 
+        Wheat3 = b2_colorWheat3, 
+        Wheat4 = b2_colorWheat4, 
+        White = b2_colorWhite, 
+        WhiteSmoke = b2_colorWhiteSmoke, 
+        X11Gray = b2_colorX11Gray, 
+        X11Green = b2_colorX11Green, 
+        X11Maroon = b2_colorX11Maroon, 
+        X11Purple = b2_colorX11Purple, 
+        Yellow = b2_colorYellow, 
+        Yellow1 = b2_colorYellow1, 
+        Yellow2 = b2_colorYellow2, 
+        Yellow3 = b2_colorYellow3, 
+        Yellow4 = b2_colorYellow4, 
+        YellowGreen = b2_colorYellowGreen, 
+    };
+
+    /// Shape type
+    enum class ShapeType
+    { 
+        Circle = b2_circleShape, 
+        Capsule = b2_capsuleShape, 
+        Segment = b2_segmentShape, 
+        Polygon = b2_polygonShape, 
+        SmoothSegment = b2_smoothSegmentShape, 
+        _count = b2_shapeTypeCount, 
+    };
+
+    /// The body type.
+    /// static: zero mass, zero velocity, may be manually moved
+    /// kinematic: zero mass, non-zero velocity set by user, moved by solver
+    /// dynamic: positive mass, non-zero velocity determined by forces, moved by solver
+    enum class BodyType
+    { 
+        StaticBody = b2_staticBody, 
+        KinematicBody = b2_kinematicBody, 
+        DynamicBody = b2_dynamicBody, 
+        _count = b2_bodyTypeCount, 
+    };
+
+    /// Describes the TOI output
+    enum class TOIState
+    { 
+        Unknown = b2_toiStateUnknown, 
+        Failed = b2_toiStateFailed, 
+        Overlapped = b2_toiStateOverlapped, 
+        Hit = b2_toiStateHit, 
+        Separated = b2_toiStateSeparated, 
+    };
+
+    class AABB : public b2AABB
+    {
+      public:
+        constexpr AABB() {}
+
+        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}
+
+        /// Get the extents of the AABB (half-widths).
+        [[nodiscard]] b2Vec2 Extents() const { return b2AABB_Extents(*this); }
+
+        /// Does a fully contain b
+        [[nodiscard]] bool Contains(AABB b) const { return b2AABB_Contains(*this, b); }
+
+        /// Union of two AABBs
+        [[nodiscard]] b2AABB Union(AABB b) const { return b2AABB_Union(*this, b); }
+
+        /// Get the center of the AABB.
+        [[nodiscard]] b2Vec2 Center() const { return b2AABB_Center(*this); }
+
+        [[nodiscard]] bool IsValid() const { return b2AABB_IsValid(*this); }
+    };
+
+    /// World definition used to create a simulation world. Must be initialized using b2DefaultWorldDef.
     class World
     {
         b2WorldId id = b2_nullWorldId;
@@ -36,7 +789,7 @@ namespace b2
         [[nodiscard]] const b2WorldId &Handle() const { return id; }
 
         /// Overlap test for all shapes that overlap the provided capsule.
-        void OverlapCapsule(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn& fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, &fcn, context); }
+        void OverlapCapsule(const b2Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
 
         /// Get counters and sizes
         [[nodiscard]] b2Counters GetCounters() const { return b2World_GetCounters(Handle()); }
@@ -45,7 +798,7 @@ namespace b2
         [[nodiscard]] b2SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
 
         /// Register the pre-solve callback. This is optional.
-        void SetPreSolveCallback(b2PreSolveFcn& fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), &fcn, context); }
+        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), fcn, context); }
 
         /// Take a time step. This performs collision detection, integration,
         /// and constraint solution.
@@ -55,25 +808,25 @@ namespace b2
         void Step(float timeStep, int32_t subStepCount) { return b2World_Step(Handle(), timeStep, subStepCount); }
 
         /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
-        [[nodiscard]] b2RayResult RayCastClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
+        [[nodiscard]] b2RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
-        void CapsuleCast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn& fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, &fcn, context); }
+        void CapsuleCast(const b2Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
 
         /// Adjust the restitution threshold. Advanced feature for testing.
         void SetRestitutionThreshold(float value) { return b2World_SetRestitutionThreshold(Handle(), value); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
-        void PolygonCast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn& fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, &fcn, context); }
+        void PolygonCast(const b2Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for all shapes that overlap the provided polygon.
-        void OverlapPolygon(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn& fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, &fcn, context); }
+        void OverlapPolygon(const b2Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
 
         /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
-        void CircleCast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn& fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, &fcn, context); }
+        void CircleCast(const b2Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for for all shapes that overlap the provided circle.
-        void OverlapCircle(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn& fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, &fcn, context); }
+        void OverlapCircle(const b2Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
 
         /// Adjust contact tuning parameters:
         /// - hertz is the contact stiffness (cycles per second)
@@ -86,7 +839,7 @@ namespace b2
         [[nodiscard]] b2Profile GetProfile() const { return b2World_GetProfile(Handle()); }
 
         /// Call this to draw shapes and other debug draw data. This is intentionally non-const.
-        void Draw(b2DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
+        void Draw(DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
 
         /// Enable/disable continuous collision. Advanced feature for testing.
         void EnableContinuous(bool flag) { return b2World_EnableContinuous(Handle(), flag); }
@@ -98,7 +851,7 @@ namespace b2
         [[nodiscard]] bool IsValid() const { return b2World_IsValid(Handle()); }
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB.
-        void OverlapAABB(b2AABB aabb, b2QueryFilter filter, b2OverlapResultFcn& fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, &fcn, context); }
+        void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
@@ -112,12 +865,14 @@ namespace b2
         /// @param callback a user implemented callback class.
         /// @param point1 the ray starting point
         /// @param point2 the ray ending point
-        void RayCast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn& fcn, void* context) const { return b2World_RayCast(Handle(), origin, translation, filter, &fcn, context); }
+        void RayCast(Vec2 origin, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_RayCast(Handle(), origin, translation, filter, fcn, context); }
 
         /// Enable/disable constraint warm starting. Advanced feature for testing.
         void EnableWarmStarting(bool flag) { return b2World_EnableWarmStarting(Handle(), flag); }
     };
 
+    /// A body definition holds all the data needed to construct a rigid body.
+    /// You can safely re-use body definitions. Shapes are added to a body after construction.
     class Body
     {
         b2BodyId id = b2_nullBodyId;
@@ -154,10 +909,10 @@ namespace b2
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) { return b2Body_ApplyLinearImpulse(Handle(), impulse, point, wake); }
+        void ApplyLinearImpulse(Vec2 impulse, Vec2 point, bool wake) { return b2Body_ApplyLinearImpulse(Handle(), impulse, point, wake); }
 
         /// Get a world point on a body given a local point
-        [[nodiscard]] b2Vec2 GetWorldPoint(b2Vec2 localPoint) const { return b2Body_GetWorldPoint(Handle(), localPoint); }
+        [[nodiscard]] b2Vec2 GetWorldPoint(Vec2 localPoint) const { return b2Body_GetWorldPoint(Handle(), localPoint); }
 
         /// Is this body a bullet?
         [[nodiscard]] bool IsBullet() const { return b2Body_IsBullet(Handle()); }
@@ -166,7 +921,7 @@ namespace b2
         void SetGravityScale(float gravityScale) { return b2Body_SetGravityScale(Handle(), gravityScale); }
 
         /// Set the type of a body. This has a similar cost to re-creating the body.
-        void SetType(b2BodyType type) { return b2Body_SetType(Handle(), type); }
+        void SetType(BodyType type) { return b2Body_SetType(Handle(), type); }
 
         /// Get the maximum capacity required for retrieving all the touching contacts on a body
         [[nodiscard]] int32_t GetContactCapacity() const { return b2Body_GetContactCapacity(Handle()); }
@@ -195,12 +950,12 @@ namespace b2
         void ApplyAngularImpulse(float impulse, bool wake) { return b2Body_ApplyAngularImpulse(Handle(), impulse, wake); }
 
         /// Get a local vector on a body given a world vector
-        [[nodiscard]] b2Vec2 GetLocalVector(b2Vec2 worldVector) const { return b2Body_GetLocalVector(Handle(), worldVector); }
+        [[nodiscard]] b2Vec2 GetLocalVector(Vec2 worldVector) const { return b2Body_GetLocalVector(Handle(), worldVector); }
 
         /// Override the body's mass properties. Normally this is computed automatically using the
         ///	shape geometry and density. This information is lost if a shape is added or removed or if the
         ///	body type changes.
-        void SetMassData(b2MassData massData) { return b2Body_SetMassData(Handle(), massData); }
+        void SetMassData(MassData massData) { return b2Body_SetMassData(Handle(), massData); }
 
         /// Wake a body from sleep. This wakes the entire island the body is touching.
         void Wake() { return b2Body_Wake(Handle()); }
@@ -212,16 +967,16 @@ namespace b2
         void Disable() { return b2Body_Disable(Handle()); }
 
         /// Set the linear velocity of a body
-        void SetLinearVelocity(b2Vec2 linearVelocity) { return b2Body_SetLinearVelocity(Handle(), linearVelocity); }
+        void SetLinearVelocity(Vec2 linearVelocity) { return b2Body_SetLinearVelocity(Handle(), linearVelocity); }
 
         /// Get a local point on a body given a world point
-        [[nodiscard]] b2Vec2 GetLocalPoint(b2Vec2 worldPoint) const { return b2Body_GetLocalPoint(Handle(), worldPoint); }
+        [[nodiscard]] b2Vec2 GetLocalPoint(Vec2 worldPoint) const { return b2Body_GetLocalPoint(Handle(), worldPoint); }
 
         /// Get the mass data for a body.
         [[nodiscard]] b2MassData GetMassData() const { return b2Body_GetMassData(Handle()); }
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
-        void SetTransform(b2Vec2 position, float angle) { return b2Body_SetTransform(Handle(), position, angle); }
+        void SetTransform(Vec2 position, float angle) { return b2Body_SetTransform(Handle(), position, angle); }
 
         /// Get the world angle of a body in radians.
         [[nodiscard]] float GetAngle() const { return b2Body_GetAngle(Handle()); }
@@ -238,7 +993,7 @@ namespace b2
         /// @param force the world force vector, usually in Newtons (N).
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) { return b2Body_ApplyForce(Handle(), force, point, wake); }
+        void ApplyForce(Vec2 force, Vec2 point, bool wake) { return b2Body_ApplyForce(Handle(), force, point, wake); }
 
         /// Get the current angular damping.
         [[nodiscard]] float GetAngularDamping() const { return b2Body_GetAngularDamping(Handle()); }
@@ -274,7 +1029,7 @@ namespace b2
         /// use a force instead, which will work better with the sub-stepping solver.
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param wake also wake up the body
-        void ApplyLinearImpulseToCenter(b2Vec2 impulse, bool wake) { return b2Body_ApplyLinearImpulseToCenter(Handle(), impulse, wake); }
+        void ApplyLinearImpulseToCenter(Vec2 impulse, bool wake) { return b2Body_ApplyLinearImpulseToCenter(Handle(), impulse, wake); }
 
         /// Get the user data stored in a body
         [[nodiscard]] void* GetUserData() const { return b2Body_GetUserData(Handle()); }
@@ -296,7 +1051,7 @@ namespace b2
         [[nodiscard]] b2Vec2 GetLinearVelocity() const { return b2Body_GetLinearVelocity(Handle()); }
 
         /// Get the touching contact data for a body
-        [[nodiscard]] int32_t GetContactData(b2ContactData& contactData, int32_t capacity) const { return b2Body_GetContactData(Handle(), &contactData, capacity); }
+        [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Body_GetContactData(Handle(), &contactData, capacity); }
 
         /// Is this body enabled?
         [[nodiscard]] bool IsEnabled() const { return b2Body_IsEnabled(Handle()); }
@@ -304,9 +1059,9 @@ namespace b2
         /// Apply a force to the center of mass. This wakes up the body.
         /// @param force the world force vector, usually in Newtons (N).
         /// @param wake also wake up the body
-        void ApplyForceToCenter(b2Vec2 force, bool wake) { return b2Body_ApplyForceToCenter(Handle(), force, wake); }
+        void ApplyForceToCenter(Vec2 force, bool wake) { return b2Body_ApplyForceToCenter(Handle(), force, wake); }
 
-        [[nodiscard]] b2ShapeId GetNextShape(b2ShapeId shapeId) const { return b2Body_GetNextShape(shapeId); }
+        [[nodiscard]] b2ShapeId GetNextShape(ShapeId shapeId) const { return b2Body_GetNextShape(shapeId); }
 
         /// Iterate over shapes on a body
         [[nodiscard]] b2ShapeId GetFirstShape() const { return b2Body_GetFirstShape(Handle()); }
@@ -318,7 +1073,7 @@ namespace b2
         [[nodiscard]] float GetMass() const { return b2Body_GetMass(Handle()); }
 
         /// Get a world vector on a body given a local vector
-        [[nodiscard]] b2Vec2 GetWorldVector(b2Vec2 localVector) const { return b2Body_GetWorldVector(Handle(), localVector); }
+        [[nodiscard]] b2Vec2 GetWorldVector(Vec2 localVector) const { return b2Body_GetWorldVector(Handle(), localVector); }
 
         /// Set this body to be a bullet. A bullet does continuous collision detection
         /// against dynamic bodies (but not other bullets).
@@ -334,6 +1089,7 @@ namespace b2
         [[nodiscard]] float GetLinearDamping() const { return b2Body_GetLinearDamping(Handle()); }
     };
 
+    /// Used to create a shape
     class Shape
     {
         b2ShapeId id = b2_nullShapeId;
@@ -362,7 +1118,7 @@ namespace b2
         [[nodiscard]] void* GetUserData() const { return b2Shape_GetUserData(Handle()); }
 
         /// Ray cast a shape directly
-        [[nodiscard]] b2CastOutput RayCast(b2Vec2 origin, b2Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
+        [[nodiscard]] b2CastOutput RayCast(Vec2 origin, Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
 
         /// Access the line segment geometry of a shape. Asserts the type is correct.
         [[nodiscard]] const b2Segment GetSegment() const { return b2Shape_GetSegment(Handle()); }
@@ -377,7 +1133,7 @@ namespace b2
         [[nodiscard]] bool AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(Handle()); }
 
         /// Set the current filter. This is almost as expensive as recreating the shape.
-        void SetFilter(b2Filter filter) { return b2Shape_SetFilter(Handle(), filter); }
+        void SetFilter(Filter filter) { return b2Shape_SetFilter(Handle(), filter); }
 
         /// Access the circle geometry of a shape. Asserts the type is correct.
         [[nodiscard]] const b2Circle GetCircle() const { return b2Shape_GetCircle(Handle()); }
@@ -394,7 +1150,7 @@ namespace b2
         [[nodiscard]] const b2Capsule GetCapsule() const { return b2Shape_GetCapsule(Handle()); }
 
         /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
-        [[nodiscard]] int32_t GetContactData(b2ContactData& contactData, int32_t capacity) const { return b2Shape_GetContactData(Handle(), &contactData, capacity); }
+        [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Shape_GetContactData(Handle(), &contactData, capacity); }
 
         /// Get the current world AABB
         [[nodiscard]] b2AABB GetAABB() const { return b2Shape_GetAABB(Handle()); }
@@ -422,7 +1178,7 @@ namespace b2
         [[nodiscard]] const b2Polygon GetPolygon() const { return b2Shape_GetPolygon(Handle()); }
 
         /// Test a point for overlap with a shape
-        [[nodiscard]] bool TestPoint(b2Vec2 point) const { return b2Shape_TestPoint(Handle(), point); }
+        [[nodiscard]] bool TestPoint(Vec2 point) const { return b2Shape_TestPoint(Handle(), point); }
 
         /// Is this shape a sensor? See b2ShapeDef.
         [[nodiscard]] bool IsSensor() const { return b2Shape_IsSensor(Handle()); }
@@ -470,6 +1226,19 @@ namespace b2
         void EnableSensorEvents(bool flag) { return b2Shape_EnableSensorEvents(Handle(), flag); }
     };
 
+    /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
+    ///	- DO NOT use chain shapes unless you understand the limitations. This is an advanced feature!
+    ///	- chains are one-sided
+    ///	- chains have no mass and should be used on static bodies
+    ///	- the front side of the chain points the right of the point sequence
+    ///	- chains are either a loop or open
+    /// - a chain must have at least 4 points
+    ///	- the distance between any two points must be greater than b2_linearSlop
+    ///	- a chain shape should not self intersect (this is not validated)
+    ///	- an open chain shape has NO COLLISION on the first and final edge
+    ///	- you may overlap two open chains on their first three and/or last three points to get smooth collision
+    ///	- a chain shape creates multiple hidden shapes on the body
+    /// https://en.wikipedia.org/wiki/Polygonal_chain
     class Chain
     {
         b2ChainId id = b2_nullChainId;
@@ -557,6 +1326,10 @@ namespace b2
         [[nodiscard]] b2JointType GetType() const { return b2Joint_GetType(Handle()); }
     };
 
+    /// Distance joint definition. This requires defining an anchor point on both
+    /// bodies and the non-zero distance of the distance joint. The definition uses
+    /// local anchor points so that the initial configuration can violate the
+    /// constraint slightly. This helps when saving and loading a game.
     class DistanceJoint : public Joint
     {
       public:
@@ -603,6 +1376,9 @@ namespace b2
         [[nodiscard]] float GetLength() const { return b2DistanceJoint_GetLength(Handle()); }
     };
 
+    /// A motor joint is used to control the relative motion
+    /// between two bodies. A typical usage is to control the movement
+    /// of a dynamic body with respect to the ground.
     class MotorJoint : public Joint
     {
       public:
@@ -634,7 +1410,7 @@ namespace b2
         [[nodiscard]] float GetMaxForce() const { return b2MotorJoint_GetMaxForce(Handle()); }
 
         /// Set/Get the linear offset target for a motor joint
-        void SetLinearOffset(b2Vec2 linearOffset) { return b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
+        void SetLinearOffset(Vec2 linearOffset) { return b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
 
         /// Set the correction factor for a motor joint
         void SetCorrectionFactor(float correctionFactor) { return b2MotorJoint_SetCorrectionFactor(Handle(), correctionFactor); }
@@ -655,6 +1431,9 @@ namespace b2
         [[nodiscard]] float GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(Handle()); }
     };
 
+    /// A mouse joint is used to make a point on a body track a
+    /// specified world point. This a soft constraint and allows the constraint to stretch without
+    /// applying huge forces. This also applies rotation constraint heuristic to improve control.
     class MouseJoint : public Joint
     {
       public:
@@ -680,12 +1459,17 @@ namespace b2
         [[nodiscard]] float GetDampingRatio() const { return b2MouseJoint_GetDampingRatio(Handle()); }
 
         /// Set the target for a mouse joint
-        void SetTarget(b2Vec2 target) { return b2MouseJoint_SetTarget(Handle(), target); }
+        void SetTarget(Vec2 target) { return b2MouseJoint_SetTarget(Handle(), target); }
 
         /// Adjust the softness parameters of a mouse joint
         void SetTuning(float hertz, float dampingRatio) { return b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
     };
 
+    /// Prismatic joint definition. This requires defining a line of
+    /// motion using an axis and an anchor point. The definition uses local
+    /// anchor points and a local axis so that the initial configuration
+    /// can violate the constraint slightly. The joint translation is zero
+    /// when the local anchor points coincide in world space.
     class PrismaticJoint : public Joint
     {
       public:
@@ -744,6 +1528,16 @@ namespace b2
         void SetMaxMotorForce(float force) { return b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
     };
 
+    /// Revolute joint definition. This requires defining an anchor point where the
+    /// bodies are joined. The definition uses local anchor points so that the
+    /// initial configuration can violate the constraint slightly. You also need to
+    /// specify the initial relative angle for joint limits. This helps when saving
+    /// and loading a game.
+    /// The local anchor points are measured from the body's origin
+    /// rather than the center of mass because:
+    /// 1. you might not know where the center of mass will be.
+    /// 2. if you add/remove shapes from a body and recompute the mass,
+    ///    the joints will be broken.
     class RevoluteJoint : public Joint
     {
       public:
@@ -802,6 +1596,12 @@ namespace b2
         [[nodiscard]] float GetMaxMotorTorque() const { return b2RevoluteJoint_GetMaxMotorTorque(Handle()); }
     };
 
+    /// Wheel joint definition. This requires defining a line of
+    /// motion using an axis and an anchor point. The definition uses local
+    /// anchor points and a local axis so that the initial configuration
+    /// can violate the constraint slightly. The joint translation is zero
+    /// when the local anchor points coincide in world space. Using local
+    /// anchors and a local axis helps when saving and loading a game.
     class WheelJoint : public Joint
     {
       public:
@@ -872,6 +1672,9 @@ namespace b2
         [[nodiscard]] float GetMaxMotorTorque() const { return b2WheelJoint_GetMaxMotorTorque(Handle()); }
     };
 
+    /// A weld joint connect to bodies together rigidly. This constraint can be made soft to mimic
+    ///	soft-body simulation.
+    /// @warning the approximate solver in Box2D cannot hold many bodies together rigidly
     class WeldJoint : public Joint
     {
       public:
@@ -963,25 +1766,25 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void RayCast(const b2RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn& callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, &callback, context); }
+        void RayCast(const b2RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
 
         /// Compute the height of the binary tree in O(N) time. Should not be
         /// called often.
         [[nodiscard]] int32_t GetHeight() const { return b2DynamicTree_GetHeight(&value); }
 
         /// Move a proxy to a new AABB by removing and reinserting into the tree.
-        void MoveProxy(int32_t proxyId, b2AABB aabb) { return b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
+        void MoveProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
 
         /// Shift the world origin. Useful for large worlds.
         /// The shift formula is: position -= newOrigin
         /// @param newOrigin the new origin with respect to the old origin
-        void ShiftOrigin(b2Vec2 newOrigin) { return b2DynamicTree_ShiftOrigin(&value, newOrigin); }
+        void ShiftOrigin(Vec2 newOrigin) { return b2DynamicTree_ShiftOrigin(&value, newOrigin); }
 
         /// Validate this tree. For testing.
         void Validate() const { return b2DynamicTree_Validate(&value); }
 
         /// Get the AABB of a proxy
-        [[nodiscard]] b2AABB GetAABB(int32_t proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
+        [[nodiscard]] b2AABB GetAABB(int32_t proxyId) { return b2DynamicTree_GetAABB(&value, proxyId); }
 
         /// Build an optimal tree. Very expensive. For testing.
         void RebuildBottomUp() { return b2DynamicTree_RebuildBottomUp(&value); }
@@ -993,28 +1796,28 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void ShapeCast(const b2ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn& callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, &callback, context); }
+        void ShapeCast(const b2ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
 
         /// Get the number of proxies created
         [[nodiscard]] int32_t GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
 
         /// Create a proxy. Provide a tight fitting AABB and a userData value.
-        [[nodiscard]] int32_t CreateProxy(b2AABB aabb, uint32_t categoryBits, int32_t userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
+        [[nodiscard]] int32_t CreateProxy(AABB aabb, uint32_t categoryBits, int32_t userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
 
         /// Get proxy user data
         /// @return the proxy user data or 0 if the id is invalid
-        [[nodiscard]] int32_t GetUserData(int32_t proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
+        [[nodiscard]] int32_t GetUserData(int32_t proxyId) { return b2DynamicTree_GetUserData(&value, proxyId); }
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void QueryFiltered(b2AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn& callback, void* context) const { return b2DynamicTree_QueryFiltered(&value, aabb, maskBits, &callback, context); }
+        void QueryFiltered(AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) { return b2DynamicTree_QueryFiltered(&value, aabb, maskBits, callback, context); }
 
         /// Get the maximum balance of the tree. The balance is the difference in height of the two children of a node.
         [[nodiscard]] int32_t GetMaxBalance() const { return b2DynamicTree_GetMaxBalance(&value); }
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void Query(b2AABB aabb, b2TreeQueryCallbackFcn& callback, void* context) const { return b2DynamicTree_Query(&value, aabb, &callback, context); }
+        void Query(AABB aabb, b2TreeQueryCallbackFcn* callback, void* context) { return b2DynamicTree_Query(&value, aabb, callback, context); }
 
         /// Destroy a proxy. This asserts if the id is invalid.
         void DestroyProxy(int32_t proxyId) { return b2DynamicTree_DestroyProxy(&value, proxyId); }
@@ -1023,7 +1826,7 @@ namespace b2
         [[nodiscard]] int32_t Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
 
         /// Enlarge a proxy and enlarge ancestors as necessary.
-        void EnlargeProxy(int32_t proxyId, b2AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
+        void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     };
 
     class Rot : public b2Rot
@@ -1043,27 +1846,5 @@ namespace b2
 
         /// Get the angle in radians
         [[nodiscard]] float GetAngle() const { return b2Rot_GetAngle(*this); }
-    };
-
-    class AABB : public b2AABB
-    {
-      public:
-        constexpr AABB() {}
-
-        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}
-
-        /// Get the extents of the AABB (half-widths).
-        [[nodiscard]] b2Vec2 Extents() const { return b2AABB_Extents(*this); }
-
-        /// Does a fully contain b
-        [[nodiscard]] bool Contains(b2AABB b) const { return b2AABB_Contains(*this, b); }
-
-        /// Union of two AABBs
-        [[nodiscard]] b2AABB Union(b2AABB b) const { return b2AABB_Union(*this, b); }
-
-        /// Get the center of the AABB.
-        [[nodiscard]] b2Vec2 Center() const { return b2AABB_Center(*this); }
-
-        [[nodiscard]] bool IsValid() const { return b2AABB_IsValid(*this); }
     };
 } // namespace box2d

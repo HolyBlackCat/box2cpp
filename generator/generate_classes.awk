@@ -2,8 +2,11 @@ BEGIN {
     print "#pragma once"
     print ""
     print "#include <box2d/box2d.h>"
-    print "#include <box2d/dynamic_tree.h>" # Because we also generate a wrapper for it. Should we move it to a separate file?
-    print "#include <box2d/math.h>" # Because we generate wrappers for simple math types: `Rot` and `AABB`.
+    print "#include <box2d/color.h>" # We include a bunch of semi-internal headers, because we wrap all of them, for better or worse.
+    print "#include <box2d/distance.h>"
+    print "#include <box2d/dynamic_tree.h>"
+    print "#include <box2d/math.h>"
+    print "#include <box2d/timer.h>"
     print ""
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
@@ -12,9 +15,74 @@ BEGIN {
     print ""
     print "namespace b2"
     print "{"
+
+    cur_enum_name = ""
+
+    # For those types, we don't generate a class even if we otherwise would.
+    forced_non_classes["Vec2"] = 1 # Yeah no, adding one more vector type just for a single member function `b2Vec2_IsValid` is dumb.
 }
 
-# Detect function declarations.
+# Collect enums.
+
+cur_enum_name && /\}/ {
+    # Finish the enum.
+    cur_enum_name = ""
+    next
+}
+
+cur_enum_name && /\{/ {next}
+
+cur_enum_name {
+    # Extract name and value.
+    match($0, /^\s*b2_(\w+)(\s*=\s*(\w+))?,?$/, elems)
+    if (RLENGTH == -1)
+    {
+        print "Unable to parse enum element `" $0 "` in `" cur_enum_name "`." >"/dev/stderr"
+        exit 1
+    }
+
+    enums[cur_enum_name]["elems"][length(enums[cur_enum_name]["elems"])+1] = elems[1]
+    next
+}
+
+/^\s*typedef enum / {
+    # Begin the enum.
+
+    match($0, /^\s*typedef enum b2(\w+)$/, elems)
+    if (RLENGTH == -1)
+    {
+        print "Unable to parse the enum header `" $0 "`." >"/dev/stderr"
+        exit 1
+    }
+
+    cur_enum_name = elems[1]
+    enums[cur_enum_name]["comment"] = gensub(/\n/, "\n    ", "g", doc_comment)
+    next
+}
+
+# Collect struct names.
+
+/^\s*typedef struct / {
+    # Extract the unprefixed name.
+    match($0, /^\s*typedef struct b2(\w*)/, elems)
+    if (RLENGTH == -1)
+    {
+        print "This typedef struct (`" $0 "`) isn't prefixed, why?" >"/dev/stderr"
+        exit 1
+    }
+
+    name = elems[1]
+    if (!(name in typedef_structs_set))
+    {
+        typedef_structs_set[name] = length(typedef_structs_set) + 1
+        typedef_structs[length(typedef_structs_set)]["name"] = name
+        typedef_structs[length(typedef_structs_set)]["comment"] = gensub(/\n/, "\n    ", "g", doc_comment)
+    }
+
+    next
+}
+
+# Collect function declarations.
 
 /^\s*(B2_API|B2_INLINE)/ {
     str = $0
@@ -33,7 +101,7 @@ BEGIN {
     func_name = elems[4]
     func_param_string = elems[5]
 
-    funcs[func_name]["comment"] = func_doc_comment
+    funcs[func_name]["comment"] = gensub(/\n/, "\n        ", "g", doc_comment)
     funcs[func_name]["ret"] = gensub(/\s+$/, "", 1, gensub(/\s*\*\s*/, "* ", "g", elems[1]))
 
     # Extract individual parameters.
@@ -62,45 +130,110 @@ BEGIN {
     {
         if (!(elems[1] in classes_set))
         {
-            classes_set[elems[1]] = 1
+            classes_set[elems[1]] = length(classes_set) + 1
             classes[length(classes_set)] = elems[1]
         }
     }
 }
 
-# Accumulate documentation comments.
+
+# --------
+
+# Collect documentation comments for other entities (must be last!).
 
 {
-    line_is_func_doc_comment = 0
+    line_is_doc_comment = 0
 }
 
-# Checking just two slashes, to catch all comments, not only doc.
 /\s*\/\// {
-    func_doc_comment = func_doc_comment $0 "\n        "
-    line_is_func_doc_comment = 1
+    # Checking just two slashes, to catch all comments, not only doc.
+    doc_comment = doc_comment $0 "\n"
+    line_is_doc_comment = 1
 }
 
 {
-    if (!line_is_func_doc_comment)
-        func_doc_comment = ""
+    if (!line_is_doc_comment)
+        doc_comment = ""
 }
 
 # Codegen.
 
+# We use this order to sort our classes in the correct order. (Since some classes depend on others.)
+function class_order(c)
+{
+    if (c == "AABB")
+        return 10
+    else
+        return 20
+}
+
+function sort_classes_comparator(ai, av, bi, bv)
+{
+    return class_order(av) - class_order(bv)
+}
+
+
 END {
-    # Output classes
-    first = 1
+    # Emit typedef structs.
+
+    for (i in typedef_structs)
+    {
+        type = typedef_structs[i]["name"]
+
+        if (!(type in forced_non_classes))
+        {
+            if (type in classes_set)
+                continue; # This is also a full-blown class, don't emit it.
+
+            if (gensub(/Def$/, "", 1, type) in classes_set)
+                continue; # This is a `...Def` struct, we don't need to emit it outside of the respective class.
+        }
+
+        printf "    %s", typedef_structs[i]["comment"]
+        print "using " type " = b2" type ";"
+    }
+
+    # Emit enums.
+
+    for (enum_name in enums)
+    {
+        print ""
+        printf "    %s", enums[enum_name]["comment"]
+        print "enum class " enum_name
+        print "    { "
+        for (i in enums[enum_name]["elems"])
+        {
+            elem_name = enums[enum_name]["elems"][i]
+
+            if (elem_name ~ /^[a-z]+TypeCount$/)
+                elem_name_fixed = "_count"
+            else if (enum_name == "HexColor")
+                elem_name_fixed = gensub(/^color/, "", 1, elem_name)
+            else if (enum_name == "ShapeType")
+                elem_name_fixed = gensub(/Shape$/, "", 1, elem_name)
+            else if (enum_name == "TOIState")
+                elem_name_fixed = gensub(/^toiState/, "", 1, elem_name)
+            else
+                elem_name_fixed = elem_name
+
+            # Convert first symbol to uppercase.
+            elem_name_fixed = toupper(substr(elem_name_fixed, 1, 1)) substr(elem_name_fixed, 2)
+
+            print "        " elem_name_fixed " = b2_" elem_name ", "
+        }
+        print "    };"
+    }
+
+    # Emit classes.
+    asort(classes, classes, "sort_classes_comparator")
     for (i in classes)
     {
         type = classes[i]
 
-        if (type == "Vec2")
-            continue # Yeah no, adding one more vector type just for a single member function `b2Vec2_IsValid` is dumb.
+        if (type in forced_non_classes)
+            continue
 
-        if (first)
-            first = false
-        else
-            print ""
+        print ""
 
         # Is a class derived from `Joint`?
         is_joint_kind = type ~ /.+Joint/
@@ -124,8 +257,11 @@ END {
         # Has a struct with parameters?
         has_params_struct = ("b2Default" type "Def") in funcs;
 
+        # Primary class comment. Snatch it from the `...Def` struct because those have the best comments.
+        printf "    %s", typedef_structs[typedef_structs_set[type "Def"]]["comment"]
+
         # Class head.
-        printf "    class " type
+        printf "class " type
         # Base classes.
         if (is_joint_kind)
             printf " : public Joint"
@@ -392,24 +528,45 @@ END {
 
                 param_type_fixed = param_type
 
-                # Adjust pointer parameters to references.
-                if (param_type_fixed ~ /\*$/ && param_type_fixed != "void*")
+                param_is_func = param_type ~ /Fcn\*$/
+
+                # Adjust pointer parameters to references (except for `void *`).
+                if (!param_is_func && param_type_fixed != "void*" && param_type_fixed ~ /\*$/)
                 {
                     param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
                     funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
                 }
+                # Adjust box2d types to our typedefs.
+                if (!param_is_func)
+                    param_type_fixed = gensub(/^b2/, "", 1, param_type_fixed)
 
                 printf param_type_fixed " " funcs[func_name]["params"][i]["name"]
             }
             printf ")"
 
-            if (clean_func_name ~ /^(Get|Overlap|Is|Compute|Are|Test|Clone|Validate|Query|Extents|Contains|Union|Center)($|[A-Z])/ || clean_func_name ~ /Cast(Closest)?$/ || clean_func_name == "Draw")
-                is_const = 1
-            else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Move|Shift|Rebuild|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
-                is_const = 0
+            is_const = 0
+            if (is_id_based || is_dumb_wrapper)
+            {
+                if (clean_func_name ~ /^(Get|Overlap|Is|Compute|Are|Test|Extents|Contains|Union|Center)($|[A-Z])/ || clean_func_name ~ /Cast(Closest)?$/ || clean_func_name == "Draw")
+                    is_const = 1
+                else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
+                    is_const = 0
+                else
+                {
+                    print "Can't guess from this function name if it's const or not." >"/dev/stderr"
+                    exit 1
+                }
+            }
+            else if (is_by_value_raii_wrapper && first_param_is_self)
+            {
+                if (funcs[func_name]["params"][i]["type"] ~ /^const /)
+                    is_const = 1
+                else
+                    is_const = 0
+            }
             else
             {
-                print "Can't guess from this function name if it's const or not." >"/dev/stderr"
+                print "Not sure if this func is const or not." >"/dev/stderr"
                 exit 1
             }
 
@@ -440,8 +597,15 @@ END {
                 else
                     printf ", "
 
+                # Prepend `&` to take address of a reference.
                 if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
                     printf "&"
+
+                param_type = funcs[func_name]["params"][i]["type"]
+
+                # Cast our enums to the original enums.
+                if (param_type in enums)
+                    printf "(b2" param_type ")"
 
                 param_name = funcs[func_name]["params"][i]["name"]
 
@@ -455,8 +619,6 @@ END {
 
         # Close the class.
         print "    };"
-
-
     }
 
     print "} // namespace box2d"
