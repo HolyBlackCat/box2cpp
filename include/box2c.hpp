@@ -10,7 +10,6 @@
 
 #include <cstddef>
 #include <concepts>
-#include <stdexcept>
 #include <utility>
 
 namespace b2
@@ -804,6 +803,8 @@ namespace b2
     /// Used to create a shape
     class Shape
     {
+        friend class Body;
+
         b2ShapeId id = b2_nullShapeId;
         bool is_owner = false;
 
@@ -960,6 +961,8 @@ namespace b2
     /// https://en.wikipedia.org/wiki/Polygonal_chain
     class Chain
     {
+        friend class Body;
+
         b2ChainId id = b2_nullChainId;
         bool is_owner = false;
 
@@ -1016,8 +1019,7 @@ namespace b2
         Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)), is_owner(std::exchange(other.is_owner, false)) {}
         Joint& operator=(Joint other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`.
-        ~Joint() { if (IsOwner() && IsValid()) b2DestroyJoint(id); }
+        ~Joint() { if (IsOwner()) b2DestroyJoint(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2JointId &Handle() const { return id; }
@@ -1063,6 +1065,8 @@ namespace b2
     /// constraint slightly. This helps when saving and loading a game.
     class DistanceJoint : public Joint
     {
+        friend class World;
+
       protected:
         DistanceJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1115,6 +1119,8 @@ namespace b2
     /// of a dynamic body with respect to the ground.
     class MotorJoint : public Joint
     {
+        friend class World;
+
       protected:
         MotorJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1173,6 +1179,8 @@ namespace b2
     /// applying huge forces. This also applies rotation constraint heuristic to improve control.
     class MouseJoint : public Joint
     {
+        friend class World;
+
       protected:
         MouseJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1212,6 +1220,8 @@ namespace b2
     /// when the local anchor points coincide in world space.
     class PrismaticJoint : public Joint
     {
+        friend class World;
+
       protected:
         PrismaticJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1283,6 +1293,8 @@ namespace b2
     ///    the joints will be broken.
     class RevoluteJoint : public Joint
     {
+        friend class World;
+
       protected:
         RevoluteJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1350,6 +1362,8 @@ namespace b2
     /// anchors and a local axis helps when saving and loading a game.
     class WheelJoint : public Joint
     {
+        friend class World;
+
       protected:
         WheelJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1426,6 +1440,8 @@ namespace b2
     /// @warning the approximate solver in Box2D cannot hold many bodies together rigidly
     class WeldJoint : public Joint
     {
+        friend class World;
+
       protected:
         WeldJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
@@ -1471,6 +1487,8 @@ namespace b2
     /// You can safely re-use body definitions. Shapes are added to a body after construction.
     class Body
     {
+        friend class World;
+
         b2BodyId id = b2_nullBodyId;
         bool is_owner = false;
 

@@ -11,7 +11,6 @@ BEGIN {
     print ""
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
-    print "#include <stdexcept>" # For `std::runtime_error`.
     print "#include <utility>" # For `std::exchange`.
     print ""
     print "namespace b2"
@@ -215,7 +214,10 @@ function sort_funcs_comparator(ai, av, bi, bv)
 function emit_func(func_name, type, func_variant_index, indent)
 {
     # If this is a factory function for creating other classes.
-    is_factory_func = func_name ~ /^b2Create/ && length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] == "b2" type "Id"
+    is_factory_func = funcs[func_name]["is_factory"]
+    if (is_factory_func && funcs[func_name]["params"][1]["type"] != "b2" type "Id")
+        return # This factory function is not for our type.
+
     factory_func_owning = is_factory_func && func_variant_index == 0
 
     # Ignore functions not from this class.
@@ -224,17 +226,7 @@ function emit_func(func_name, type, func_variant_index, indent)
 
     # Figure out the return type.
     return_type = funcs[func_name]["ret"]
-
-    return_type_fixed = gensub(/^b2/, "", 1, return_type)
-    if (is_factory_func)
-    {
-        factory_target_class = gensub(/^b2Create/, "", 1, func_name)
-        if (factory_target_class in classes_set)
-            return_type_fixed = factory_target_class
-        else
-            return_type_fixed = gensub(/Id$/, "", 1, return_type_fixed)
-    }
-    funcs[func_name]["ret_fixed"] = return_type_fixed
+    return_type_fixed = funcs[func_name]["ret_fixed"]
 
 
     # The comment of this function.
@@ -443,6 +435,25 @@ END {
         sorted_funcs[length(sorted_funcs)+1] = func_name
     asort(sorted_funcs, sorted_funcs, "sort_funcs_comparator")
 
+    # An extra analysis pass for functions.
+    for (func_name in funcs)
+    {
+        # If this is a factory function for creating other classes.
+        funcs[func_name]["is_factory"] = func_name ~ /^b2Create/ && length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] ~ /^b2.*Id$/
+
+        # Figure out the fixed return type.
+        return_type_fixed = gensub(/^b2/, "", 1, funcs[func_name]["ret"])
+        if (funcs[func_name]["is_factory"])
+        {
+            factory_target_class = gensub(/^b2Create/, "", 1, func_name)
+            if (factory_target_class in classes_set)
+                return_type_fixed = factory_target_class
+            else
+                return_type_fixed = gensub(/Id$/, "", 1, return_type_fixed)
+        }
+        funcs[func_name]["ret_fixed"] = return_type_fixed
+    }
+
     # Emit typedef structs.
 
     for (i in typedef_structs)
@@ -526,7 +537,8 @@ END {
 
         # Whether the destructor should check validity before destruction.
         # Joints need the check because `b2DestroyBodyAndJoints()` can destroy our joints...
-        destructor_needs_validation = base_type_or_self == "Joint"
+        #destructor_needs_validation = base_type_or_self == "Joint"
+        destructor_needs_validation = 0 # Currently always false because IsValid seems to be broken, always returns false.
 
         # Those store a box2d struct by value, and act as a RAII wrapper.
         is_by_value_raii_wrapper = type == "DynamicTree"
@@ -551,6 +563,23 @@ END {
             printf " : public b2" type
         print ""
         print "    {"
+
+        # Emit friends (for `Create...` functions).
+        split("", this_class_friends)
+        for (func_name in funcs)
+        {
+            if (funcs[func_name]["is_factory"] && funcs[func_name]["ret_fixed"] == type)
+            {
+                this_friend = gensub(/^b2(.*)Id$/, "\\1", 1, funcs[func_name]["params"][1]["type"])
+                if (!(this_friend in this_class_friends))
+                {
+                    this_class_friends[this_friend] = 1
+                    print "        friend class " this_friend ";"
+                }
+            }
+        }
+        if (length(this_class_friends) > 0)
+            print ""
 
         # Member variables.
         if (is_id_based)
