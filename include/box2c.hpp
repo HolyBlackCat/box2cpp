@@ -827,7 +827,7 @@ namespace b2
         Shape(Shape&& other) noexcept : id(std::exchange(other.id, b2_nullShapeId)), is_owner(std::exchange(other.is_owner, false)) {}
         Shape& operator=(Shape other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~Shape() { if (IsOwner()) b2DestroyShape(id); }
+        ~Shape() { if (IsOwner()) Destroy(); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2ShapeId &Handle() const { return id; }
@@ -847,13 +847,13 @@ namespace b2
         [[nodiscard]] bool AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(Handle()); }
 
         /// Allows you to change a shape to be a capsule or update the current capsule.
-        void SetCapsule(const Capsule& capsule) { return b2Shape_SetCapsule(Handle(), &capsule); }
+        void SetCapsule(const Capsule& capsule) { b2Shape_SetCapsule(Handle(), &capsule); }
 
         /// @return are sensor events enabled?
         [[nodiscard]] bool AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(Handle()); }
 
         /// Set the current filter. This is almost as expensive as recreating the shape.
-        void SetFilter(Filter filter) { return b2Shape_SetFilter(Handle(), filter); }
+        void SetFilter(Filter filter) { b2Shape_SetFilter(Handle(), filter); }
 
         /// Access the circle geometry of a shape. Asserts the type is correct.
         [[nodiscard]] const b2Circle GetCircle() const { return b2Shape_GetCircle(Handle()); }
@@ -864,7 +864,7 @@ namespace b2
         /// Set the density on a shape. Normally this is specified in b2ShapeDef.
         ///	This will not update the mass properties on the parent body until you
         /// call b2Body_ResetMassData.
-        void SetDensity(float density) { return b2Shape_SetDensity(Handle(), density); }
+        void SetDensity(float density) { b2Shape_SetDensity(Handle(), density); }
 
         /// Access the capsule geometry of a shape. Asserts the type is correct.
         [[nodiscard]] const b2Capsule GetCapsule() const { return b2Shape_GetCapsule(Handle()); }
@@ -879,17 +879,17 @@ namespace b2
         [[nodiscard]] float GetDensity() const { return b2Shape_GetDensity(Handle()); }
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetPolygon(const Polygon& polygon) { return b2Shape_SetPolygon(Handle(), &polygon); }
+        void SetPolygon(const Polygon& polygon) { b2Shape_SetPolygon(Handle(), &polygon); }
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableContactEvents(bool flag) { return b2Shape_EnableContactEvents(Handle(), flag); }
+        void EnableContactEvents(bool flag) { b2Shape_EnableContactEvents(Handle(), flag); }
 
         /// Get the current filter
         [[nodiscard]] Filter GetFilter() const { return b2Shape_GetFilter(Handle()); }
 
         /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
         ///	and must be carefully handled due to multi-threading. Ignored for sensors.
-        void EnablePreSolveEvents(bool flag) { return b2Shape_EnablePreSolveEvents(Handle(), flag); }
+        void EnablePreSolveEvents(bool flag) { b2Shape_EnablePreSolveEvents(Handle(), flag); }
 
         /// Get the restitution on a shape.
         [[nodiscard]] float GetRestitution() const { return b2Shape_GetRestitution(Handle()); }
@@ -914,21 +914,21 @@ namespace b2
         [[nodiscard]] BodyId GetBody() const { return b2Shape_GetBody(Handle()); }
 
         /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
-        void SetFriction(float friction) { return b2Shape_SetFriction(Handle(), friction); }
+        void SetFriction(float friction) { b2Shape_SetFriction(Handle(), friction); }
 
         /// Allows you to change a shape to be a circle or update the current circle.
         /// This does not modify the mass properties.
-        void SetCircle(const Circle& circle) { return b2Shape_SetCircle(Handle(), &circle); }
+        void SetCircle(const Circle& circle) { b2Shape_SetCircle(Handle(), &circle); }
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
         [[nodiscard]] ChainId GetParentChain() const { return b2Shape_GetParentChain(Handle()); }
 
         /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
-        void SetRestitution(float restitution) { return b2Shape_SetRestitution(Handle(), restitution); }
+        void SetRestitution(float restitution) { b2Shape_SetRestitution(Handle(), restitution); }
 
         /// Set the user data for a shape.
-        void SetUserData(void* userData) { return b2Shape_SetUserData(Handle(), userData); }
+        void SetUserData(void* userData) { b2Shape_SetUserData(Handle(), userData); }
 
         /// Get the type of a shape.
         [[nodiscard]] ShapeType GetType() const { return (ShapeType)b2Shape_GetType(Handle()); }
@@ -937,13 +937,16 @@ namespace b2
         [[nodiscard]] float GetFriction() const { return b2Shape_GetFriction(Handle()); }
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetSegment(const Segment& segment) { return b2Shape_SetSegment(Handle(), &segment); }
+        void SetSegment(const Segment& segment) { b2Shape_SetSegment(Handle(), &segment); }
 
         /// Shape identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const { return b2Shape_IsValid(Handle()); }
 
         /// Enable sensor events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableSensorEvents(bool flag) { return b2Shape_EnableSensorEvents(Handle(), flag); }
+        void EnableSensorEvents(bool flag) { b2Shape_EnableSensorEvents(Handle(), flag); }
+
+        /// Destroy any shape type
+        void Destroy() { if (*this) { b2DestroyShape(Handle()); id = b2_nullShapeId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
     };
 
     /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
@@ -985,20 +988,23 @@ namespace b2
         Chain(Chain&& other) noexcept : id(std::exchange(other.id, b2_nullChainId)), is_owner(std::exchange(other.is_owner, false)) {}
         Chain& operator=(Chain other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~Chain() { if (IsOwner()) b2DestroyChain(id); }
+        ~Chain() { if (IsOwner()) Destroy(); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2ChainId &Handle() const { return id; }
         [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
         /// Set the restitution (bounciness) on a chain. Normally this is specified in b2ChainDef.
-        void SetRestitution(float restitution) { return b2Chain_SetRestitution(Handle(), restitution); }
+        void SetRestitution(float restitution) { b2Chain_SetRestitution(Handle(), restitution); }
 
         /// Chain identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const { return b2Chain_IsValid(Handle()); }
 
+        /// Destroy a chain shape
+        void Destroy() { if (*this) { b2DestroyChain(Handle()); id = b2_nullChainId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
+
         /// Set the friction of a chain. Normally this is set in b2ChainDef.
-        void SetFriction(float friction) { return b2Chain_SetFriction(Handle(), friction); }
+        void SetFriction(float friction) { b2Chain_SetFriction(Handle(), friction); }
     };
 
     class Joint
@@ -1019,7 +1025,7 @@ namespace b2
         Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)), is_owner(std::exchange(other.is_owner, false)) {}
         Joint& operator=(Joint other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~Joint() { if (IsOwner()) b2DestroyJoint(id); }
+        ~Joint() { if (IsOwner()) Destroy(); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2JointId &Handle() const { return id; }
@@ -1032,10 +1038,10 @@ namespace b2
         [[nodiscard]] Vec2 GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(Handle()); }
 
         /// Wake the bodies connect to this joint
-        void WakeBodies() { return b2Joint_WakeBodies(Handle()); }
+        void WakeBodies() { b2Joint_WakeBodies(Handle()); }
 
         /// Set the user data on a joint
-        void SetUserData(void* userData) { return b2Joint_SetUserData(Handle(), userData); }
+        void SetUserData(void* userData) { b2Joint_SetUserData(Handle(), userData); }
 
         /// Get the user data on a joint
         [[nodiscard]] void* GetUserData() const { return b2Joint_GetUserData(Handle()); }
@@ -1047,7 +1053,10 @@ namespace b2
         [[nodiscard]] BodyId GetBodyB() const { return b2Joint_GetBodyB(Handle()); }
 
         /// Toggle collision between connected bodies
-        void SetCollideConnected(bool shouldCollide) { return b2Joint_SetCollideConnected(Handle(), shouldCollide); }
+        void SetCollideConnected(bool shouldCollide) { b2Joint_SetCollideConnected(Handle(), shouldCollide); }
+
+        /// Destroy any joint type
+        void Destroy() { if (*this) { b2DestroyJoint(Handle()); id = b2_nullJointId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
 
         /// Is collision allowed between connected bodies?
         [[nodiscard]] bool GetCollideConnected() const { return b2Joint_GetCollideConnected(Handle()); }
@@ -1084,7 +1093,7 @@ namespace b2
         DistanceJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Adjust the softness parameters of a distance joint
-        void SetTuning(float hertz, float dampingRatio) { return b2DistanceJoint_SetTuning(Handle(), hertz, dampingRatio); }
+        void SetTuning(float hertz, float dampingRatio) { b2DistanceJoint_SetTuning(Handle(), hertz, dampingRatio); }
 
         /// Get the current length of a distance joint
         [[nodiscard]] float GetCurrentLength() const { return b2DistanceJoint_GetCurrentLength(Handle()); }
@@ -1096,10 +1105,10 @@ namespace b2
         [[nodiscard]] float GetConstraintForce(float timeStep) const { return b2DistanceJoint_GetConstraintForce(Handle(), timeStep); }
 
         /// Set the minimum and maximum length parameters of a distance joint
-        void SetLengthRange(float minLength, float maxLength) { return b2DistanceJoint_SetLengthRange(Handle(), minLength, maxLength); }
+        void SetLengthRange(float minLength, float maxLength) { b2DistanceJoint_SetLengthRange(Handle(), minLength, maxLength); }
 
         /// Set the rest length of a distance joint
-        void SetLength(float length) { return b2DistanceJoint_SetLength(Handle(), length); }
+        void SetLength(float length) { b2DistanceJoint_SetLength(Handle(), length); }
 
         /// Get the Hertz of a distance joint
         [[nodiscard]] float GetHertz() const { return b2DistanceJoint_GetHertz(Handle()); }
@@ -1147,28 +1156,28 @@ namespace b2
         [[nodiscard]] float GetAngularOffset() const { return b2MotorJoint_GetAngularOffset(Handle()); }
 
         /// Set the maximum force for a motor joint
-        void SetMaxForce(float maxForce) { return b2MotorJoint_SetMaxForce(Handle(), maxForce); }
+        void SetMaxForce(float maxForce) { b2MotorJoint_SetMaxForce(Handle(), maxForce); }
 
         /// @return the maximum force for a motor joint
         [[nodiscard]] float GetMaxForce() const { return b2MotorJoint_GetMaxForce(Handle()); }
 
         /// Set/Get the linear offset target for a motor joint
-        void SetLinearOffset(Vec2 linearOffset) { return b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
+        void SetLinearOffset(Vec2 linearOffset) { b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
 
         /// Set the correction factor for a motor joint
-        void SetCorrectionFactor(float correctionFactor) { return b2MotorJoint_SetCorrectionFactor(Handle(), correctionFactor); }
+        void SetCorrectionFactor(float correctionFactor) { b2MotorJoint_SetCorrectionFactor(Handle(), correctionFactor); }
 
         /// @return the correction factor for a motor joint
         [[nodiscard]] float GetCorrectionFactor() const { return b2MotorJoint_GetCorrectionFactor(Handle()); }
 
         /// Set the maximum torque for a motor joint
-        void SetMaxTorque(float maxTorque) { return b2MotorJoint_SetMaxTorque(Handle(), maxTorque); }
+        void SetMaxTorque(float maxTorque) { b2MotorJoint_SetMaxTorque(Handle(), maxTorque); }
 
         /// @return the linear offset target for a motor joint
         [[nodiscard]] Vec2 GetLinearOffset() const { return b2MotorJoint_GetLinearOffset(Handle()); }
 
         /// Set the angular offset target for a motor joint in radians
-        void SetAngularOffset(float angularOffset) { return b2MotorJoint_SetAngularOffset(Handle(), angularOffset); }
+        void SetAngularOffset(float angularOffset) { b2MotorJoint_SetAngularOffset(Handle(), angularOffset); }
 
         /// @return the maximum torque for a motor joint
         [[nodiscard]] float GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(Handle()); }
@@ -1207,10 +1216,10 @@ namespace b2
         [[nodiscard]] float GetDampingRatio() const { return b2MouseJoint_GetDampingRatio(Handle()); }
 
         /// Set the target for a mouse joint
-        void SetTarget(Vec2 target) { return b2MouseJoint_SetTarget(Handle(), target); }
+        void SetTarget(Vec2 target) { b2MouseJoint_SetTarget(Handle(), target); }
 
         /// Adjust the softness parameters of a mouse joint
-        void SetTuning(float hertz, float dampingRatio) { return b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
+        void SetTuning(float hertz, float dampingRatio) { b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
     };
 
     /// Prismatic joint definition. This requires defining a line of
@@ -1245,10 +1254,10 @@ namespace b2
         [[nodiscard]] bool IsLimitEnabled() const { return b2PrismaticJoint_IsLimitEnabled(Handle()); }
 
         /// Enable/disable a prismatic joint motor
-        void EnableMotor(bool enableMotor) { return b2PrismaticJoint_EnableMotor(Handle(), enableMotor); }
+        void EnableMotor(bool enableMotor) { b2PrismaticJoint_EnableMotor(Handle(), enableMotor); }
 
         /// Enable/disable a prismatic joint limit
-        void EnableLimit(bool enableLimit) { return b2PrismaticJoint_EnableLimit(Handle(), enableLimit); }
+        void EnableLimit(bool enableLimit) { b2PrismaticJoint_EnableLimit(Handle(), enableLimit); }
 
         /// @return the maximum force for a prismatic joint motor
         [[nodiscard]] float GetMaxMotorForce() const { return b2PrismaticJoint_GetMaxMotorForce(Handle()); }
@@ -1257,10 +1266,10 @@ namespace b2
         [[nodiscard]] float GetUpperLimit() const { return b2PrismaticJoint_GetUpperLimit(Handle()); }
 
         /// Set the motor speed for a prismatic joint
-        void SetMotorSpeed(float motorSpeed) { return b2PrismaticJoint_SetMotorSpeed(Handle(), motorSpeed); }
+        void SetMotorSpeed(float motorSpeed) { b2PrismaticJoint_SetMotorSpeed(Handle(), motorSpeed); }
 
         /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) { return b2PrismaticJoint_SetLimits(Handle(), lower, upper); }
+        void SetLimits(float lower, float upper) { b2PrismaticJoint_SetLimits(Handle(), lower, upper); }
 
         /// @return the motor speed for a prismatic joint
         [[nodiscard]] float GetMotorSpeed() const { return b2PrismaticJoint_GetMotorSpeed(Handle()); }
@@ -1278,7 +1287,7 @@ namespace b2
         [[nodiscard]] float GetMotorForce() const { return b2PrismaticJoint_GetMotorForce(Handle()); }
 
         /// Set the maximum force for a prismatic joint motor
-        void SetMaxMotorForce(float force) { return b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
+        void SetMaxMotorForce(float force) { b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
     };
 
     /// Revolute joint definition. This requires defining an anchor point where the
@@ -1312,7 +1321,7 @@ namespace b2
         RevoluteJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set the maximum torque for a revolute joint motor
-        void SetMaxMotorTorque(float torque) { return b2RevoluteJoint_SetMaxMotorTorque(Handle(), torque); }
+        void SetMaxMotorTorque(float torque) { b2RevoluteJoint_SetMaxMotorTorque(Handle(), torque); }
 
         /// Get the upper joint limit in radians.
         [[nodiscard]] float GetUpperLimit() const { return b2RevoluteJoint_GetUpperLimit(Handle()); }
@@ -1321,13 +1330,13 @@ namespace b2
         [[nodiscard]] float GetMotorSpeed() const { return b2RevoluteJoint_GetMotorSpeed(Handle()); }
 
         /// Set the motor speed for a revolute joint in radians per second
-        void SetMotorSpeed(float motorSpeed) { return b2RevoluteJoint_SetMotorSpeed(Handle(), motorSpeed); }
+        void SetMotorSpeed(float motorSpeed) { b2RevoluteJoint_SetMotorSpeed(Handle(), motorSpeed); }
 
         /// Get the lower joint limit in radians.
         [[nodiscard]] float GetLowerLimit() const { return b2RevoluteJoint_GetLowerLimit(Handle()); }
 
         /// Set the joint limits in radians.
-        void SetLimits(float lower, float upper) { return b2RevoluteJoint_SetLimits(Handle(), lower, upper); }
+        void SetLimits(float lower, float upper) { b2RevoluteJoint_SetLimits(Handle(), lower, upper); }
 
         /// Get the current motor torque for a revolute joint
         [[nodiscard]] float GetMotorTorque() const { return b2RevoluteJoint_GetMotorTorque(Handle()); }
@@ -1345,10 +1354,10 @@ namespace b2
         [[nodiscard]] bool IsLimitEnabled() const { return b2RevoluteJoint_IsLimitEnabled(Handle()); }
 
         /// Enable/disable a revolute joint motor.
-        void EnableMotor(bool enableMotor) { return b2RevoluteJoint_EnableMotor(Handle(), enableMotor); }
+        void EnableMotor(bool enableMotor) { b2RevoluteJoint_EnableMotor(Handle(), enableMotor); }
 
         /// Enable/disable a revolute joint limit.
-        void EnableLimit(bool enableLimit) { return b2RevoluteJoint_EnableLimit(Handle(), enableLimit); }
+        void EnableLimit(bool enableLimit) { b2RevoluteJoint_EnableLimit(Handle(), enableLimit); }
 
         /// @return the maximum torque for a revolute joint motor
         [[nodiscard]] float GetMaxMotorTorque() const { return b2RevoluteJoint_GetMaxMotorTorque(Handle()); }
@@ -1381,7 +1390,7 @@ namespace b2
         WheelJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set the wheel joint damping ratio (non-dimensional)
-        void SetSpringDampingRatio(float dampingRatio) { return b2WheelJoint_SetSpringDampingRatio(Handle(), dampingRatio); }
+        void SetSpringDampingRatio(float dampingRatio) { b2WheelJoint_SetSpringDampingRatio(Handle(), dampingRatio); }
 
         /// Get the upper joint limit in length units (meters).
         [[nodiscard]] float GetUpperLimit() const { return b2WheelJoint_GetUpperLimit(Handle()); }
@@ -1390,7 +1399,7 @@ namespace b2
         [[nodiscard]] float GetConstraintTorque() const { return b2WheelJoint_GetConstraintTorque(Handle()); }
 
         /// Set the wheel joint stiffness in Hertz
-        void SetSpringHertz(float hertz) { return b2WheelJoint_SetSpringHertz(Handle(), hertz); }
+        void SetSpringHertz(float hertz) { b2WheelJoint_SetSpringHertz(Handle(), hertz); }
 
         /// @return the wheel joint motor speed in radians per second
         [[nodiscard]] float GetMotorSpeed() const { return b2WheelJoint_GetMotorSpeed(Handle()); }
@@ -1399,13 +1408,13 @@ namespace b2
         [[nodiscard]] float GetMotorTorque() const { return b2WheelJoint_GetMotorTorque(Handle()); }
 
         /// Set the wheel joint motor speed in radians per second
-        void SetMotorSpeed(float motorSpeed) { return b2WheelJoint_SetMotorSpeed(Handle(), motorSpeed); }
+        void SetMotorSpeed(float motorSpeed) { b2WheelJoint_SetMotorSpeed(Handle(), motorSpeed); }
 
         /// Get the lower joint limit in length units (meters).
         [[nodiscard]] float GetLowerLimit() const { return b2WheelJoint_GetLowerLimit(Handle()); }
 
         /// Set the wheel joint maximum motor torque
-        void SetMaxMotorTorque(float torque) { return b2WheelJoint_SetMaxMotorTorque(Handle(), torque); }
+        void SetMaxMotorTorque(float torque) { b2WheelJoint_SetMaxMotorTorque(Handle(), torque); }
 
         /// @return is the wheel joint motor enabled
         [[nodiscard]] bool IsMotorEnabled() const { return b2WheelJoint_IsMotorEnabled(Handle()); }
@@ -1417,16 +1426,16 @@ namespace b2
         [[nodiscard]] float GetSpringDampingRatio() const { return b2WheelJoint_GetSpringDampingRatio(Handle()); }
 
         /// Enable/disable the wheel joint limit.
-        void EnableLimit(bool enableLimit) { return b2WheelJoint_EnableLimit(Handle(), enableLimit); }
+        void EnableLimit(bool enableLimit) { b2WheelJoint_EnableLimit(Handle(), enableLimit); }
 
         /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) { return b2WheelJoint_SetLimits(Handle(), lower, upper); }
+        void SetLimits(float lower, float upper) { b2WheelJoint_SetLimits(Handle(), lower, upper); }
 
         /// Get the current wheel joint constraint force
         [[nodiscard]] Vec2 GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(Handle()); }
 
         /// Enable/disable the wheel joint motor
-        void EnableMotor(bool enableMotor) { return b2WheelJoint_EnableMotor(Handle(), enableMotor); }
+        void EnableMotor(bool enableMotor) { b2WheelJoint_EnableMotor(Handle(), enableMotor); }
 
         /// @return the wheel joint stiffness in Hertz
         [[nodiscard]] float GetSpringHertz() const { return b2WheelJoint_GetSpringHertz(Handle()); }
@@ -1459,10 +1468,10 @@ namespace b2
         WeldJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set weld joint angular stiffness in Hertz. 0 is rigid.
-        void SetAngularHertz(float hertz) { return b2WeldJoint_SetAngularHertz(Handle(), hertz); }
+        void SetAngularHertz(float hertz) { b2WeldJoint_SetAngularHertz(Handle(), hertz); }
 
         /// Set weld joint angular damping ratio (non-dimensional)
-        void SetAngularDampingRatio(float dampingRatio) { return b2WeldJoint_SetAngularDampingRatio(Handle(), dampingRatio); }
+        void SetAngularDampingRatio(float dampingRatio) { b2WeldJoint_SetAngularDampingRatio(Handle(), dampingRatio); }
 
         /// @return the weld joint angular stiffness in Hertz.
         [[nodiscard]] float GetAngularHertz() const { return b2WeldJoint_GetAngularHertz(Handle()); }
@@ -1477,10 +1486,10 @@ namespace b2
         [[nodiscard]] float GetLinearDampingRatio() const { return b2WeldJoint_GetLinearDampingRatio(Handle()); }
 
         /// Set weld joint linear stiffness in Hertz. 0 is rigid.
-        void SetLinearHertz(float hertz) { return b2WeldJoint_SetLinearHertz(Handle(), hertz); }
+        void SetLinearHertz(float hertz) { b2WeldJoint_SetLinearHertz(Handle(), hertz); }
 
         /// Set weld joint linear damping ratio (non-dimensional)
-        void SetLinearDampingRatio(float dampingRatio) { return b2WeldJoint_SetLinearDampingRatio(Handle(), dampingRatio); }
+        void SetLinearDampingRatio(float dampingRatio) { b2WeldJoint_SetLinearDampingRatio(Handle(), dampingRatio); }
     };
 
     /// A body definition holds all the data needed to construct a rigid body.
@@ -1511,7 +1520,7 @@ namespace b2
         Body(Body&& other) noexcept : id(std::exchange(other.id, b2_nullBodyId)), is_owner(std::exchange(other.is_owner, false)) {}
         Body& operator=(Body other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~Body() { if (IsOwner()) b2DestroyBody(id); }
+        ~Body() { if (IsOwner()) Destroy(); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2BodyId &Handle() const { return id; }
@@ -1557,7 +1566,7 @@ namespace b2
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyLinearImpulse(Vec2 impulse, Vec2 point, bool wake) { return b2Body_ApplyLinearImpulse(Handle(), impulse, point, wake); }
+        void ApplyLinearImpulse(Vec2 impulse, Vec2 point, bool wake) { b2Body_ApplyLinearImpulse(Handle(), impulse, point, wake); }
 
         /// Get a world point on a body given a local point
         [[nodiscard]] Vec2 GetWorldPoint(Vec2 localPoint) const { return b2Body_GetWorldPoint(Handle(), localPoint); }
@@ -1565,11 +1574,16 @@ namespace b2
         /// Is this body a bullet?
         [[nodiscard]] bool IsBullet() const { return b2Body_IsBullet(Handle()); }
 
+        /// Destroy a rigid body given an id. Destroys all joints attached to the body. Be careful
+        ///	because this may invalidate some b2JointId that you have stored.
+        /// @warning This function is locked during callbacks.
+        void DestroyWithJoints() { if (*this) { b2DestroyBodyAndJoints(Handle()); id = b2_nullBodyId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
+
         /// Adjust the gravity scale. Normally this is set in b2BodyDef before creation.
-        void SetGravityScale(float gravityScale) { return b2Body_SetGravityScale(Handle(), gravityScale); }
+        void SetGravityScale(float gravityScale) { b2Body_SetGravityScale(Handle(), gravityScale); }
 
         /// Set the type of a body. This has a similar cost to re-creating the body.
-        void SetType(BodyType type) { return b2Body_SetType(Handle(), (b2BodyType)type); }
+        void SetType(BodyType type) { b2Body_SetType(Handle(), (b2BodyType)type); }
 
         /// Get the maximum capacity required for retrieving all the touching contacts on a body
         [[nodiscard]] int32_t GetContactCapacity() const { return b2Body_GetContactCapacity(Handle()); }
@@ -1584,10 +1598,10 @@ namespace b2
         [[nodiscard]] Vec2 GetWorldCenterOfMass() const { return b2Body_GetWorldCenterOfMass(Handle()); }
 
         /// Set this body to have fixed rotation. This causes the mass to be reset.
-        void SetFixedRotation(bool flag) { return b2Body_SetFixedRotation(Handle(), flag); }
+        void SetFixedRotation(bool flag) { b2Body_SetFixedRotation(Handle(), flag); }
 
         /// Adjust the angular damping. Normally this is set in b2BodyDef before creation.
-        void SetAngularDamping(float angularDamping) { return b2Body_SetAngularDamping(Handle(), angularDamping); }
+        void SetAngularDamping(float angularDamping) { b2Body_SetAngularDamping(Handle(), angularDamping); }
 
         /// Apply an angular impulse.
         /// This should be used for one-shot impulses. If you need a steady force,
@@ -1595,7 +1609,7 @@ namespace b2
         /// @param impulse the angular impulse in units of
         /// kg*m*m/s
         /// @param wake also wake up the body
-        void ApplyAngularImpulse(float impulse, bool wake) { return b2Body_ApplyAngularImpulse(Handle(), impulse, wake); }
+        void ApplyAngularImpulse(float impulse, bool wake) { b2Body_ApplyAngularImpulse(Handle(), impulse, wake); }
 
         /// Get a local vector on a body given a world vector
         [[nodiscard]] Vec2 GetLocalVector(Vec2 worldVector) const { return b2Body_GetLocalVector(Handle(), worldVector); }
@@ -1603,19 +1617,19 @@ namespace b2
         /// Override the body's mass properties. Normally this is computed automatically using the
         ///	shape geometry and density. This information is lost if a shape is added or removed or if the
         ///	body type changes.
-        void SetMassData(MassData massData) { return b2Body_SetMassData(Handle(), massData); }
+        void SetMassData(MassData massData) { b2Body_SetMassData(Handle(), massData); }
 
         /// Wake a body from sleep. This wakes the entire island the body is touching.
-        void Wake() { return b2Body_Wake(Handle()); }
+        void Wake() { b2Body_Wake(Handle()); }
 
         /// Adjust the linear damping. Normally this is set in b2BodyDef before creation.
-        void SetLinearDamping(float linearDamping) { return b2Body_SetLinearDamping(Handle(), linearDamping); }
+        void SetLinearDamping(float linearDamping) { b2Body_SetLinearDamping(Handle(), linearDamping); }
 
         /// Disable a body by removing it completely from the simulation
-        void Disable() { return b2Body_Disable(Handle()); }
+        void Disable() { b2Body_Disable(Handle()); }
 
         /// Set the linear velocity of a body
-        void SetLinearVelocity(Vec2 linearVelocity) { return b2Body_SetLinearVelocity(Handle(), linearVelocity); }
+        void SetLinearVelocity(Vec2 linearVelocity) { b2Body_SetLinearVelocity(Handle(), linearVelocity); }
 
         /// Get a local point on a body given a world point
         [[nodiscard]] Vec2 GetLocalPoint(Vec2 worldPoint) const { return b2Body_GetLocalPoint(Handle(), worldPoint); }
@@ -1624,16 +1638,16 @@ namespace b2
         [[nodiscard]] MassData GetMassData() const { return b2Body_GetMassData(Handle()); }
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
-        void SetTransform(Vec2 position, float angle) { return b2Body_SetTransform(Handle(), position, angle); }
+        void SetTransform(Vec2 position, float angle) { b2Body_SetTransform(Handle(), position, angle); }
 
         /// Get the world angle of a body in radians.
         [[nodiscard]] float GetAngle() const { return b2Body_GetAngle(Handle()); }
 
         /// Set the angular velocity of a body in radians per second
-        void SetAngularVelocity(float angularVelocity) { return b2Body_SetAngularVelocity(Handle(), angularVelocity); }
+        void SetAngularVelocity(float angularVelocity) { b2Body_SetAngularVelocity(Handle(), angularVelocity); }
 
         /// Enable or disable sleeping this body. If sleeping is disabled the body will wake.
-        void EnableSleep(bool enableSleep) { return b2Body_EnableSleep(Handle(), enableSleep); }
+        void EnableSleep(bool enableSleep) { b2Body_EnableSleep(Handle(), enableSleep); }
 
         /// Apply a force at a world point. If the force is not
         /// applied at the center of mass, it will generate a torque and
@@ -1641,7 +1655,12 @@ namespace b2
         /// @param force the world force vector, usually in Newtons (N).
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyForce(Vec2 force, Vec2 point, bool wake) { return b2Body_ApplyForce(Handle(), force, point, wake); }
+        void ApplyForce(Vec2 force, Vec2 point, bool wake) { b2Body_ApplyForce(Handle(), force, point, wake); }
+
+        /// Destroy a rigid body given an id. This destroys all shapes attached to the body
+        /// but does not destroy the joints.
+        /// @warning This function is locked during callbacks.
+        void Destroy() { if (*this) { b2DestroyBody(Handle()); id = b2_nullBodyId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
 
         /// Get the current angular damping.
         [[nodiscard]] float GetAngularDamping() const { return b2Body_GetAngularDamping(Handle()); }
@@ -1652,10 +1671,10 @@ namespace b2
         /// This resets the mass properties to the sum of the mass properties of the fixtures.
         /// This normally does not need to be called unless you called SetMassData to override
         /// the mass and you later want to reset the mass.
-        void ResetMassData() { return b2Body_ResetMassData(Handle()); }
+        void ResetMassData() { b2Body_ResetMassData(Handle()); }
 
         /// Set the user data for a body
-        void SetUserData(void* userData) { return b2Body_SetUserData(Handle(), userData); }
+        void SetUserData(void* userData) { b2Body_SetUserData(Handle(), userData); }
 
         /// Get the type of a body
         [[nodiscard]] BodyType GetType() const { return (BodyType)b2Body_GetType(Handle()); }
@@ -1670,14 +1689,14 @@ namespace b2
         [[nodiscard]] bool IsValid() const { return b2Body_IsValid(Handle()); }
 
         /// Enable a body by adding it to the simulation
-        void Enable() { return b2Body_Enable(Handle()); }
+        void Enable() { b2Body_Enable(Handle()); }
 
         /// Apply an impulse to the center of mass. This immediately modifies the velocity.
         /// This should be used for one-shot impulses. If you need a steady force,
         /// use a force instead, which will work better with the sub-stepping solver.
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param wake also wake up the body
-        void ApplyLinearImpulseToCenter(Vec2 impulse, bool wake) { return b2Body_ApplyLinearImpulseToCenter(Handle(), impulse, wake); }
+        void ApplyLinearImpulseToCenter(Vec2 impulse, bool wake) { b2Body_ApplyLinearImpulseToCenter(Handle(), impulse, wake); }
 
         /// Get the user data stored in a body
         [[nodiscard]] void* GetUserData() const { return b2Body_GetUserData(Handle()); }
@@ -1686,7 +1705,7 @@ namespace b2
         /// without affecting the linear velocity of the center of mass.
         /// @param torque about the z-axis (out of the screen), usually in N-m.
         /// @param wake also wake up the body
-        void ApplyTorque(float torque, bool wake) { return b2Body_ApplyTorque(Handle(), torque, wake); }
+        void ApplyTorque(float torque, bool wake) { b2Body_ApplyTorque(Handle(), torque, wake); }
 
         /// Get the world rotation of a body as a sine/cosine pair.
         [[nodiscard]] Rot GetRotation() const { return b2Body_GetRotation(Handle()); }
@@ -1707,7 +1726,7 @@ namespace b2
         /// Apply a force to the center of mass. This wakes up the body.
         /// @param force the world force vector, usually in Newtons (N).
         /// @param wake also wake up the body
-        void ApplyForceToCenter(Vec2 force, bool wake) { return b2Body_ApplyForceToCenter(Handle(), force, wake); }
+        void ApplyForceToCenter(Vec2 force, bool wake) { b2Body_ApplyForceToCenter(Handle(), force, wake); }
 
         [[nodiscard]] ShapeId GetNextShape(Shape& shapeId) const { return b2Body_GetNextShape(shapeId.Handle()); }
 
@@ -1725,7 +1744,7 @@ namespace b2
 
         /// Set this body to be a bullet. A bullet does continuous collision detection
         /// against dynamic bodies (but not other bullets).
-        void SetBullet(bool flag) { return b2Body_SetBullet(Handle(), flag); }
+        void SetBullet(bool flag) { b2Body_SetBullet(Handle(), flag); }
 
         /// Get the world position of a body. This is the location of the body origin.
         [[nodiscard]] Vec2 GetPosition() const { return b2Body_GetPosition(Handle()); }
@@ -1765,7 +1784,7 @@ namespace b2
         World(World&& other) noexcept : id(std::exchange(other.id, b2_nullWorldId)), is_owner(std::exchange(other.is_owner, false)) {}
         World& operator=(World other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~World() { if (IsOwner()) b2DestroyWorld(id); }
+        ~World() { if (IsOwner()) Destroy(); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2WorldId &Handle() const { return id; }
@@ -1812,7 +1831,7 @@ namespace b2
         PrismaticJoint CreatePrismaticJoint(TagRef, const std::derived_from<b2PrismaticJointDef> auto& def) { return {Ref, b2CreatePrismaticJoint(Handle(), &def)}; }
 
         /// Overlap test for all shapes that overlap the provided capsule.
-        void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
+        void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
 
         /// Get counters and sizes
         [[nodiscard]] Counters GetCounters() const { return b2World_GetCounters(Handle()); }
@@ -1821,60 +1840,63 @@ namespace b2
         [[nodiscard]] SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
 
         /// Register the pre-solve callback. This is optional.
-        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), fcn, context); }
+        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { b2World_SetPreSolveCallback(Handle(), fcn, context); }
 
         /// Take a time step. This performs collision detection, integration,
         /// and constraint solution.
         /// @param timeStep the amount of time to simulate, this should not vary.
         /// @param velocityIterations for the velocity constraint solver.
         /// @param relaxIterations for reducing constraint bounce solver.
-        void Step(float timeStep, int32_t subStepCount) { return b2World_Step(Handle(), timeStep, subStepCount); }
+        void Step(float timeStep, int32_t subStepCount) { b2World_Step(Handle(), timeStep, subStepCount); }
+
+        /// Destroy a world.
+        void Destroy() { if (*this) { b2DestroyWorld(Handle()); id = b2_nullWorldId; is_owner = false; } } // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
 
         /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
         [[nodiscard]] RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
-        void CapsuleCast(const Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
+        void CapsuleCast(const Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
 
         /// Adjust the restitution threshold. Advanced feature for testing.
-        void SetRestitutionThreshold(float value) { return b2World_SetRestitutionThreshold(Handle(), value); }
+        void SetRestitutionThreshold(float value) { b2World_SetRestitutionThreshold(Handle(), value); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
-        void PolygonCast(const Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
+        void PolygonCast(const Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for all shapes that overlap the provided polygon.
-        void OverlapPolygon(const Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
+        void OverlapPolygon(const Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
 
         /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
-        void CircleCast(const Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
+        void CircleCast(const Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for for all shapes that overlap the provided circle.
-        void OverlapCircle(const Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
+        void OverlapCircle(const Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
 
         /// Adjust contact tuning parameters:
         /// - hertz is the contact stiffness (cycles per second)
         /// - damping ratio is the contact bounciness with 1 being critical damping (non-dimensional)
         /// - push velocity is the maximum contact constraint push out velocity (meters per second)
         ///	Advanced feature
-        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) { return b2World_SetContactTuning(Handle(), hertz, dampingRatio, pushVelocity); }
+        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) { b2World_SetContactTuning(Handle(), hertz, dampingRatio, pushVelocity); }
 
         /// Get the current profile
         [[nodiscard]] Profile GetProfile() const { return b2World_GetProfile(Handle()); }
 
         /// Call this to draw shapes and other debug draw data. This is intentionally non-const.
-        void Draw(DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
+        void Draw(DebugDraw& debugDraw) const { b2World_Draw(Handle(), &debugDraw); }
 
         /// Enable/disable continuous collision. Advanced feature for testing.
-        void EnableContinuous(bool flag) { return b2World_EnableContinuous(Handle(), flag); }
+        void EnableContinuous(bool flag) { b2World_EnableContinuous(Handle(), flag); }
 
         /// Enable/disable sleep. Advanced feature for testing.
-        void EnableSleeping(bool flag) { return b2World_EnableSleeping(Handle(), flag); }
+        void EnableSleeping(bool flag) { b2World_EnableSleeping(Handle(), flag); }
 
         /// World identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const { return b2World_IsValid(Handle()); }
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB.
-        void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
+        void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
@@ -1888,10 +1910,10 @@ namespace b2
         /// @param callback a user implemented callback class.
         /// @param point1 the ray starting point
         /// @param point2 the ray ending point
-        void RayCast(Vec2 origin, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_RayCast(Handle(), origin, translation, filter, fcn, context); }
+        void RayCast(Vec2 origin, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_RayCast(Handle(), origin, translation, filter, fcn, context); }
 
         /// Enable/disable constraint warm starting. Advanced feature for testing.
-        void EnableWarmStarting(bool flag) { return b2World_EnableWarmStarting(Handle(), flag); }
+        void EnableWarmStarting(bool flag) { b2World_EnableWarmStarting(Handle(), flag); }
     };
 
     class DynamicTree
@@ -1945,28 +1967,28 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void RayCast(const RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
+        void RayCast(const RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
 
         /// Compute the height of the binary tree in O(N) time. Should not be
         /// called often.
         [[nodiscard]] int32_t GetHeight() const { return b2DynamicTree_GetHeight(&value); }
 
         /// Move a proxy to a new AABB by removing and reinserting into the tree.
-        void MoveProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
+        void MoveProxy(int32_t proxyId, AABB aabb) { b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
 
         /// Shift the world origin. Useful for large worlds.
         /// The shift formula is: position -= newOrigin
         /// @param newOrigin the new origin with respect to the old origin
-        void ShiftOrigin(Vec2 newOrigin) { return b2DynamicTree_ShiftOrigin(&value, newOrigin); }
+        void ShiftOrigin(Vec2 newOrigin) { b2DynamicTree_ShiftOrigin(&value, newOrigin); }
 
         /// Validate this tree. For testing.
-        void Validate() const { return b2DynamicTree_Validate(&value); }
+        void Validate() const { b2DynamicTree_Validate(&value); }
 
         /// Get the AABB of a proxy
         [[nodiscard]] AABB GetAABB(int32_t proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
 
         /// Build an optimal tree. Very expensive. For testing.
-        void RebuildBottomUp() { return b2DynamicTree_RebuildBottomUp(&value); }
+        void RebuildBottomUp() { b2DynamicTree_RebuildBottomUp(&value); }
 
         /// Ray-cast against the proxies in the tree. This relies on the callback
         /// to perform a exact ray-cast in the case were the proxy contains a shape.
@@ -1975,7 +1997,7 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void ShapeCast(const ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
+        void ShapeCast(const ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
 
         /// Get the number of proxies created
         [[nodiscard]] int32_t GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
@@ -1989,23 +2011,23 @@ namespace b2
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void QueryFiltered(AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_QueryFiltered(&value, aabb, maskBits, callback, context); }
+        void QueryFiltered(AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { b2DynamicTree_QueryFiltered(&value, aabb, maskBits, callback, context); }
 
         /// Get the maximum balance of the tree. The balance is the difference in height of the two children of a node.
         [[nodiscard]] int32_t GetMaxBalance() const { return b2DynamicTree_GetMaxBalance(&value); }
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void Query(AABB aabb, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_Query(&value, aabb, callback, context); }
+        void Query(AABB aabb, b2TreeQueryCallbackFcn* callback, void* context) const { b2DynamicTree_Query(&value, aabb, callback, context); }
 
         /// Destroy a proxy. This asserts if the id is invalid.
-        void DestroyProxy(int32_t proxyId) { return b2DynamicTree_DestroyProxy(&value, proxyId); }
+        void DestroyProxy(int32_t proxyId) { b2DynamicTree_DestroyProxy(&value, proxyId); }
 
         /// Rebuild the tree while retaining subtrees that haven't changed. Returns the number of boxes sorted.
         int32_t Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
 
         /// Enlarge a proxy and enlarge ancestors as necessary.
-        void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
+        void EnlargeProxy(int32_t proxyId, AABB aabb) { b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     };
 
     [[nodiscard]] inline Timer CreateTimer() { return b2CreateTimer(); }
@@ -2040,11 +2062,6 @@ namespace b2
 
     /// Compute the collision manifold between a capsule and circle
     [[nodiscard]] inline Manifold CollideCapsules(const Capsule& capsuleA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollideCapsules(&capsuleA, xfA, &capsuleB, xfB, &cache); }
-
-    /// Destroy a rigid body given an id. Destroys all joints attached to the body. Be careful
-    ///	because this may invalidate some b2JointId that you have stored.
-    /// @warning This function is locked during callbacks.
-    inline void DestroyBodyAndJoints(Body& bodyId) { return b2DestroyBodyAndJoints(bodyId.Handle()); }
 
     /// Get a right pointing perpendicular vector. Equivalent to b2CrossVS(v, 1.0f)
     [[nodiscard]] inline Vec2 RightPerp(Vec2 v) { return b2RightPerp(v); }
@@ -2118,7 +2135,7 @@ namespace b2
 
     /// Override the default assert callback.
     ///	@param assertFcn a non-null assert callback
-    inline void SetAssertFcn(b2AssertFcn* assertFcn) { return b2SetAssertFcn(assertFcn); }
+    inline void SetAssertFcn(b2AssertFcn* assertFcn) { b2SetAssertFcn(assertFcn); }
 
     /// Total bytes allocated by Box2D
     [[nodiscard]] inline uint32_t GetByteCount() { return b2GetByteCount(); }
@@ -2298,7 +2315,7 @@ namespace b2
     /// Compute the bounding box of a transformed line segment
     [[nodiscard]] inline AABB ComputeSegmentAABB(const Segment& shape, Transform transform) { return b2ComputeSegmentAABB(&shape, transform); }
 
-    inline void SleepMilliseconds(float milliseconds) { return b2SleepMilliseconds(milliseconds); }
+    inline void SleepMilliseconds(float milliseconds) { b2SleepMilliseconds(milliseconds); }
 
     [[nodiscard]] inline float GetMilliseconds(const Timer& timer) { return b2GetMilliseconds(&timer); }
 
@@ -2322,7 +2339,7 @@ namespace b2
 
     /// This allows the user to override the allocation functions. These should be
     ///	set during application startup.
-    inline void SetAllocator(b2AllocFcn* allocFcn, b2FreeFcn* freeFcn) { return b2SetAllocator(allocFcn, freeFcn); }
+    inline void SetAllocator(b2AllocFcn* allocFcn, b2FreeFcn* freeFcn) { b2SetAllocator(allocFcn, freeFcn); }
 
     /// Vector linear interpolation
     /// https://fgiesen.wordpress.com/2012/08/15/linear-interpolation-past-present-and-future/

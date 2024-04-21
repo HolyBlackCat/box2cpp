@@ -217,11 +217,14 @@ function emit_func(func_name, type, func_variant_index, indent)
     is_factory_func = funcs[func_name]["is_factory"]
     if (is_factory_func && funcs[func_name]["params"][1]["type"] != "b2" type "Id")
         return # This factory function is not for our type.
-
+    # Is this is owning overload of the factory function?
     factory_func_owning = is_factory_func && func_variant_index == 0
 
+    # Whether this is the destruction func.
+    is_destroy_func = func_name ~ "b2Destroy" type
+
     # Ignore functions not from this class.
-    if (type && func_name !~ "b2" type "_.*" && !is_factory_func)
+    if (type && func_name !~ "b2" type "_.*" && !is_factory_func && !is_destroy_func)
         return
 
     # Figure out the return type.
@@ -242,7 +245,9 @@ function emit_func(func_name, type, func_variant_index, indent)
 
     # Remove class name from the func name.
     clean_func_name = func_name
-    if (type && !is_factory_func)
+    if (is_destroy_func)
+        clean_func_name = gensub("And", "With", 1, gensub("^b2Destroy" type, "Destroy", 1, clean_func_name))
+    else if (type && !is_factory_func)
         clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
     else
         clean_func_name = gensub("^b2", "", 1, clean_func_name)
@@ -332,9 +337,9 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         is_const = 0 # Not a member function.
     }
-    else if (is_factory_func)
+    else if (is_factory_func || is_destroy_func)
     {
-        is_const = 0 # A static member function.
+        is_const = 0
     }
     else if (is_id_based || is_dumb_wrapper)
     {
@@ -368,7 +373,13 @@ function emit_func(func_name, type, func_variant_index, indent)
 
     # Function body.
 
-    printf " { return "
+    printf " { "
+
+    if (is_destroy_func)
+        printf "if (*this) { " # Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
+
+    if (return_type != "void")
+        printf "return "
 
     if (is_factory_func)
         printf "{%s, ", factory_func_owning ? "Owning" : "Ref"
@@ -419,7 +430,15 @@ function emit_func(func_name, type, func_variant_index, indent)
     printf ")"
     if (is_factory_func)
         printf "}"
-    print "; }"
+    printf ";"
+    if (is_destroy_func)
+        printf " id = b2_null" type "Id; is_owner = false; }"
+    printf " }"
+
+    if (is_destroy_func)
+        printf " // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects."
+
+    print ""
 
     if (is_factory_func && func_variant_index == 0)
         emit_func(func_name, type, func_variant_index + 1, indent)
@@ -793,9 +812,7 @@ END {
                 printf "        ~" type "() { if (IsOwner()"
                 if (destructor_needs_validation)
                     printf " && IsValid()"
-                print ") b2Destroy" type "(id); }"
-
-                delete funcs["b2Destroy" type]
+                print ") Destroy(); }"
             }
 
             # ID operations.
