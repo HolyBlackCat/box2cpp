@@ -742,9 +742,20 @@ namespace b2
         Separated = b2_toiStateSeparated, 
     };
 
+    // This can be passed to some functions to express ownership.
+    struct OwningTag { explicit OwningTag() = default; };
+    inline constexpr OwningTag Owning{};
+
+    // This can be passed to the constructors of our classes along with a handle to just store a reference to it, without assuming ownership.
+    struct RefTag { explicit RefTag() = default; };
+    inline constexpr RefTag Ref{};
+
+    template <typename T> concept MaybeOwningTag = std::same_as<T, OwningTag> || std::same_as<T, RefTag>;
+
     class Rot : public b2Rot
     {
       public:
+        // Consturcts a null (invalid) object.
         constexpr Rot() {}
 
         constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}
@@ -767,6 +778,7 @@ namespace b2
     class AABB : public b2AABB
     {
       public:
+        // Consturcts a null (invalid) object.
         constexpr AABB() {}
 
         constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}
@@ -789,12 +801,163 @@ namespace b2
         [[nodiscard]] bool IsValid() const { return b2AABB_IsValid(*this); }
     };
 
+    /// Used to create a shape
+    class Shape
+    {
+        b2ShapeId id = b2_nullShapeId;
+        bool is_owner = false;
+
+      protected:
+        Shape(OwningTag, b2ShapeId id) noexcept : id(id), is_owner(true) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr Shape() {}
+
+        // The constructor accepts either this or directly `b2ShapeDef`.
+        struct Params : b2ShapeDef
+        {
+            Params() : b2ShapeDef(b2DefaultShapeDef()) {}
+        };
+
+        Shape(const std::derived_from<b2ShapeDef> auto &params) : Shape(Owning, b2CreateShape(&params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        Shape(RefTag, b2ShapeId id) noexcept : id(id), is_owner(false) {}
+
+        Shape(Shape&& other) noexcept : id(std::exchange(other.id, b2_nullShapeId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Shape& operator=(Shape other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+
+        ~Shape() { if (IsOwner()) b2DestroyShape(id); }
+
+        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
+        [[nodiscard]] const b2ShapeId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
+
+        /// Get the user data for a shape. This is useful when you get a shape id
+        ///	from an event or query.
+        [[nodiscard]] void* GetUserData() const { return b2Shape_GetUserData(Handle()); }
+
+        /// Ray cast a shape directly
+        [[nodiscard]] CastOutput RayCast(Vec2 origin, Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
+
+        /// Access the line segment geometry of a shape. Asserts the type is correct.
+        [[nodiscard]] const b2Segment GetSegment() const { return b2Shape_GetSegment(Handle()); }
+
+        /// @return are contact events enabled?
+        [[nodiscard]] bool AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(Handle()); }
+
+        /// Allows you to change a shape to be a capsule or update the current capsule.
+        void SetCapsule(const Capsule& capsule) { return b2Shape_SetCapsule(Handle(), &capsule); }
+
+        /// @return are sensor events enabled?
+        [[nodiscard]] bool AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(Handle()); }
+
+        /// Set the current filter. This is almost as expensive as recreating the shape.
+        void SetFilter(Filter filter) { return b2Shape_SetFilter(Handle(), filter); }
+
+        /// Access the circle geometry of a shape. Asserts the type is correct.
+        [[nodiscard]] const b2Circle GetCircle() const { return b2Shape_GetCircle(Handle()); }
+
+        /// Get the maximum capacity required for retrieving all the touching contacts on a shape
+        [[nodiscard]] int32_t GetContactCapacity() const { return b2Shape_GetContactCapacity(Handle()); }
+
+        /// Set the density on a shape. Normally this is specified in b2ShapeDef.
+        ///	This will not update the mass properties on the parent body until you
+        /// call b2Body_ResetMassData.
+        void SetDensity(float density) { return b2Shape_SetDensity(Handle(), density); }
+
+        /// Access the capsule geometry of a shape. Asserts the type is correct.
+        [[nodiscard]] const b2Capsule GetCapsule() const { return b2Shape_GetCapsule(Handle()); }
+
+        /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
+        [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Shape_GetContactData(Handle(), &contactData, capacity); }
+
+        /// Get the current world AABB
+        [[nodiscard]] AABB GetAABB() const { return b2Shape_GetAABB(Handle()); }
+
+        /// Get the density on a shape.
+        [[nodiscard]] float GetDensity() const { return b2Shape_GetDensity(Handle()); }
+
+        /// Allows you to change a shape to be a segment or update the current segment.
+        void SetPolygon(const Polygon& polygon) { return b2Shape_SetPolygon(Handle(), &polygon); }
+
+        /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
+        void EnableContactEvents(bool flag) { return b2Shape_EnableContactEvents(Handle(), flag); }
+
+        /// Get the current filter
+        [[nodiscard]] Filter GetFilter() const { return b2Shape_GetFilter(Handle()); }
+
+        /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
+        ///	and must be carefully handled due to multi-threading. Ignored for sensors.
+        void EnablePreSolveEvents(bool flag) { return b2Shape_EnablePreSolveEvents(Handle(), flag); }
+
+        /// Get the restitution on a shape.
+        [[nodiscard]] float GetRestitution() const { return b2Shape_GetRestitution(Handle()); }
+
+        /// Access the convex polygon geometry of a shape. Asserts the type is correct.
+        [[nodiscard]] const b2Polygon GetPolygon() const { return b2Shape_GetPolygon(Handle()); }
+
+        /// Test a point for overlap with a shape
+        [[nodiscard]] bool TestPoint(Vec2 point) const { return b2Shape_TestPoint(Handle(), point); }
+
+        /// Is this shape a sensor? See b2ShapeDef.
+        [[nodiscard]] bool IsSensor() const { return b2Shape_IsSensor(Handle()); }
+
+        /// Access the smooth line segment geometry of a shape. These come from chain shapes.
+        /// Asserts the type is correct.
+        [[nodiscard]] const b2SmoothSegment GetSmoothSegment() const { return b2Shape_GetSmoothSegment(Handle()); }
+
+        /// @return are pre-solve events enabled?
+        [[nodiscard]] bool ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(Handle()); }
+
+        /// Get the body that a shape is attached to
+        [[nodiscard]] BodyId GetBody() const { return b2Shape_GetBody(Handle()); }
+
+        /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
+        void SetFriction(float friction) { return b2Shape_SetFriction(Handle(), friction); }
+
+        /// Allows you to change a shape to be a circle or update the current circle.
+        /// This does not modify the mass properties.
+        void SetCircle(const Circle& circle) { return b2Shape_SetCircle(Handle(), &circle); }
+
+        /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
+        /// If the shape is not a smooth segment then this will return b2_nullChainId.
+        [[nodiscard]] ChainId GetParentChain() const { return b2Shape_GetParentChain(Handle()); }
+
+        /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
+        void SetRestitution(float restitution) { return b2Shape_SetRestitution(Handle(), restitution); }
+
+        /// Set the user data for a shape.
+        void SetUserData(void* userData) { return b2Shape_SetUserData(Handle(), userData); }
+
+        /// Get the type of a shape.
+        [[nodiscard]] ShapeType GetType() const { return (ShapeType)b2Shape_GetType(Handle()); }
+
+        /// Get the friction on a shape.
+        [[nodiscard]] float GetFriction() const { return b2Shape_GetFriction(Handle()); }
+
+        /// Allows you to change a shape to be a segment or update the current segment.
+        void SetSegment(const Segment& segment) { return b2Shape_SetSegment(Handle(), &segment); }
+
+        /// Shape identifier validation. Provides validation for up to 64K allocations.
+        [[nodiscard]] bool IsValid() const { return b2Shape_IsValid(Handle()); }
+
+        /// Enable sensor events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
+        void EnableSensorEvents(bool flag) { return b2Shape_EnableSensorEvents(Handle(), flag); }
+    };
+
     /// World definition used to create a simulation world. Must be initialized using b2DefaultWorldDef.
     class World
     {
         b2WorldId id = b2_nullWorldId;
+        bool is_owner = false;
+
+      protected:
+        World(OwningTag, b2WorldId id) noexcept : id(id), is_owner(true) {}
 
       public:
+        // Consturcts a null (invalid) object.
         constexpr World() {}
 
         // The constructor accepts either this or directly `b2WorldDef`.
@@ -804,15 +967,19 @@ namespace b2
         };
 
         /// Create a world for rigid body simulation. This contains all the bodies, shapes, and constraints.
-        World(const std::derived_from<b2WorldDef> auto &params) : id(b2CreateWorld(&params)) { if (!*this) throw std::runtime_error("Failed to create a `b2World`."); }
+        World(const std::derived_from<b2WorldDef> auto &params) : World(Owning, b2CreateWorld(&params)) {}
 
-        World(World&& other) noexcept : id(std::exchange(other.id, b2_nullWorldId)) {}
-        World& operator=(World other) noexcept { std::swap(id, other.id); return *this; }
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        World(RefTag, b2WorldId id) noexcept : id(id), is_owner(false) {}
 
-        ~World() { if (*this) b2DestroyWorld(id); }
+        World(World&& other) noexcept : id(std::exchange(other.id, b2_nullWorldId)), is_owner(std::exchange(other.is_owner, false)) {}
+        World& operator=(World other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+
+        ~World() { if (IsOwner()) b2DestroyWorld(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2WorldId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
         /// Overlap test for all shapes that overlap the provided capsule.
         void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
@@ -902,8 +1069,13 @@ namespace b2
     class Body
     {
         b2BodyId id = b2_nullBodyId;
+        bool is_owner = false;
+
+      protected:
+        Body(OwningTag, b2BodyId id) noexcept : id(id), is_owner(true) {}
 
       public:
+        // Consturcts a null (invalid) object.
         constexpr Body() {}
 
         // The constructor accepts either this or directly `b2BodyDef`.
@@ -914,15 +1086,39 @@ namespace b2
 
         /// Create a rigid body given a definition. No reference to the definition is retained.
         /// @warning This function is locked during callbacks.
-        Body(World &world, const std::derived_from<b2BodyDef> auto &params) : id(b2CreateBody(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2Body`."); }
+        Body(World &world, const std::derived_from<b2BodyDef> auto &params) : Body(Owning, b2CreateBody(world.Handle(), &params)) {}
 
-        Body(Body&& other) noexcept : id(std::exchange(other.id, b2_nullBodyId)) {}
-        Body& operator=(Body other) noexcept { std::swap(id, other.id); return *this; }
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        Body(RefTag, b2BodyId id) noexcept : id(id), is_owner(false) {}
 
-        ~Body() { if (*this) b2DestroyBody(id); }
+        Body(Body&& other) noexcept : id(std::exchange(other.id, b2_nullBodyId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Body& operator=(Body other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+
+        ~Body() { if (IsOwner()) b2DestroyBody(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2BodyId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
+
+        /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
+        /// Contacts are not created until the next time step.
+        ///	@return the shape id for accessing the shape
+        Shape CreatePolygonShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return {ownership, b2CreatePolygonShape(Handle(), &def, &polygon)}; }
+
+        /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
+        /// Contacts are not created until the next time step.
+        ///	@return the shape id for accessing the shape
+        Shape CreateCircleShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return {ownership, b2CreateCircleShape(Handle(), &def, &circle)}; }
+
+        /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
+        /// Contacts are not created until the next time step.
+        ///	@return the shape id for accessing the shape
+        Shape CreateSegmentShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return {ownership, b2CreateSegmentShape(Handle(), &def, &segment)}; }
+
+        /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
+        /// Contacts are not created until the next time step.
+        ///	@return the shape id for accessing the shape
+        Shape CreateCapsuleShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return {ownership, b2CreateCapsuleShape(Handle(), &def, &capsule)}; }
 
         /// Get the inertia tensor of the body. In 2D this is a single number. (kilograms * meters^2)
         [[nodiscard]] float GetInertiaTensor() const { return b2Body_GetInertiaTensor(Handle()); }
@@ -1087,7 +1283,7 @@ namespace b2
         /// @param wake also wake up the body
         void ApplyForceToCenter(Vec2 force, bool wake) { return b2Body_ApplyForceToCenter(Handle(), force, wake); }
 
-        [[nodiscard]] ShapeId GetNextShape(ShapeId shapeId) const { return b2Body_GetNextShape(shapeId); }
+        [[nodiscard]] ShapeId GetNextShape(Shape& shapeId) const { return b2Body_GetNextShape(shapeId.Handle()); }
 
         /// Iterate over shapes on a body
         [[nodiscard]] ShapeId GetFirstShape() const { return b2Body_GetFirstShape(Handle()); }
@@ -1115,143 +1311,6 @@ namespace b2
         [[nodiscard]] float GetLinearDamping() const { return b2Body_GetLinearDamping(Handle()); }
     };
 
-    /// Used to create a shape
-    class Shape
-    {
-        b2ShapeId id = b2_nullShapeId;
-
-      protected:
-        constexpr Shape() {}
-        explicit constexpr Shape(b2ShapeId id) : id(id) {}
-
-      public:
-        // The constructor accepts either this or directly `b2ShapeDef`.
-        struct Params : b2ShapeDef
-        {
-            Params() : b2ShapeDef(b2DefaultShapeDef()) {}
-        };
-
-        Shape(Shape&& other) noexcept : id(std::exchange(other.id, b2_nullShapeId)) {}
-        Shape& operator=(Shape other) noexcept { std::swap(id, other.id); return *this; }
-
-        ~Shape() { if (*this) b2DestroyShape(id); }
-
-        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2ShapeId &Handle() const { return id; }
-
-        /// Get the user data for a shape. This is useful when you get a shape id
-        ///	from an event or query.
-        [[nodiscard]] void* GetUserData() const { return b2Shape_GetUserData(Handle()); }
-
-        /// Ray cast a shape directly
-        [[nodiscard]] CastOutput RayCast(Vec2 origin, Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
-
-        /// Access the line segment geometry of a shape. Asserts the type is correct.
-        [[nodiscard]] const b2Segment GetSegment() const { return b2Shape_GetSegment(Handle()); }
-
-        /// @return are contact events enabled?
-        [[nodiscard]] bool AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(Handle()); }
-
-        /// Allows you to change a shape to be a capsule or update the current capsule.
-        void SetCapsule(const Capsule& capsule) { return b2Shape_SetCapsule(Handle(), &capsule); }
-
-        /// @return are sensor events enabled?
-        [[nodiscard]] bool AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(Handle()); }
-
-        /// Set the current filter. This is almost as expensive as recreating the shape.
-        void SetFilter(Filter filter) { return b2Shape_SetFilter(Handle(), filter); }
-
-        /// Access the circle geometry of a shape. Asserts the type is correct.
-        [[nodiscard]] const b2Circle GetCircle() const { return b2Shape_GetCircle(Handle()); }
-
-        /// Get the maximum capacity required for retrieving all the touching contacts on a shape
-        [[nodiscard]] int32_t GetContactCapacity() const { return b2Shape_GetContactCapacity(Handle()); }
-
-        /// Set the density on a shape. Normally this is specified in b2ShapeDef.
-        ///	This will not update the mass properties on the parent body until you
-        /// call b2Body_ResetMassData.
-        void SetDensity(float density) { return b2Shape_SetDensity(Handle(), density); }
-
-        /// Access the capsule geometry of a shape. Asserts the type is correct.
-        [[nodiscard]] const b2Capsule GetCapsule() const { return b2Shape_GetCapsule(Handle()); }
-
-        /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
-        [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Shape_GetContactData(Handle(), &contactData, capacity); }
-
-        /// Get the current world AABB
-        [[nodiscard]] AABB GetAABB() const { return b2Shape_GetAABB(Handle()); }
-
-        /// Get the density on a shape.
-        [[nodiscard]] float GetDensity() const { return b2Shape_GetDensity(Handle()); }
-
-        /// Allows you to change a shape to be a segment or update the current segment.
-        void SetPolygon(const Polygon& polygon) { return b2Shape_SetPolygon(Handle(), &polygon); }
-
-        /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableContactEvents(bool flag) { return b2Shape_EnableContactEvents(Handle(), flag); }
-
-        /// Get the current filter
-        [[nodiscard]] Filter GetFilter() const { return b2Shape_GetFilter(Handle()); }
-
-        /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
-        ///	and must be carefully handled due to multi-threading. Ignored for sensors.
-        void EnablePreSolveEvents(bool flag) { return b2Shape_EnablePreSolveEvents(Handle(), flag); }
-
-        /// Get the restitution on a shape.
-        [[nodiscard]] float GetRestitution() const { return b2Shape_GetRestitution(Handle()); }
-
-        /// Access the convex polygon geometry of a shape. Asserts the type is correct.
-        [[nodiscard]] const b2Polygon GetPolygon() const { return b2Shape_GetPolygon(Handle()); }
-
-        /// Test a point for overlap with a shape
-        [[nodiscard]] bool TestPoint(Vec2 point) const { return b2Shape_TestPoint(Handle(), point); }
-
-        /// Is this shape a sensor? See b2ShapeDef.
-        [[nodiscard]] bool IsSensor() const { return b2Shape_IsSensor(Handle()); }
-
-        /// Access the smooth line segment geometry of a shape. These come from chain shapes.
-        /// Asserts the type is correct.
-        [[nodiscard]] const b2SmoothSegment GetSmoothSegment() const { return b2Shape_GetSmoothSegment(Handle()); }
-
-        /// @return are pre-solve events enabled?
-        [[nodiscard]] bool ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(Handle()); }
-
-        /// Get the body that a shape is attached to
-        [[nodiscard]] BodyId GetBody() const { return b2Shape_GetBody(Handle()); }
-
-        /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
-        void SetFriction(float friction) { return b2Shape_SetFriction(Handle(), friction); }
-
-        /// Allows you to change a shape to be a circle or update the current circle.
-        /// This does not modify the mass properties.
-        void SetCircle(const Circle& circle) { return b2Shape_SetCircle(Handle(), &circle); }
-
-        /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
-        /// If the shape is not a smooth segment then this will return b2_nullChainId.
-        [[nodiscard]] ChainId GetParentChain() const { return b2Shape_GetParentChain(Handle()); }
-
-        /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
-        void SetRestitution(float restitution) { return b2Shape_SetRestitution(Handle(), restitution); }
-
-        /// Set the user data for a shape.
-        void SetUserData(void* userData) { return b2Shape_SetUserData(Handle(), userData); }
-
-        /// Get the type of a shape.
-        [[nodiscard]] ShapeType GetType() const { return (ShapeType)b2Shape_GetType(Handle()); }
-
-        /// Get the friction on a shape.
-        [[nodiscard]] float GetFriction() const { return b2Shape_GetFriction(Handle()); }
-
-        /// Allows you to change a shape to be a segment or update the current segment.
-        void SetSegment(const Segment& segment) { return b2Shape_SetSegment(Handle(), &segment); }
-
-        /// Shape identifier validation. Provides validation for up to 64K allocations.
-        [[nodiscard]] bool IsValid() const { return b2Shape_IsValid(Handle()); }
-
-        /// Enable sensor events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableSensorEvents(bool flag) { return b2Shape_EnableSensorEvents(Handle(), flag); }
-    };
-
     /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
     ///	- DO NOT use chain shapes unless you understand the limitations. This is an advanced feature!
     ///	- chains are one-sided
@@ -1268,8 +1327,13 @@ namespace b2
     class Chain
     {
         b2ChainId id = b2_nullChainId;
+        bool is_owner = false;
+
+      protected:
+        Chain(OwningTag, b2ChainId id) noexcept : id(id), is_owner(true) {}
 
       public:
+        // Consturcts a null (invalid) object.
         constexpr Chain() {}
 
         // The constructor accepts either this or directly `b2ChainDef`.
@@ -1280,15 +1344,19 @@ namespace b2
 
         /// Create a chain shape
         ///	@see b2ChainDef for details
-        Chain(Body &body, const std::derived_from<b2ChainDef> auto &params) : id(b2CreateChain(body.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2Chain`."); }
+        Chain(Body &body, const std::derived_from<b2ChainDef> auto &params) : Chain(Owning, b2CreateChain(body.Handle(), &params)) {}
 
-        Chain(Chain&& other) noexcept : id(std::exchange(other.id, b2_nullChainId)) {}
-        Chain& operator=(Chain other) noexcept { std::swap(id, other.id); return *this; }
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        Chain(RefTag, b2ChainId id) noexcept : id(id), is_owner(false) {}
 
-        ~Chain() { if (*this) b2DestroyChain(id); }
+        Chain(Chain&& other) noexcept : id(std::exchange(other.id, b2_nullChainId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Chain& operator=(Chain other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+
+        ~Chain() { if (IsOwner()) b2DestroyChain(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2ChainId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
         /// Set the restitution (bounciness) on a chain. Normally this is specified in b2ChainDef.
         void SetRestitution(float restitution) { return b2Chain_SetRestitution(Handle(), restitution); }
@@ -1303,20 +1371,27 @@ namespace b2
     class Joint
     {
         b2JointId id = b2_nullJointId;
+        bool is_owner = false;
 
       protected:
-        constexpr Joint() {}
-        explicit constexpr Joint(b2JointId id) : id(id) {}
+        Joint(OwningTag, b2JointId id) noexcept : id(id), is_owner(true) {}
 
       public:
-        Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)) {}
-        Joint& operator=(Joint other) noexcept { std::swap(id, other.id); return *this; }
+        // Consturcts a null (invalid) object.
+        constexpr Joint() {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        Joint(RefTag, b2JointId id) noexcept : id(id), is_owner(false) {}
+
+        Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Joint& operator=(Joint other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
         // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`.
-        ~Joint() { if (*this && IsValid()) b2DestroyJoint(id); }
+        ~Joint() { if (IsOwner() && IsValid()) b2DestroyJoint(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
         [[nodiscard]] const b2JointId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
         /// Get local anchor on bodyA
         [[nodiscard]] Vec2 GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(Handle()); }
@@ -1358,7 +1433,11 @@ namespace b2
     /// constraint slightly. This helps when saving and loading a game.
     class DistanceJoint : public Joint
     {
+      protected:
+        DistanceJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr DistanceJoint() {}
 
         // The constructor accepts either this or directly `b2DistanceJointDef`.
@@ -1369,7 +1448,10 @@ namespace b2
 
         /// Create a distance joint
         ///	@see b2DistanceJointDef for details
-        DistanceJoint(World &world, const std::derived_from<b2DistanceJointDef> auto &params) : Joint(b2CreateDistanceJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2DistanceJoint`."); }
+        DistanceJoint(World &world, const std::derived_from<b2DistanceJointDef> auto &params) : DistanceJoint(Owning, b2CreateDistanceJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        DistanceJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Adjust the softness parameters of a distance joint
         void SetTuning(float hertz, float dampingRatio) { return b2DistanceJoint_SetTuning(Handle(), hertz, dampingRatio); }
@@ -1407,7 +1489,11 @@ namespace b2
     /// of a dynamic body with respect to the ground.
     class MotorJoint : public Joint
     {
+      protected:
+        MotorJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr MotorJoint() {}
 
         // The constructor accepts either this or directly `b2MotorJointDef`.
@@ -1418,7 +1504,10 @@ namespace b2
 
         /// Create a motor joint
         ///	@see b2MotorJointDef for details
-        MotorJoint(World &world, const std::derived_from<b2MotorJointDef> auto &params) : Joint(b2CreateMotorJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2MotorJoint`."); }
+        MotorJoint(World &world, const std::derived_from<b2MotorJointDef> auto &params) : MotorJoint(Owning, b2CreateMotorJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        MotorJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Get the current constraint force for a motor joint
         [[nodiscard]] Vec2 GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(Handle()); }
@@ -1462,7 +1551,11 @@ namespace b2
     /// applying huge forces. This also applies rotation constraint heuristic to improve control.
     class MouseJoint : public Joint
     {
+      protected:
+        MouseJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr MouseJoint() {}
 
         // The constructor accepts either this or directly `b2MouseJointDef`.
@@ -1473,7 +1566,10 @@ namespace b2
 
         /// Create a mouse joint
         ///	@see b2MouseJointDef for details
-        MouseJoint(World &world, const std::derived_from<b2MouseJointDef> auto &params) : Joint(b2CreateMouseJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2MouseJoint`."); }
+        MouseJoint(World &world, const std::derived_from<b2MouseJointDef> auto &params) : MouseJoint(Owning, b2CreateMouseJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        MouseJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// @return the target for a mouse joint
         [[nodiscard]] Vec2 GetTarget() const { return b2MouseJoint_GetTarget(Handle()); }
@@ -1498,7 +1594,11 @@ namespace b2
     /// when the local anchor points coincide in world space.
     class PrismaticJoint : public Joint
     {
+      protected:
+        PrismaticJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr PrismaticJoint() {}
 
         // The constructor accepts either this or directly `b2PrismaticJointDef`.
@@ -1509,7 +1609,10 @@ namespace b2
 
         /// Create a prismatic (slider) joint
         ///	@see b2PrismaticJointDef for details
-        PrismaticJoint(World &world, const std::derived_from<b2PrismaticJointDef> auto &params) : Joint(b2CreatePrismaticJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2PrismaticJoint`."); }
+        PrismaticJoint(World &world, const std::derived_from<b2PrismaticJointDef> auto &params) : PrismaticJoint(Owning, b2CreatePrismaticJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        PrismaticJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// @return is the prismatic joint motor enabled
         [[nodiscard]] bool IsMotorEnabled() const { return b2PrismaticJoint_IsMotorEnabled(Handle()); }
@@ -1566,7 +1669,11 @@ namespace b2
     ///    the joints will be broken.
     class RevoluteJoint : public Joint
     {
+      protected:
+        RevoluteJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr RevoluteJoint() {}
 
         // The constructor accepts either this or directly `b2RevoluteJointDef`.
@@ -1577,7 +1684,10 @@ namespace b2
 
         /// Create a revolute (hinge) joint
         ///	@see b2RevoluteJointDef for details
-        RevoluteJoint(World &world, const std::derived_from<b2RevoluteJointDef> auto &params) : Joint(b2CreateRevoluteJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2RevoluteJoint`."); }
+        RevoluteJoint(World &world, const std::derived_from<b2RevoluteJointDef> auto &params) : RevoluteJoint(Owning, b2CreateRevoluteJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        RevoluteJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set the maximum torque for a revolute joint motor
         void SetMaxMotorTorque(float torque) { return b2RevoluteJoint_SetMaxMotorTorque(Handle(), torque); }
@@ -1630,7 +1740,11 @@ namespace b2
     /// anchors and a local axis helps when saving and loading a game.
     class WheelJoint : public Joint
     {
+      protected:
+        WheelJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr WheelJoint() {}
 
         // The constructor accepts either this or directly `b2WheelJointDef`.
@@ -1641,7 +1755,10 @@ namespace b2
 
         /// Create a wheel joint
         ///	@see b2WheelJointDef for details
-        WheelJoint(World &world, const std::derived_from<b2WheelJointDef> auto &params) : Joint(b2CreateWheelJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2WheelJoint`."); }
+        WheelJoint(World &world, const std::derived_from<b2WheelJointDef> auto &params) : WheelJoint(Owning, b2CreateWheelJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        WheelJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set the wheel joint damping ratio (non-dimensional)
         void SetSpringDampingRatio(float dampingRatio) { return b2WheelJoint_SetSpringDampingRatio(Handle(), dampingRatio); }
@@ -1703,7 +1820,11 @@ namespace b2
     /// @warning the approximate solver in Box2D cannot hold many bodies together rigidly
     class WeldJoint : public Joint
     {
+      protected:
+        WeldJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
+
       public:
+        // Consturcts a null (invalid) object.
         constexpr WeldJoint() {}
 
         // The constructor accepts either this or directly `b2WeldJointDef`.
@@ -1714,7 +1835,10 @@ namespace b2
 
         /// Create a weld joint
         ///	@see b2WeldJointDef for details
-        WeldJoint(World &world, const std::derived_from<b2WeldJointDef> auto &params) : Joint(b2CreateWeldJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2WeldJoint`."); }
+        WeldJoint(World &world, const std::derived_from<b2WeldJointDef> auto &params) : WeldJoint(Owning, b2CreateWeldJoint(world.Handle(), &params)) {}
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        WeldJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
 
         /// Set weld joint angular stiffness in Hertz. 0 is rigid.
         void SetAngularHertz(float hertz) { return b2WeldJoint_SetAngularHertz(Handle(), hertz); }
@@ -1792,7 +1916,7 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void RayCast(const RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
+        void RayCast(const RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
 
         /// Compute the height of the binary tree in O(N) time. Should not be
         /// called often.
@@ -1810,7 +1934,7 @@ namespace b2
         void Validate() const { return b2DynamicTree_Validate(&value); }
 
         /// Get the AABB of a proxy
-        [[nodiscard]] AABB GetAABB(int32_t proxyId) { return b2DynamicTree_GetAABB(&value, proxyId); }
+        [[nodiscard]] AABB GetAABB(int32_t proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
 
         /// Build an optimal tree. Very expensive. For testing.
         void RebuildBottomUp() { return b2DynamicTree_RebuildBottomUp(&value); }
@@ -1822,7 +1946,7 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void ShapeCast(const ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
+        void ShapeCast(const ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
 
         /// Get the number of proxies created
         [[nodiscard]] int32_t GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
@@ -1832,24 +1956,24 @@ namespace b2
 
         /// Get proxy user data
         /// @return the proxy user data or 0 if the id is invalid
-        [[nodiscard]] int32_t GetUserData(int32_t proxyId) { return b2DynamicTree_GetUserData(&value, proxyId); }
+        [[nodiscard]] int32_t GetUserData(int32_t proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void QueryFiltered(AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) { return b2DynamicTree_QueryFiltered(&value, aabb, maskBits, callback, context); }
+        void QueryFiltered(AABB aabb, uint32_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_QueryFiltered(&value, aabb, maskBits, callback, context); }
 
         /// Get the maximum balance of the tree. The balance is the difference in height of the two children of a node.
         [[nodiscard]] int32_t GetMaxBalance() const { return b2DynamicTree_GetMaxBalance(&value); }
 
         /// Query an AABB for overlapping proxies. The callback class
         /// is called for each proxy that overlaps the supplied AABB.
-        void Query(AABB aabb, b2TreeQueryCallbackFcn* callback, void* context) { return b2DynamicTree_Query(&value, aabb, callback, context); }
+        void Query(AABB aabb, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_Query(&value, aabb, callback, context); }
 
         /// Destroy a proxy. This asserts if the id is invalid.
         void DestroyProxy(int32_t proxyId) { return b2DynamicTree_DestroyProxy(&value, proxyId); }
 
         /// Rebuild the tree while retaining subtrees that haven't changed. Returns the number of boxes sorted.
-        [[nodiscard]] int32_t Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
+        int32_t Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
 
         /// Enlarge a proxy and enlarge ancestors as necessary.
         void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
@@ -1891,7 +2015,7 @@ namespace b2
     /// Destroy a rigid body given an id. Destroys all joints attached to the body. Be careful
     ///	because this may invalidate some b2JointId that you have stored.
     /// @warning This function is locked during callbacks.
-    inline void DestroyBodyAndJoints(BodyId bodyId) { return b2DestroyBodyAndJoints(bodyId); }
+    inline void DestroyBodyAndJoints(Body& bodyId) { return b2DestroyBodyAndJoints(bodyId.Handle()); }
 
     /// Get a right pointing perpendicular vector. Equivalent to b2CrossVS(v, 1.0f)
     [[nodiscard]] inline Vec2 RightPerp(Vec2 v) { return b2RightPerp(v); }
@@ -1944,11 +2068,6 @@ namespace b2
     /// On the first call set b2SimplexCache.count to zero.
     [[nodiscard]] inline DistanceOutput ShapeDistance(DistanceCache& cache, const DistanceInput& input) { return b2ShapeDistance(&cache, &input); }
 
-    /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
-    /// Contacts are not created until the next time step.
-    ///	@return the shape id for accessing the shape
-    [[nodiscard]] inline ShapeId CreatePolygonShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return b2CreatePolygonShape(bodyId, &def, &polygon); }
-
     /// Compute the collision manifold between a capsule and circle
     [[nodiscard]] inline Manifold CollideCapsuleAndCircle(const Capsule& capsuleA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollideCapsuleAndCircle(&capsuleA, xfA, &circleB, xfB); }
 
@@ -1957,11 +2076,6 @@ namespace b2
 
     /// Compute the collision manifold between an segment and a capsule.
     [[nodiscard]] inline Manifold CollideSegmentAndCapsule(const Segment& segmentA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollideSegmentAndCapsule(&segmentA, xfA, &capsuleB, xfB, &cache); }
-
-    /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
-    /// Contacts are not created until the next time step.
-    ///	@return the shape id for accessing the shape
-    [[nodiscard]] inline ShapeId CreateCircleShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return b2CreateCircleShape(bodyId, &def, &circle); }
 
     /// Perform the cross product on a vector and a scalar. In 2D this produces
     /// a vector.
@@ -2025,11 +2139,6 @@ namespace b2
     [[nodiscard]] inline Mat22 GetInverse22(Mat22 A) { return b2GetInverse22(A); }
 
     [[nodiscard]] inline float GetMillisecondsAndReset(Timer& timer) { return b2GetMillisecondsAndReset(&timer); }
-
-    /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
-    /// Contacts are not created until the next time step.
-    ///	@return the shape id for accessing the shape
-    [[nodiscard]] inline ShapeId CreateSegmentShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return b2CreateSegmentShape(bodyId, &def, &segment); }
 
     [[nodiscard]] inline float Distance(Vec2 a, Vec2 b) { return b2Distance(a, b); }
 
@@ -2112,11 +2221,6 @@ namespace b2
     ///	@param q1 initial rotation
     ///	@param deltaAngle the angular displacement in radians
     [[nodiscard]] inline Rot IntegrateRotation(Rot q1, float deltaAngle) { return b2IntegrateRotation(q1, deltaAngle); }
-
-    /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
-    /// Contacts are not created until the next time step.
-    ///	@return the shape id for accessing the shape
-    [[nodiscard]] inline ShapeId CreateCapsuleShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return b2CreateCapsuleShape(bodyId, &def, &capsule); }
 
     /// Compute the collision manifold between a polygon and capsule
     [[nodiscard]] inline Manifold CollidePolygonAndCapsule(const Polygon& polygonA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollidePolygonAndCapsule(&polygonA, xfA, &capsuleB, xfB, &cache); }

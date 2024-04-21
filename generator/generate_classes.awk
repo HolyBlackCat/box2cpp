@@ -171,15 +171,31 @@ cur_enum_name {
 # We use this order to sort our classes in the correct order. (Since some classes depend on others.)
 function class_order(c)
 {
-    if (c == "AABB" || c == "Rot")
+    if (c == "AABB" || c == "Rot") # Those are widely used, must be before all.
         return 10
-    else
+    else if (c == "Shape") # This is needed for the `Body`.
         return 20
+    else
+        return 30
 }
 
 function sort_classes_comparator(ai, av, bi, bv)
 {
     return class_order(av) - class_order(bv)
+}
+
+# We use this order to sort our functions, to make them look better.
+function func_order(f)
+{
+    if (f ~ /^b2Create.*Shape$/)
+        return 10
+    else
+        return 20
+}
+
+function sort_funcs_comparator(ai, av, bi, bv)
+{
+    return func_order(av) - func_order(bv)
 }
 
 # Emits a single function `func_name`.
@@ -189,8 +205,11 @@ function sort_classes_comparator(ai, av, bi, bv)
 # `indent` is some spaces that we prepend to every line.
 function emit_func(func_name, type, indent)
 {
+    # Whether we're in the `Body` class and this is one of the `Create...Shape()` funcs.
+    is_shape_factory_func = type == "Body" && func_name ~ /^b2Create.*Shape$/
+
     # Ignore functions not from this class.
-    if (type && func_name !~ "b2" type "_.*")
+    if (type && func_name !~ "b2" type "_.*" && !is_shape_factory_func)
         return
 
     print ""
@@ -200,19 +219,30 @@ function emit_func(func_name, type, indent)
 
     # Remove class name from the func name.
     clean_func_name = func_name
-    if (type)
+    if (type && !is_shape_factory_func)
         clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
     else
         clean_func_name = gensub("^b2", "", 1, clean_func_name)
 
     # Return type.
     return_type = funcs[func_name]["ret"]
-    if (return_type != "void")
+
+    # Nodiscard?
+    if (return_type == "void")
+    {}
+    else if (type == "DynamicTree" && func_name == "b2DynamicTree_Rebuild")
+    {} # This returns optional statistics.
+    else if (is_shape_factory_func)
+    {} # You don't have to store the shape handle.
+    else
         printf "[[nodiscard]] "
+
     if (!type)
         printf "inline "
 
     return_type_fixed = gensub(/^b2/, "", 1, return_type)
+    if (is_shape_factory_func && return_type_fixed == "ShapeId")
+        return_type_fixed = "Shape"
     funcs[func_name]["ret_fixed"] = return_type_fixed
 
     printf return_type_fixed " " clean_func_name "("
@@ -231,9 +261,17 @@ function emit_func(func_name, type, indent)
         }
 
         if (first_param)
+        {
             first_param = 0
+
+            # Inject an extra ownership parameter for shape factories.
+            if (is_shape_factory_func)
+                printf "MaybeOwningTag auto ownership, "
+        }
         else
+        {
             printf ", "
+        }
 
         param_type_fixed = param_type
 
@@ -252,9 +290,16 @@ function emit_func(func_name, type, indent)
             if (param_type_fixed ~ /^const b2.*Def&$/)
             {
                 param_underlying_class_type = gensub(/^const b2(.*)Def&$/, "\\1", 1, param_type_fixed)
-                print param_underlying_class_type >"/dev/stderr"
                 if (param_underlying_class_type in classes_set)
                     param_type_fixed = "const std::derived_from<b2" param_underlying_class_type "Def> auto&"
+            }
+
+            # Adjust IDs to our classes.
+            if (param_type_fixed ~ /Id$/)
+            {
+                # Currently we never add `const`. Should be good enough, as it's currently only used for shape factory functions.
+                param_type_fixed = gensub(/Id$/, "", 1, param_type_fixed) "&"
+                funcs[func_name]["params"][i]["id_adjusted_to_class"] = 1
             }
 
             # Adjust box2d types to our typedefs.
@@ -272,6 +317,10 @@ function emit_func(func_name, type, indent)
     {
         is_const = 0 # Not a member function.
     }
+    else if (is_shape_factory_func)
+    {
+        is_const = 0 # A static member function.
+    }
     else if (is_id_based || is_dumb_wrapper)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
@@ -288,7 +337,7 @@ function emit_func(func_name, type, indent)
     }
     else if (is_by_value_raii_wrapper && first_param_is_self)
     {
-        if (funcs[func_name]["params"][i]["type"] ~ /^const /)
+        if (funcs[func_name]["params"][1]["type"] ~ /^const /)
             is_const = 1
         else
             is_const = 0
@@ -306,6 +355,8 @@ function emit_func(func_name, type, indent)
 
     printf " { return "
 
+    if ( is_shape_factory_func )
+        printf "{ownership, "
     # Cast return value to our enum if needed.
     if ( return_type_fixed in enums )
         printf "(" return_type_fixed ")"
@@ -345,14 +396,27 @@ function emit_func(func_name, type, indent)
         param_name = funcs[func_name]["params"][i]["name"]
 
         printf "%s", param_name
+
+        # Convert class parameters to IDs (for shape factory functions).
+        if (funcs[func_name]["params"][i]["id_adjusted_to_class"])
+            printf ".Handle()"
     }
-    print "); }"
+    printf ")"
+    if ( is_shape_factory_func )
+        printf "}"
+    print "; }"
 
     # Destroy the function we just generated.
     delete funcs[func_name]
 }
 
 END {
+    # Make a sorted list of functions.
+    split("", sorted_funcs);
+    for (func_name in funcs)
+        sorted_funcs[length(sorted_funcs)+1] = func_name
+    asort(sorted_funcs, sorted_funcs, "sort_funcs_comparator")
+
     # Emit typedef structs.
 
     for (i in typedef_structs)
@@ -403,6 +467,19 @@ END {
         print "    };"
     }
 
+    # Emit our own helpers for classes.
+
+    print ""
+    print "    // This can be passed to some functions to express ownership."
+    print "    struct OwningTag { explicit OwningTag() = default; };"
+    print "    inline constexpr OwningTag Owning{};"
+    print ""
+    print "    // This can be passed to the constructors of our classes along with a handle to just store a reference to it, without assuming ownership."
+    print "    struct RefTag { explicit RefTag() = default; };"
+    print "    inline constexpr RefTag Ref{};"
+    print ""
+    print "    template <typename T> concept MaybeOwningTag = std::same_as<T, OwningTag> || std::same_as<T, RefTag>;"
+
     # Emit classes.
     asort(classes, classes, "sort_classes_comparator")
     for (i in classes)
@@ -450,15 +527,25 @@ END {
         print "    {"
 
         # Member variables.
-        if (is_joint_kind)
-        {
-            # Nothing, we inherit the ID member.
-        }
-        else if (is_id_based)
+        if (is_id_based)
         {
             # ID.
-            print "        b2" type "Id id = b2_null" type "Id;"
-            print ""
+
+            if (is_joint_kind)
+            {
+                print "      protected:"
+                print "        " type "(OwningTag, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Owning, id) {}"
+                print ""
+            }
+            else
+            {
+                print "        b2" type "Id id = b2_null" type "Id;"
+                print "        bool is_owner = false;"
+                print ""
+                print "      protected:"
+                print "        " type "(OwningTag, b2" type "Id id) noexcept : id(id), is_owner(true) {}"
+                print ""
+            }
         }
         else if (is_by_value_raii_wrapper)
         {
@@ -471,27 +558,13 @@ END {
             # Nothing.
         }
 
-        # Protected ctor.
-        if (!public_constructible)
-        {
-            print "      protected:"
-            print "        constexpr " type "() {}"
-            print "        explicit constexpr " type "(b2" type "Id id) : id(id) {}"
-            print ""
-        }
-
         # Public members...
         print "      public:"
 
         # Default ctor.
-        if (public_constructible)
-        {
-            if (is_by_value_raii_wrapper)
-                print "        // Consturcts a null (invalid) object."
-
-            print "        constexpr " type "() {}"
-            print ""
-        }
+        print "        // Consturcts a null (invalid) object."
+        print "        constexpr " type "() {}"
+        print ""
 
         # Params struct.
         if (has_params_struct)
@@ -506,75 +579,86 @@ END {
 
         # The parametrized constructor.
         has_parametrized_ctor = 0
-        if (public_constructible)
+        if (has_params_struct)
         {
-            if (has_params_struct)
+            has_parametrized_ctor = 1
+
+            if (type == "Body" || is_joint_kind)
             {
-                has_parametrized_ctor = 1
-
-                if (type == "Body" || is_joint_kind)
-                {
-                    extra_param_decl = "World &world, "
-                    extra_param_use = "world.Handle(), "
-                    extra_param_name = "world, "
-                }
-                else if (type == "Chain")
-                {
-                    extra_param_decl = "Body &body, "
-                    extra_param_use = "body.Handle(), "
-                    extra_param_name = "body, "
-                }
-                else
-                {
-                    extra_param_decl = ""
-                    extra_param_use = ""
-                    extra_param_body = ""
-                }
-
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
-                printf type "(" extra_param_decl "const std::derived_from<b2" type "Def> auto &params) : "
-                if (is_joint_kind)
-                    printf "Joint"
-                else
-                    printf "id"
-                print "(b2Create" type "(" extra_param_use "&params)) { if (!*this) throw std::runtime_error(\"Failed to create a `b2" type "`.\"); }"
+                extra_param_decl = "World &world, "
+                extra_param_use = "world.Handle(), "
+                extra_param_name = "world, "
             }
-            else if (is_by_value_raii_wrapper)
+            else if (type == "Chain")
             {
-                has_parametrized_ctor = 1
-
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
-                print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
-                delete funcs["b2" type "_Create"]
+                extra_param_decl = "Body &body, "
+                extra_param_use = "body.Handle(), "
+                extra_param_name = "body, "
             }
-            else if (is_dumb_wrapper)
+            else
             {
-                has_parametrized_ctor = 1
+                extra_param_decl = ""
+                extra_param_use = ""
+                extra_param_body = ""
+            }
 
-                # A member-wise constructor, manually written.
-                if (type == "Rot")
-                {
-                    # Why, why isn't the consine argument first? D:
-                    print "        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}"
-                }
-                else if (type == "AABB")
-                {
-                    print "        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}"
-                }
-                else if (type == "Vec2")
-                {
-                    print "        constexpr Vec2(float x, float y) : b2Vec2{.x = x, .y = y} {}"
-                }
-                else
-                {
-                    print "How do I generate a parametrized constructor for this type?" >"/dev/stderr"
-                    exit 1
-                }
+            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
+            print type "(" extra_param_decl "const std::derived_from<b2" type "Def> auto &params) : " type "(Owning, b2Create" type "(" extra_param_use "&params)) {}"
+        }
+        else if (is_by_value_raii_wrapper)
+        {
+            has_parametrized_ctor = 1
 
-                # Functions to construct from the parent class.
-                print ""
-                print "        constexpr " type "(const b2" type "& raw_value) noexcept : b2" type "(raw_value) {}"
-                print "        constexpr " type "& operator=(const b2" type "& raw_value) noexcept { b2" type "::operator=(raw_value); return *this; }"
+            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
+            print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
+            delete funcs["b2" type "_Create"]
+        }
+        else if (is_dumb_wrapper)
+        {
+            has_parametrized_ctor = 1
+
+            # A member-wise constructor, manually written.
+            if (type == "Rot")
+            {
+                # Why, why isn't the consine argument first? D:
+                print "        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}"
+            }
+            else if (type == "AABB")
+            {
+                print "        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}"
+            }
+            else if (type == "Vec2")
+            {
+                print "        constexpr Vec2(float x, float y) : b2Vec2{.x = x, .y = y} {}"
+            }
+            else
+            {
+                print "How do I generate a parametrized constructor for this type?" >"/dev/stderr"
+                exit 1
+            }
+
+            # Functions to construct from the parent class.
+            print ""
+            print "        constexpr " type "(const b2" type "& raw_value) noexcept : b2" type "(raw_value) {}"
+            print "        constexpr " type "& operator=(const b2" type "& raw_value) noexcept { b2" type "::operator=(raw_value); return *this; }"
+        }
+
+        # Non-owning constructor.
+        if (is_id_based)
+        {
+            if (is_joint_kind)
+            {
+                if (has_parametrized_ctor)
+                    print ""
+                print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
+                print "        " type "(RefTag, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Ref, id) {}"
+            }
+            else
+            {
+                if (has_parametrized_ctor)
+                    print ""
+                print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
+                print "        " type "(RefTag, b2" type "Id id) noexcept : id(id), is_owner(false) {}"
             }
         }
 
@@ -587,17 +671,13 @@ END {
             }
             else if (is_id_based)
             {
-                if (has_parametrized_ctor)
-                    print ""
-
-                print "        " type "(" type "&& other) noexcept : id(std::exchange(other.id, b2_null" type "Id)) {}"
-                print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); return *this; }"
+                print ""
+                print "        " type "(" type "&& other) noexcept : id(std::exchange(other.id, b2_null" type "Id)), is_owner(std::exchange(other.is_owner, false)) {}"
+                print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }"
             }
             else if (type == "DynamicTree")
             {
-                if (has_parametrized_ctor)
-                    print ""
-
+                print ""
                 print "        " type "(const " type "& other) : " type "() { *this = other; }"
                 print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = {}; }"
                 printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2DynamicTree_Clone"]["comment"])
@@ -649,7 +729,7 @@ END {
                 print ""
                 if (destructor_needs_validation && type == "Joint")
                     print "        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`."
-                printf "        ~" type "() { if (*this"
+                printf "        ~" type "() { if (IsOwner()"
                 if (destructor_needs_validation)
                     printf " && IsValid()"
                 print ") b2Destroy" type "(id); }"
@@ -661,6 +741,7 @@ END {
                 print ""
                 print "        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }"
                 print "        [[nodiscard]] const b2" type "Id &Handle() const { return id; }"
+                print "        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference."
             }
             else if (type == "DynamicTree")
             {
@@ -678,9 +759,11 @@ END {
         delete funcs["b2Default" type "Def"]
 
         # Expose all the functions.
-        for (func_name in funcs)
+        for (i in sorted_funcs)
         {
-            emit_func(func_name, type, "        ")
+            func_name = sorted_funcs[i]
+            if (func_name in funcs) # The function could've been deleted.
+                emit_func(func_name, type, "        ")
         }
 
         # Close the class.
@@ -689,9 +772,11 @@ END {
 
     # Emit free functions.
 
-    for (func_name in funcs)
+    for (i in sorted_funcs)
     {
-        emit_func(func_name, "", "    ")
+        func_name = sorted_funcs[i]
+        if (func_name in funcs) # The function could've been deleted.
+            emit_func(func_name, "", "    ")
     }
 
     print "} // namespace box2d"
