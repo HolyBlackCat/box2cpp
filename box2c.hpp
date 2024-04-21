@@ -2,13 +2,14 @@
 
 #include "box2c/include/box2d/box2d.h"
 #include "box2c/include/box2d/dynamic_tree.h"
+#include "box2c/include/box2d/math.h"
 
 #include <cstddef>
 #include <concepts>
 #include <stdexcept>
 #include <utility>
 
-namespace box2d
+namespace b2
 {
     class World
     {
@@ -556,7 +557,7 @@ namespace box2d
         [[nodiscard]] b2JointType GetType() const { return b2Joint_GetType(Handle()); }
     };
 
-    class DistanceJoint : Joint
+    class DistanceJoint : public Joint
     {
       public:
         constexpr DistanceJoint() {}
@@ -602,7 +603,7 @@ namespace box2d
         [[nodiscard]] float GetLength() const { return b2DistanceJoint_GetLength(Handle()); }
     };
 
-    class MotorJoint : Joint
+    class MotorJoint : public Joint
     {
       public:
         constexpr MotorJoint() {}
@@ -654,7 +655,7 @@ namespace box2d
         [[nodiscard]] float GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(Handle()); }
     };
 
-    class MouseJoint : Joint
+    class MouseJoint : public Joint
     {
       public:
         constexpr MouseJoint() {}
@@ -685,7 +686,7 @@ namespace box2d
         void SetTuning(float hertz, float dampingRatio) { return b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
     };
 
-    class PrismaticJoint : Joint
+    class PrismaticJoint : public Joint
     {
       public:
         constexpr PrismaticJoint() {}
@@ -743,7 +744,7 @@ namespace box2d
         void SetMaxMotorForce(float force) { return b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
     };
 
-    class RevoluteJoint : Joint
+    class RevoluteJoint : public Joint
     {
       public:
         constexpr RevoluteJoint() {}
@@ -801,7 +802,7 @@ namespace box2d
         [[nodiscard]] float GetMaxMotorTorque() const { return b2RevoluteJoint_GetMaxMotorTorque(Handle()); }
     };
 
-    class WheelJoint : Joint
+    class WheelJoint : public Joint
     {
       public:
         constexpr WheelJoint() {}
@@ -871,7 +872,7 @@ namespace box2d
         [[nodiscard]] float GetMaxMotorTorque() const { return b2WheelJoint_GetMaxMotorTorque(Handle()); }
     };
 
-    class WeldJoint : Joint
+    class WeldJoint : public Joint
     {
       public:
         constexpr WeldJoint() {}
@@ -916,7 +917,7 @@ namespace box2d
         b2DynamicTree value{};
 
       public:
-        // Consturcts a null (invalid) tree.
+        // Consturcts a null (invalid) object.
         constexpr DynamicTree() {}
 
         /// Constructing the tree initializes the node pool.
@@ -947,6 +948,7 @@ namespace box2d
 
         /// Destroy the tree, freeing the node pool.
         ~DynamicTree() { if (*this) b2DynamicTree_Destroy(&value); }
+
         [[nodiscard]] explicit operator bool() const { return bool( value.nodes ); }
         [[nodiscard]]       b2DynamicTree *RawTreePtr()       { return *this ? &value : nullptr; }
         [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }
@@ -1024,82 +1026,44 @@ namespace box2d
         void EnlargeProxy(int32_t proxyId, b2AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     };
 
-    class Rot
+    class Rot : public b2Rot
     {
-        b2RotId id = b2_nullRotId;
-
-      protected:
-        constexpr Rot() {}
-        explicit constexpr Rot(b2RotId id) : id(id) {}
-
       public:
-        Rot(Rot&& other) noexcept : id(std::exchange(other.id, b2_nullRotId)) {}
-        Rot& operator=(Rot other) noexcept { std::swap(id, other.id); return *this; }
+        constexpr Rot() {}
 
-        ~Rot() { if (*this) b2DestroyRot(id); }
+        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}
 
-        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2RotId &Handle() const { return id; }
-
-        [[nodiscard]] bool IsValid(b2Rot q) const { return b2Rot_IsValid(q); }
+        [[nodiscard]] bool IsValid() const { return b2Rot_IsValid(*this); }
 
         /// Get the x-axis
-        [[nodiscard]] b2Vec2 GetXAxis(b2Rot q) const { return b2Rot_GetXAxis(q); }
+        [[nodiscard]] b2Vec2 GetXAxis() const { return b2Rot_GetXAxis(*this); }
 
         /// Get the y-axis
-        [[nodiscard]] b2Vec2 GetYAxis(b2Rot q) const { return b2Rot_GetYAxis(q); }
+        [[nodiscard]] b2Vec2 GetYAxis() const { return b2Rot_GetYAxis(*this); }
 
         /// Get the angle in radians
-        [[nodiscard]] float GetAngle(b2Rot q) const { return b2Rot_GetAngle(q); }
+        [[nodiscard]] float GetAngle() const { return b2Rot_GetAngle(*this); }
     };
 
-    class AABB
+    class AABB : public b2AABB
     {
-        b2AABBId id = b2_nullAABBId;
-
-      protected:
-        constexpr AABB() {}
-        explicit constexpr AABB(b2AABBId id) : id(id) {}
-
       public:
-        AABB(AABB&& other) noexcept : id(std::exchange(other.id, b2_nullAABBId)) {}
-        AABB& operator=(AABB other) noexcept { std::swap(id, other.id); return *this; }
+        constexpr AABB() {}
 
-        ~AABB() { if (*this) b2DestroyAABB(id); }
-
-        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2AABBId &Handle() const { return id; }
+        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}
 
         /// Get the extents of the AABB (half-widths).
-        [[nodiscard]] b2Vec2 Extents(b2AABB a) const { return b2AABB_Extents(a); }
+        [[nodiscard]] b2Vec2 Extents() const { return b2AABB_Extents(*this); }
 
         /// Does a fully contain b
-        [[nodiscard]] bool Contains(b2AABB a, b2AABB b) const { return b2AABB_Contains(a, b); }
+        [[nodiscard]] bool Contains(b2AABB b) const { return b2AABB_Contains(*this, b); }
 
         /// Union of two AABBs
-        [[nodiscard]] b2AABB Union(b2AABB a, b2AABB b) const { return b2AABB_Union(a, b); }
+        [[nodiscard]] b2AABB Union(b2AABB b) const { return b2AABB_Union(*this, b); }
 
         /// Get the center of the AABB.
-        [[nodiscard]] b2Vec2 Center(b2AABB a) const { return b2AABB_Center(a); }
+        [[nodiscard]] b2Vec2 Center() const { return b2AABB_Center(*this); }
 
-        [[nodiscard]] bool IsValid(b2AABB aabb) const { return b2AABB_IsValid(aabb); }
-    };
-
-    class AABB
-    {
-        b2AABBId id = b2_nullAABBId;
-
-      protected:
-        constexpr AABB() {}
-        explicit constexpr AABB(b2AABBId id) : id(id) {}
-
-      public:
-        AABB(AABB&& other) noexcept : id(std::exchange(other.id, b2_nullAABBId)) {}
-        AABB& operator=(AABB other) noexcept { std::swap(id, other.id); return *this; }
-
-        ~AABB() { if (*this) b2DestroyAABB(id); }
-
-        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2AABBId &Handle() const { return id; }
+        [[nodiscard]] bool IsValid() const { return b2AABB_IsValid(*this); }
     };
 } // namespace box2d

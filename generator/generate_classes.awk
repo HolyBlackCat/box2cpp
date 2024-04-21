@@ -3,13 +3,14 @@ BEGIN {
     print ""
     print "#include <box2d/box2d.h>"
     print "#include <box2d/dynamic_tree.h>" # Because we also generate a wrapper for it. Should we move it to a separate file?
+    print "#include <box2d/math.h>" # Because we generate wrappers for simple math types: `Rot` and `AABB`.
     print ""
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
     print "#include <stdexcept>" # For `std::runtime_error`.
     print "#include <utility>" # For `std::exchange`.
     print ""
-    print "namespace box2d"
+    print "namespace b2"
     print "{"
 }
 
@@ -59,8 +60,11 @@ BEGIN {
     match(func_name, /b2(\w+)_\w+/, elems)
     if (RLENGTH != -1)
     {
-        classes_set[elems[1]] = 1
-        classes[length(classes_set)] = elems[1]
+        if (!(elems[1] in classes_set))
+        {
+            classes_set[elems[1]] = 1
+            classes[length(classes_set)] = elems[1]
+        }
     }
 }
 
@@ -90,6 +94,9 @@ END {
     {
         type = classes[i]
 
+        if (type == "Vec2")
+            continue # Yeah no, adding one more vector type just for a single member function `b2Vec2_IsValid` is dumb.
+
         if (first)
             first = false
         else
@@ -106,8 +113,11 @@ END {
         # Joints need the check because `b2DestroyBodyAndJoints()` can destroy our joints...
         destructor_needs_validation = base_type_or_self == "Joint"
 
-        # Stores an ID internally, as most objects do?
-        is_id_based = type != "DynamicTree"
+        # Those store a box2d struct by value, and act as a RAII wrapper.
+        is_by_value_raii_wrapper = type == "DynamicTree"
+        # Those just inherit from the original struct and add some member functions.
+        is_id_based = !is_by_value_raii_wrapper && ("b2Destroy" type in funcs || is_joint_kind)
+        is_dumb_wrapper = !is_by_value_raii_wrapper && !is_id_based
 
         # Has public constructors?
         public_constructible = ("b2Create" type in funcs) || !is_id_based;
@@ -118,7 +128,9 @@ END {
         printf "    class " type
         # Base classes.
         if (is_joint_kind)
-            printf " : Joint"
+            printf " : public Joint"
+        else if (is_dumb_wrapper)
+            printf " : public b2" type
         print ""
         print "    {"
 
@@ -133,11 +145,15 @@ END {
             print "        b2" type "Id id = b2_null" type "Id;"
             print ""
         }
-        else
+        else if (is_by_value_raii_wrapper)
         {
             # By value.
             print "        b2" type " value{};"
             print ""
+        }
+        else
+        {
+            # Nothing.
         }
 
         # Protected ctor.
@@ -155,8 +171,8 @@ END {
         # Default ctor.
         if (public_constructible)
         {
-            if (type == "DynamicTree")
-                print "        // Consturcts a null (invalid) tree."
+            if (is_by_value_raii_wrapper)
+                print "        // Consturcts a null (invalid) object."
 
             print "        constexpr " type "() {}"
             print ""
@@ -208,29 +224,59 @@ END {
                     printf "id"
                 print "(b2Create" type "(" extra_param_use "&params)) { if (!*this) throw std::runtime_error(\"Failed to create a `b2" type "`.\"); }"
             }
-            else if (type == "DynamicTree")
+            else if (is_by_value_raii_wrapper)
             {
                 has_parametrized_ctor = 1
 
-                printf "        %s", funcs["b2DynamicTree_Create"]["comment"]
-                print type "(std::nullptr_t) : value(b2DynamicTree_Create()) {}"
-                delete funcs["b2DynamicTree_Create"]
+                printf "        %s", funcs["b2" type "_Create"]["comment"]
+                print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
+                delete funcs["b2" type "_Create"]
+            }
+            else if (is_dumb_wrapper)
+            {
+                has_parametrized_ctor = 1
+
+                if (type == "Rot")
+                {
+                    # Why, why isn't the consine argument first? D:
+                    print "        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}"
+                }
+                else if (type == "AABB")
+                {
+                    print "        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}"
+                }
+                else if (type == "Vec2")
+                {
+                    print "        constexpr Vec2(float x, float y) : b2Vec2{.x = x, .y = y} {}"
+                }
+                else
+                {
+                    print "How do I generate a parametrized constructor for this type?" >"/dev/stderr"
+                    exit 1
+                }
             }
         }
 
         if (!is_joint_kind)
         {
-            if (has_parametrized_ctor)
-                print ""
-
             # Copy/move ctors.
-            if (is_id_based)
+            if (is_dumb_wrapper)
             {
+                # Nothing.
+            }
+            else if (is_id_based)
+            {
+                if (has_parametrized_ctor)
+                    print ""
+
                 print "        " type "(" type "&& other) noexcept : id(std::exchange(other.id, b2_null" type "Id)) {}"
                 print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); return *this; }"
             }
             else if (type == "DynamicTree")
             {
+                if (has_parametrized_ctor)
+                    print ""
+
                 print "        " type "(const " type "& other) : " type "() { *this = other; }"
                 print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = {}; }"
                 printf "        %s", funcs["b2DynamicTree_Clone"]["comment"]
@@ -263,15 +309,23 @@ END {
             }
 
             # Destructor.
-            print ""
-            if (type == "DynamicTree")
+            if (is_dumb_wrapper)
             {
-                printf "        %s", funcs["b2DynamicTree_Destroy"]["comment"]
-                printf "~" type "() { if (*this) b2" type "_Destroy(&value); }"
-                delete funcs["b2DynamicTree_Destroy"]
+                # Nothing.
             }
-            else
+            else if (is_by_value_raii_wrapper)
             {
+                print ""
+                printf "        %s", funcs["b2" type "_Destroy"]["comment"]
+                printf "~" type "() { if (*this"
+                if (destructor_needs_validation)
+                    printf " && IsValid()"
+                print ") b2" type "_Destroy(&value); }"
+                delete funcs["b2" type "_Destroy"]
+            }
+            else if (is_id_based)
+            {
+                print ""
                 if (destructor_needs_validation && type == "Joint")
                     print "        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`."
                 printf "        ~" type "() { if (*this"
@@ -281,14 +335,15 @@ END {
             }
 
             # ID operations.
-            print ""
             if (is_id_based)
             {
+                print ""
                 print "        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }"
                 print "        [[nodiscard]] const b2" type "Id &Handle() const { return id; }"
             }
             else if (type == "DynamicTree")
             {
+                print ""
                 print "        [[nodiscard]] explicit operator bool() const { return bool( value.nodes ); }"
                 print "        [[nodiscard]]       b2DynamicTree *RawTreePtr()       { return *this ? &value : nullptr; }"
                 print "        [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }"
@@ -324,7 +379,7 @@ END {
             {
                 param_type = funcs[func_name]["params"][i]["type"]
 
-                if (first_param && (is_id_based ? param_type == "b2" base_type_or_self "Id" : param_type ~ "(const )?" type "*"))
+                if (first_param && !first_param_is_self && (is_id_based ? param_type == "b2" base_type_or_self "Id" : param_type ~ "(const )?" type "*"))
                 {
                     first_param_is_self = 1
                     continue # This is the `self` param.
@@ -370,8 +425,10 @@ END {
             {
                 if (first_param && first_param_is_self)
                 {
-                    if (type == "DynamicTree")
+                    if (is_by_value_raii_wrapper)
                         printf "&value"
+                    else if (is_dumb_wrapper)
+                        printf "*this"
                     else
                         printf "Handle()"
                     first_param = 0
