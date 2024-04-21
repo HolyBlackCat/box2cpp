@@ -1,12 +1,12 @@
 #pragma once
 
-#include "box2c/include/box2d/box2d.h"
-#include "box2c/include/box2d/color.h"
-#include "box2c/include/box2d/distance.h"
-#include "box2c/include/box2d/dynamic_tree.h"
-#include "box2c/include/box2d/hull.h"
-#include "box2c/include/box2d/math.h"
-#include "box2c/include/box2d/timer.h"
+#include <box2d/box2d.h>
+#include <box2d/color.h>
+#include <box2d/distance.h>
+#include <box2d/dynamic_tree.h>
+#include <box2d/hull.h>
+#include <box2d/math.h>
+#include <box2d/timer.h>
 
 #include <cstddef>
 #include <concepts>
