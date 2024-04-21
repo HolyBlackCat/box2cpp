@@ -5,6 +5,7 @@ BEGIN {
     print "#include <box2d/color.h>" # We include a bunch of semi-internal headers, because we wrap all of them, for better or worse.
     print "#include <box2d/distance.h>"
     print "#include <box2d/dynamic_tree.h>"
+    print "#include <box2d/hull.h>"
     print "#include <box2d/math.h>"
     print "#include <box2d/timer.h>"
     print ""
@@ -101,21 +102,30 @@ cur_enum_name {
     func_name = elems[4]
     func_param_string = elems[5]
 
-    funcs[func_name]["comment"] = gensub(/\n/, "\n        ", "g", doc_comment)
+    funcs[func_name]["comment"] = doc_comment
     funcs[func_name]["ret"] = gensub(/\s+$/, "", 1, gensub(/\s*\*\s*/, "* ", "g", elems[1]))
 
     # Extract individual parameters.
-    patsplit(func_param_string, elems, /[^ ,][^,]*[^ ,]/)
-    for (i in elems)
+    if (func_param_string != "void")
     {
-        match(elems[i], /^\s*(((const|enum)\s+)*\w+(\s*\*)*)\s*(\w+)*\s*$/, subelems)
-        if (RLENGTH == -1)
+        patsplit(func_param_string, elems, /[^ ,][^,]*[^ ,]/)
+        for (i in elems)
         {
-            print "Failed to parse the parameters for " func_name "." >"/dev/stderr"
-            exit 1
+            match(elems[i], /^\s*(((const|enum)\s+)*\w+(\s*\*)*)\s*(\w+)*\s*$/, subelems)
+            if (RLENGTH == -1)
+            {
+                print "Failed to parse the parameters for " func_name "." >"/dev/stderr"
+                exit 1
+            }
+            funcs[func_name]["params"][i]["type"] = gensub(/^enum /, "", 1, gensub(/\s+$/, "", 1, gensub(/\s*\*\s*/, "* ", "g", subelems[1])))
+            funcs[func_name]["params"][i]["name"] = subelems[5]
+
+            if (funcs[func_name]["params"][i]["type"] == "void")
+            {
+                print "In " func_name ", why is the parameter type `void`? Param string is `" func_param_string "`" >"/dev/stderr"
+                exit 1
+            }
         }
-        funcs[func_name]["params"][i]["type"] = gensub(/\s+$/, "", 1, gensub(/\s*\*\s*/, "* ", "g", subelems[1]))
-        funcs[func_name]["params"][i]["name"] = subelems[5]
     }
 
     # Debug print the functions.
@@ -172,6 +182,175 @@ function sort_classes_comparator(ai, av, bi, bv)
     return class_order(av) - class_order(bv)
 }
 
+# Emits a single function `func_name`.
+# `type` is the enclosing class name, or an empty string.
+# If `type` is specified and `func_name` doesn't match it, does nothing.
+# On success, removes the function from the global list.
+# `indent` is some spaces that we prepend to every line.
+function emit_func(func_name, type, indent)
+{
+    # Ignore functions not from this class.
+    if (type && func_name !~ "b2" type "_.*")
+        return
+
+    print ""
+
+    # The comment of this function.
+    printf indent "%s", gensub(/\n/, "\n" indent, "g", funcs[func_name]["comment"])
+
+    # Remove class name from the func name.
+    clean_func_name = func_name
+    if (type)
+        clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
+    else
+        clean_func_name = gensub("^b2", "", 1, clean_func_name)
+
+    # Return type.
+    return_type = funcs[func_name]["ret"]
+    if (return_type != "void")
+        printf "[[nodiscard]] "
+    if (!type)
+        printf "inline "
+
+    return_type_fixed = gensub(/^b2/, "", 1, return_type)
+    funcs[func_name]["ret_fixed"] = return_type_fixed
+
+    printf return_type_fixed " " clean_func_name "("
+
+    # Parameters.
+    first_param = 1
+    first_param_is_self = 0
+    for (i in funcs[func_name]["params"])
+    {
+        param_type = funcs[func_name]["params"][i]["type"]
+
+        if (type && first_param && !first_param_is_self && (is_id_based ? param_type == "b2" base_type_or_self "Id" : param_type ~ "(const )?" type "*"))
+        {
+            first_param_is_self = 1
+            continue # This is the `self` param.
+        }
+
+        if (first_param)
+            first_param = 0
+        else
+            printf ", "
+
+        param_type_fixed = param_type
+
+        param_is_func = param_type ~ /Fcn\*$/
+
+        if (!param_is_func)
+        {
+            # Adjust pointer parameters to references (except for `void *`).
+            if (param_type_fixed != "void*" && param_type_fixed ~ /\*$/)
+            {
+                param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
+                funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
+            }
+
+            # Adjust `...Def` structs to our classes.
+            if (param_type_fixed ~ /^const b2.*Def&$/)
+            {
+                param_underlying_class_type = gensub(/^const b2(.*)Def&$/, "\\1", 1, param_type_fixed)
+                print param_underlying_class_type >"/dev/stderr"
+                if (param_underlying_class_type in classes_set)
+                    param_type_fixed = "const std::derived_from<b2" param_underlying_class_type "Def> auto&"
+            }
+
+            # Adjust box2d types to our typedefs.
+            param_type_fixed = gensub(/^(const )?b2/, "\\1", 1, param_type_fixed)
+        }
+
+        funcs[func_name]["params"][i]["type_fixed"] = param_type_fixed
+        printf param_type_fixed " " funcs[func_name]["params"][i]["name"]
+    }
+    printf ")"
+
+    # Constness.
+    is_const = 0
+    if (!type)
+    {
+        is_const = 0 # Not a member function.
+    }
+    else if (is_id_based || is_dumb_wrapper)
+    {
+        # When we don't have a pointer parameter, we have to guess constness from the name.
+
+        if (clean_func_name ~ /^(Get|Overlap|Is|Compute|Are|Test|Extents|Contains|Union|Center)($|[A-Z])/ || clean_func_name ~ /Cast(Closest)?$/ || clean_func_name == "Draw")
+            is_const = 1
+        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
+            is_const = 0
+        else
+        {
+            print "Can't guess from this function name if it's const or not." >"/dev/stderr"
+            exit 1
+        }
+    }
+    else if (is_by_value_raii_wrapper && first_param_is_self)
+    {
+        if (funcs[func_name]["params"][i]["type"] ~ /^const /)
+            is_const = 1
+        else
+            is_const = 0
+    }
+    else
+    {
+        print "Not sure if this func is const or not." >"/dev/stderr"
+        exit 1
+    }
+
+    if (is_const)
+        printf " const"
+
+    # Function body.
+
+    printf " { return "
+
+    # Cast return value to our enum if needed.
+    if ( return_type_fixed in enums )
+        printf "(" return_type_fixed ")"
+
+    printf func_name "("
+
+    first_param = 1
+    for (i in funcs[func_name]["params"])
+    {
+        if (first_param && first_param_is_self)
+        {
+            if (is_by_value_raii_wrapper)
+                printf "&value"
+            else if (is_dumb_wrapper)
+                printf "*this"
+            else
+                printf "Handle()"
+            first_param = 0
+            continue
+        }
+
+        if (first_param)
+            first_param = 0
+        else
+            printf ", "
+
+        # Prepend `&` to take address of a reference.
+        if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
+            printf "&"
+
+        param_type = funcs[func_name]["params"][i]["type_fixed"]
+
+        # Cast our enums to the original enums.
+        if (param_type in enums) # Note, `param_type` is not "fixed" here.
+            printf "(b2" param_type ")"
+
+        param_name = funcs[func_name]["params"][i]["name"]
+
+        printf "%s", param_name
+    }
+    print "); }"
+
+    # Destroy the function we just generated.
+    delete funcs[func_name]
+}
 
 END {
     # Emit typedef structs.
@@ -352,7 +531,7 @@ END {
                     extra_param_body = ""
                 }
 
-                printf "        %s", funcs["b2Create" type]["comment"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
                 printf type "(" extra_param_decl "const std::derived_from<b2" type "Def> auto &params) : "
                 if (is_joint_kind)
                     printf "Joint"
@@ -364,7 +543,7 @@ END {
             {
                 has_parametrized_ctor = 1
 
-                printf "        %s", funcs["b2" type "_Create"]["comment"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
                 print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
                 delete funcs["b2" type "_Create"]
             }
@@ -421,7 +600,7 @@ END {
 
                 print "        " type "(const " type "& other) : " type "() { *this = other; }"
                 print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = {}; }"
-                printf "        %s", funcs["b2DynamicTree_Clone"]["comment"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2DynamicTree_Clone"]["comment"])
                 print type "& operator=(const " type "& other)"
                 print "        {"
                 print "            if (this == &other) {}"
@@ -458,7 +637,7 @@ END {
             else if (is_by_value_raii_wrapper)
             {
                 print ""
-                printf "        %s", funcs["b2" type "_Destroy"]["comment"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Destroy"]["comment"])
                 printf "~" type "() { if (*this"
                 if (destructor_needs_validation)
                     printf " && IsValid()"
@@ -501,144 +680,18 @@ END {
         # Expose all the functions.
         for (func_name in funcs)
         {
-            if (func_name !~ "b2" type "_.*")
-                continue
-
-            print ""
-
-            printf "        %s", funcs[func_name]["comment"]
-
-            clean_func_name = gensub("^b2" type "_", "", 1, func_name)
-
-            # Return type.
-            return_type = funcs[func_name]["ret"]
-            if (return_type != "void")
-                printf "[[nodiscard]] "
-
-            return_type_fixed = gensub(/^b2/, "", 1, return_type)
-            funcs[func_name]["ret_fixed"] = return_type_fixed
-
-            printf return_type_fixed " " clean_func_name "("
-
-            # Parameters.
-            first_param = 1
-            first_param_is_self = 0
-            for (i in funcs[func_name]["params"])
-            {
-                param_type = funcs[func_name]["params"][i]["type"]
-
-                if (first_param && !first_param_is_self && (is_id_based ? param_type == "b2" base_type_or_self "Id" : param_type ~ "(const )?" type "*"))
-                {
-                    first_param_is_self = 1
-                    continue # This is the `self` param.
-                }
-
-                if (first_param)
-                    first_param = 0
-                else
-                    printf ", "
-
-                param_type_fixed = param_type
-
-                param_is_func = param_type ~ /Fcn\*$/
-
-                # Adjust pointer parameters to references (except for `void *`).
-                if (!param_is_func && param_type_fixed != "void*" && param_type_fixed ~ /\*$/)
-                {
-                    param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
-                    funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
-                }
-                # Adjust box2d types to our typedefs.
-                if (!param_is_func)
-                    param_type_fixed = gensub(/^b2/, "", 1, param_type_fixed)
-
-                funcs[func_name]["params"][i]["type_fixed"] = param_type_fixed
-                printf param_type_fixed " " funcs[func_name]["params"][i]["name"]
-            }
-            printf ")"
-
-            # Constness.
-            is_const = 0
-            if (is_id_based || is_dumb_wrapper)
-            {
-                if (clean_func_name ~ /^(Get|Overlap|Is|Compute|Are|Test|Extents|Contains|Union|Center)($|[A-Z])/ || clean_func_name ~ /Cast(Closest)?$/ || clean_func_name == "Draw")
-                    is_const = 1
-                else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
-                    is_const = 0
-                else
-                {
-                    print "Can't guess from this function name if it's const or not." >"/dev/stderr"
-                    exit 1
-                }
-            }
-            else if (is_by_value_raii_wrapper && first_param_is_self)
-            {
-                if (funcs[func_name]["params"][i]["type"] ~ /^const /)
-                    is_const = 1
-                else
-                    is_const = 0
-            }
-            else
-            {
-                print "Not sure if this func is const or not." >"/dev/stderr"
-                exit 1
-            }
-
-            if (is_const)
-                printf " const"
-
-            # Function body.
-
-            printf " { return "
-
-            # Cast return value to our enum if needed.
-            if ( return_type_fixed in enums )
-                printf "(" return_type_fixed ")"
-
-            printf func_name "("
-
-            first_param = 1
-            for (i in funcs[func_name]["params"])
-            {
-                if (first_param && first_param_is_self)
-                {
-                    if (is_by_value_raii_wrapper)
-                        printf "&value"
-                    else if (is_dumb_wrapper)
-                        printf "*this"
-                    else
-                        printf "Handle()"
-                    first_param = 0
-                    continue
-                }
-
-                if (first_param)
-                    first_param = 0
-                else
-                    printf ", "
-
-                # Prepend `&` to take address of a reference.
-                if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
-                    printf "&"
-
-                param_type = funcs[func_name]["params"][i]["type_fixed"]
-
-                # Cast our enums to the original enums.
-                if (param_type in enums) # Note, `param_type` is not "fixed" here.
-                    printf "(b2" param_type ")"
-
-                param_name = funcs[func_name]["params"][i]["name"]
-
-                printf "%s", param_name
-            }
-            print "); }"
-
-            # Destroy the function we just generated.
-            delete funcs[func_name]
+            emit_func(func_name, type, "        ")
         }
 
         # Close the class.
         print "    };"
+    }
+
+    # Emit free functions.
+
+    for (func_name in funcs)
+    {
+        emit_func(func_name, "", "    ")
     }
 
     print "} // namespace box2d"

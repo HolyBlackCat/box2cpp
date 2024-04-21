@@ -4,6 +4,7 @@
 #include "box2c/include/box2d/color.h"
 #include "box2c/include/box2d/distance.h"
 #include "box2c/include/box2d/dynamic_tree.h"
+#include "box2c/include/box2d/hull.h"
 #include "box2c/include/box2d/math.h"
 #include "box2c/include/box2d/timer.h"
 
@@ -814,7 +815,7 @@ namespace b2
         [[nodiscard]] const b2WorldId &Handle() const { return id; }
 
         /// Overlap test for all shapes that overlap the provided capsule.
-        void OverlapCapsule(const b2Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
+        void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
 
         /// Get counters and sizes
         [[nodiscard]] Counters GetCounters() const { return b2World_GetCounters(Handle()); }
@@ -836,22 +837,22 @@ namespace b2
         [[nodiscard]] RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
-        void CapsuleCast(const b2Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
+        void CapsuleCast(const Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
 
         /// Adjust the restitution threshold. Advanced feature for testing.
         void SetRestitutionThreshold(float value) { return b2World_SetRestitutionThreshold(Handle(), value); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
-        void PolygonCast(const b2Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
+        void PolygonCast(const Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for all shapes that overlap the provided polygon.
-        void OverlapPolygon(const b2Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
+        void OverlapPolygon(const Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
 
         /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
-        void CircleCast(const b2Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
+        void CircleCast(const Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
 
         /// Overlap test for for all shapes that overlap the provided circle.
-        void OverlapCircle(const b2Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
+        void OverlapCircle(const Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
 
         /// Adjust contact tuning parameters:
         /// - hertz is the contact stiffness (cycles per second)
@@ -1152,7 +1153,7 @@ namespace b2
         [[nodiscard]] bool AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(Handle()); }
 
         /// Allows you to change a shape to be a capsule or update the current capsule.
-        void SetCapsule(const b2Capsule& capsule) { return b2Shape_SetCapsule(Handle(), &capsule); }
+        void SetCapsule(const Capsule& capsule) { return b2Shape_SetCapsule(Handle(), &capsule); }
 
         /// @return are sensor events enabled?
         [[nodiscard]] bool AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(Handle()); }
@@ -1184,7 +1185,7 @@ namespace b2
         [[nodiscard]] float GetDensity() const { return b2Shape_GetDensity(Handle()); }
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetPolygon(const b2Polygon& polygon) { return b2Shape_SetPolygon(Handle(), &polygon); }
+        void SetPolygon(const Polygon& polygon) { return b2Shape_SetPolygon(Handle(), &polygon); }
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
         void EnableContactEvents(bool flag) { return b2Shape_EnableContactEvents(Handle(), flag); }
@@ -1223,7 +1224,7 @@ namespace b2
 
         /// Allows you to change a shape to be a circle or update the current circle.
         /// This does not modify the mass properties.
-        void SetCircle(const b2Circle& circle) { return b2Shape_SetCircle(Handle(), &circle); }
+        void SetCircle(const Circle& circle) { return b2Shape_SetCircle(Handle(), &circle); }
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
@@ -1242,7 +1243,7 @@ namespace b2
         [[nodiscard]] float GetFriction() const { return b2Shape_GetFriction(Handle()); }
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetSegment(const b2Segment& segment) { return b2Shape_SetSegment(Handle(), &segment); }
+        void SetSegment(const Segment& segment) { return b2Shape_SetSegment(Handle(), &segment); }
 
         /// Shape identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const { return b2Shape_IsValid(Handle()); }
@@ -1791,7 +1792,7 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void RayCast(const b2RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
+        void RayCast(const RayCastInput& input, uint32_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
 
         /// Compute the height of the binary tree in O(N) time. Should not be
         /// called often.
@@ -1821,7 +1822,7 @@ namespace b2
         /// number of proxies in the tree.
         /// @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
         /// @param callback a callback class that is called for each proxy that is hit by the ray.
-        void ShapeCast(const b2ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
+        void ShapeCast(const ShapeCastInput& input, uint32_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
 
         /// Get the number of proxies created
         [[nodiscard]] int32_t GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
@@ -1853,4 +1854,359 @@ namespace b2
         /// Enlarge a proxy and enlarge ancestors as necessary.
         void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     };
+
+    /// Inverse transform a point (e.g. world space to local space)
+    [[nodiscard]] inline Vec2 InvTransformPoint(Transform xf, const Vec2 p) { return b2InvTransformPoint(xf, p); }
+
+    /// Rotate a vector
+    [[nodiscard]] inline Vec2 RotateVector(Rot q, Vec2 v) { return b2RotateVector(q, v); }
+
+    /// Component-wise maximum vector
+    [[nodiscard]] inline Vec2 Max(Vec2 a, Vec2 b) { return b2Max(a, b); }
+
+    /// Compute the distance between two line segments, clamping at the end points if needed.
+    [[nodiscard]] inline SegmentDistanceResult SegmentDistance(Vec2 p1, Vec2 q1, Vec2 p2, Vec2 q2) { return b2SegmentDistance(p1, q1, p2, q2); }
+
+    /// Inverse rotate a vector
+    [[nodiscard]] inline Vec2 InvRotateVector(Rot q, Vec2 v) { return b2InvRotateVector(q, v); }
+
+    /// Transpose multiply two rotations: qT * r
+    [[nodiscard]] inline Rot InvMulRot(Rot q, Rot r) { return b2InvMulRot(q, r); }
+
+    /// Set using an angle in radians
+    [[nodiscard]] inline Rot MakeRot(float angle) { return b2MakeRot(angle); }
+
+    /// Perform a linear shape cast of shape B moving and shape A fixed. Determines the hit point, normal, and translation fraction.
+    /// @returns true if hit, false if there is no hit or an initial overlap
+    [[nodiscard]] inline CastOutput ShapeCast(const ShapeCastPairInput& input) { return b2ShapeCast(&input); }
+
+    [[nodiscard]] inline Timer CreateTimer() { return b2CreateTimer(); }
+
+    /// Component-wise clamp vector so v into the range [a, b]
+    [[nodiscard]] inline Vec2 Clamp(Vec2 v, Vec2 a, Vec2 b) { return b2Clamp(v, a, b); }
+
+    /// Compute the collision manifold between a capsule and circle
+    [[nodiscard]] inline Manifold CollideCapsules(const Capsule& capsuleA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollideCapsules(&capsuleA, xfA, &capsuleB, xfB, &cache); }
+
+    /// Destroy a rigid body given an id. Destroys all joints attached to the body. Be careful
+    ///	because this may invalidate some b2JointId that you have stored.
+    /// @warning This function is locked during callbacks.
+    inline void DestroyBodyAndJoints(BodyId bodyId) { return b2DestroyBodyAndJoints(bodyId); }
+
+    /// Get a right pointing perpendicular vector. Equivalent to b2CrossVS(v, 1.0f)
+    [[nodiscard]] inline Vec2 RightPerp(Vec2 v) { return b2RightPerp(v); }
+
+    /// Compute the convex hull of a set of points. Returns an empty hull if it fails.
+    /// Some failure cases:
+    /// - all points very close together
+    /// - all points on a line
+    /// - less than 3 points
+    /// - more than b2_maxPolygonVertices points
+    /// This welds close points and removes collinear points.
+    [[nodiscard]] inline Hull ComputeHull(const Vec2& points, int32_t count) { return b2ComputeHull(&points, count); }
+
+    /// Validate ray cast input data (NaN, etc)
+    [[nodiscard]] inline bool IsValidRay(const RayCastInput& input) { return b2IsValidRay(&input); }
+
+    /// Is this rotation normalized?
+    [[nodiscard]] inline bool IsNormalized(Rot q) { return b2IsNormalized(q); }
+
+    /// Component-wise minimum vector
+    [[nodiscard]] inline Vec2 Min(Vec2 a, Vec2 b) { return b2Min(a, b); }
+
+    /// Compute the collision manifold between two circles.
+    [[nodiscard]] inline Manifold CollideCircles(const Circle& circleA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollideCircles(&circleA, xfA, &circleB, xfB); }
+
+    /// Vector negation
+    [[nodiscard]] inline Vec2 Neg(Vec2 a) { return b2Neg(a); }
+
+    /// Shape cast versus a convex polygon. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput ShapeCastPolygon(const ShapeCastInput& input, const Polygon& shape) { return b2ShapeCastPolygon(&input, &shape); }
+
+    /// Ray cast versus polygon in shape local space. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput RayCastPolygon(const RayCastInput& input, const Polygon& shape) { return b2RayCastPolygon(&input, &shape); }
+
+    /// Make an offset convex polygon from a convex hull. This will assert if the hull is not valid.
+    [[nodiscard]] inline Polygon MakeOffsetPolygon(const Hull& hull, float radius, Transform transform) { return b2MakeOffsetPolygon(&hull, radius, transform); }
+
+    /// Solve A * x = b, where b is a column vector. This is more efficient
+    /// than computing the inverse in one-shot cases.
+    [[nodiscard]] inline Vec2 Solve22(Mat22 A, Vec2 b) { return b2Solve22(A, b); }
+
+    /// Get the length squared of this vector.
+    [[nodiscard]] inline float LengthSquared(Vec2 v) { return b2LengthSquared(v); }
+
+    /// Compute the collision manifold between an segment and a circle.
+    [[nodiscard]] inline Manifold CollideSegmentAndCircle(const Segment& segmentA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollideSegmentAndCircle(&segmentA, xfA, &circleB, xfB); }
+
+    /// Compute the closest points between two shapes. Supports any combination of:
+    /// b2Circle, b2Polygon, b2EdgeShape. The simplex cache is input/output.
+    /// On the first call set b2SimplexCache.count to zero.
+    [[nodiscard]] inline DistanceOutput ShapeDistance(DistanceCache& cache, const DistanceInput& input) { return b2ShapeDistance(&cache, &input); }
+
+    /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
+    /// Contacts are not created until the next time step.
+    ///	@return the shape id for accessing the shape
+    [[nodiscard]] inline ShapeId CreatePolygonShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return b2CreatePolygonShape(bodyId, &def, &polygon); }
+
+    /// Compute the collision manifold between a capsule and circle
+    [[nodiscard]] inline Manifold CollideCapsuleAndCircle(const Capsule& capsuleA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollideCapsuleAndCircle(&capsuleA, xfA, &circleB, xfB); }
+
+    /// Transform a point (e.g. local space to world space)
+    [[nodiscard]] inline Vec2 TransformPoint(Transform xf, const Vec2 p) { return b2TransformPoint(xf, p); }
+
+    /// Compute the collision manifold between an segment and a capsule.
+    [[nodiscard]] inline Manifold CollideSegmentAndCapsule(const Segment& segmentA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollideSegmentAndCapsule(&segmentA, xfA, &capsuleB, xfB, &cache); }
+
+    /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
+    /// Contacts are not created until the next time step.
+    ///	@return the shape id for accessing the shape
+    [[nodiscard]] inline ShapeId CreateCircleShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return b2CreateCircleShape(bodyId, &def, &circle); }
+
+    /// Perform the cross product on a vector and a scalar. In 2D this produces
+    /// a vector.
+    [[nodiscard]] inline Vec2 CrossVS(Vec2 v, float s) { return b2CrossVS(v, s); }
+
+    /// Make a square polygon, bypassing the need for a convex hull.
+    [[nodiscard]] inline Polygon MakeSquare(float h) { return b2MakeSquare(h); }
+
+    /// Use this to initialize your filter
+    [[nodiscard]] inline Filter DefaultFilter() { return b2DefaultFilter(); }
+
+    /// Override the default assert callback.
+    ///	@param assertFcn a non-null assert callback
+    inline void SetAssertFcn(b2AssertFcn* assertFcn) { return b2SetAssertFcn(assertFcn); }
+
+    /// Total bytes allocated by Box2D
+    [[nodiscard]] inline uint32_t GetByteCount() { return b2GetByteCount(); }
+
+    /// Vector dot product
+    [[nodiscard]] inline float Dot(Vec2 a, Vec2 b) { return b2Dot(a, b); }
+
+    [[nodiscard]] inline bool Vec2_IsValid(Vec2 v) { return b2Vec2_IsValid(v); }
+
+    /// Compute the angular velocity necessary to rotate between two
+    ///	rotations over a give time
+    ///	@param q1 initial rotation
+    ///	@param q2 final rotation
+    ///	@param inv_h inverse time step
+    [[nodiscard]] inline float ComputeAngularVelocity(Rot q1, Rot q2, float inv_h) { return b2ComputeAngularVelocity(q1, q2, inv_h); }
+
+    /// Make a proxy for use in GJK and related functions.
+    [[nodiscard]] inline DistanceProxy MakeProxy(const Vec2& vertices, int32_t count, float radius) { return b2MakeProxy(&vertices, count, radius); }
+
+    [[nodiscard]] inline int64_t GetTicks(Timer& timer) { return b2GetTicks(&timer); }
+
+    /// Multiply a 2-by-2 matrix times a 2D vector
+    [[nodiscard]] inline Vec2 MulMV(Mat22 A, Vec2 v) { return b2MulMV(A, v); }
+
+    /// Component-wise multiplication
+    [[nodiscard]] inline Vec2 Mul(Vec2 a, Vec2 b) { return b2Mul(a, b); }
+
+    /// Convert this vector into a unit vector
+    [[nodiscard]] inline Vec2 Normalize(Vec2 v) { return b2Normalize(v); }
+
+    /// Compute the collision manifold between two polygons.
+    [[nodiscard]] inline Manifold CollidePolygons(const Polygon& polyA, Transform xfA, const Polygon& polyB, Transform xfB, DistanceCache& cache) { return b2CollidePolygons(&polyA, xfA, &polyB, xfB, &cache); }
+
+    // relative angle between b and a (rot_b * inv(rot_a))
+    [[nodiscard]] inline float RelativeAngle(Rot b, Rot a) { return b2RelativeAngle(b, a); }
+
+    /// Multiply two rotations: q * r
+    [[nodiscard]] inline Rot MulRot(Rot q, Rot r) { return b2MulRot(q, r); }
+
+    /// Vector cross product. In 2D this yields a scalar.
+    [[nodiscard]] inline float Cross(Vec2 a, Vec2 b) { return b2Cross(a, b); }
+
+    /// Compute mass properties of a circle
+    [[nodiscard]] inline MassData ComputeCircleMass(const Circle& shape, float density) { return b2ComputeCircleMass(&shape, density); }
+
+    /// Get the inverse of a 2-by-2 matrix
+    [[nodiscard]] inline Mat22 GetInverse22(Mat22 A) { return b2GetInverse22(A); }
+
+    [[nodiscard]] inline float GetMillisecondsAndReset(Timer& timer) { return b2GetMillisecondsAndReset(&timer); }
+
+    /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
+    /// Contacts are not created until the next time step.
+    ///	@return the shape id for accessing the shape
+    [[nodiscard]] inline ShapeId CreateSegmentShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return b2CreateSegmentShape(bodyId, &def, &segment); }
+
+    [[nodiscard]] inline float Distance(Vec2 a, Vec2 b) { return b2Distance(a, b); }
+
+    /// Compute the collision manifold between an segment and a capsule.
+    [[nodiscard]] inline Manifold CollideSmoothSegmentAndCapsule(const SmoothSegment& smoothSegmentA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollideSmoothSegmentAndCapsule(&smoothSegmentA, xfA, &capsuleB, xfB, &cache); }
+
+    /// Make a box (rectangle) polygon, bypassing the need for a convex hull.
+    [[nodiscard]] inline Polygon MakeBox(float hx, float hy) { return b2MakeBox(hx, hy); }
+
+    /// This asserts of the vector is too short
+    [[nodiscard]] inline Vec2 NormalizeChecked(Vec2 v) { return b2NormalizeChecked(v); }
+
+    /// Compute mass properties of a capsule
+    [[nodiscard]] inline MassData ComputeCapsuleMass(const Capsule& shape, float density) { return b2ComputeCapsuleMass(&shape, density); }
+
+    /// Multiply a scalar and vector
+    [[nodiscard]] inline Vec2 MulSV(float s, Vec2 v) { return b2MulSV(s, v); }
+
+    /// Compute mass properties of a polygon
+    [[nodiscard]] inline MassData ComputePolygonMass(const Polygon& shape, float density) { return b2ComputePolygonMass(&shape, density); }
+
+    /// Transform a polygon. This is useful for transferring a shape from one body to another.
+    [[nodiscard]] inline Polygon TransformPolygon(Transform transform, const Polygon& polygon) { return b2TransformPolygon(transform, &polygon); }
+
+    /// Compute the collision manifold between an segment and a polygon.
+    [[nodiscard]] inline Manifold CollideSegmentAndPolygon(const Segment& segmentA, Transform xfA, const Polygon& polygonB, Transform xfB, DistanceCache& cache) { return b2CollideSegmentAndPolygon(&segmentA, xfA, &polygonB, xfB, &cache); }
+
+    /// Get the length of this vector (the norm).
+    [[nodiscard]] inline float Length(Vec2 v) { return b2Length(v); }
+
+    /// Compute the collision manifold between a smooth segment and a circle.
+    [[nodiscard]] inline Manifold CollideSmoothSegmentAndCircle(const SmoothSegment& smoothSegmentA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollideSmoothSegmentAndCircle(&smoothSegmentA, xfA, &circleB, xfB); }
+
+    /// Test a point for overlap with a capsule in local space
+    [[nodiscard]] inline bool PointInCapsule(Vec2 point, const Capsule& shape) { return b2PointInCapsule(point, &shape); }
+
+    /// Compute the collision manifold between a polygon and a circle.
+    [[nodiscard]] inline Manifold CollidePolygonAndCircle(const Polygon& polygonA, Transform xfA, const Circle& circleB, Transform xfB) { return b2CollidePolygonAndCircle(&polygonA, xfA, &circleB, xfB); }
+
+    /// Shape cast versus a circle. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput ShapeCastCircle(const ShapeCastInput& input, const Circle& shape) { return b2ShapeCastCircle(&input, &shape); }
+
+    [[nodiscard]] inline bool IsValid(float a) { return b2IsValid(a); }
+
+    /// v2 = A.q' * (B.q * v1 + B.p - A.p)
+    ///    = A.q' * B.q * v1 + A.q' * (B.p - A.p)
+    [[nodiscard]] inline Transform InvMulTransforms(Transform A, Transform B) { return b2InvMulTransforms(A, B); }
+
+    /// Make an offset box, bypassing the need for a convex hull.
+    [[nodiscard]] inline Polygon MakeOffsetBox(float hx, float hy, Vec2 center, float angle) { return b2MakeOffsetBox(hx, hy, center, angle); }
+
+    /// Make a color from a hex code
+    [[nodiscard]] inline Color MakeColor(HexColor hexCode) { return b2MakeColor((b2HexColor)hexCode); }
+
+    /// Vector subtraction
+    [[nodiscard]] inline Vec2 Sub(Vec2 a, Vec2 b) { return b2Sub(a, b); }
+
+    /// Get a left pointing perpendicular vector. Equivalent to b2CrossSV(1.0f, v)
+    [[nodiscard]] inline Vec2 LeftPerp(Vec2 v) { return b2LeftPerp(v); }
+
+    /// Make a rounded box, bypassing the need for a convex hull.
+    [[nodiscard]] inline Polygon MakeRoundedBox(float hx, float hy, float radius) { return b2MakeRoundedBox(hx, hy, radius); }
+
+    /// Compute the upper bound on time before two shapes penetrate. Time is represented as
+    /// a fraction between [0,tMax]. This uses a swept separating axis and may miss some intermediate,
+    /// non-tunneling collisions. If you change the time interval, you should call this function
+    /// again.
+    [[nodiscard]] inline TOIOutput TimeOfImpact(const TOIInput& input) { return b2TimeOfImpact(&input); }
+
+    /// Shape cast versus a line segment. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput ShapeCastSegment(const ShapeCastInput& input, const Segment& shape) { return b2ShapeCastSegment(&input, &shape); }
+
+    /// Use this to initialize your query filter
+    [[nodiscard]] inline QueryFilter DefaultQueryFilter() { return b2DefaultQueryFilter(); }
+
+    /// a - s * b
+    [[nodiscard]] inline Vec2 MulSub(Vec2 a, float s, Vec2 b) { return b2MulSub(a, s, b); }
+
+    /// Integration rotation from angular velocity
+    ///	@param q1 initial rotation
+    ///	@param deltaAngle the angular displacement in radians
+    [[nodiscard]] inline Rot IntegrateRotation(Rot q1, float deltaAngle) { return b2IntegrateRotation(q1, deltaAngle); }
+
+    /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
+    /// Contacts are not created until the next time step.
+    ///	@return the shape id for accessing the shape
+    [[nodiscard]] inline ShapeId CreateCapsuleShape(BodyId bodyId, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return b2CreateCapsuleShape(bodyId, &def, &capsule); }
+
+    /// Compute the collision manifold between a polygon and capsule
+    [[nodiscard]] inline Manifold CollidePolygonAndCapsule(const Polygon& polygonA, Transform xfA, const Capsule& capsuleB, Transform xfB, DistanceCache& cache) { return b2CollidePolygonAndCapsule(&polygonA, xfA, &capsuleB, xfB, &cache); }
+
+    /// Ray cast versus segment in shape local space. Optionally treat the segment as one-sided with hits from
+    /// the left side being treated as a miss.
+    [[nodiscard]] inline CastOutput RayCastSegment(const RayCastInput& input, const Segment& shape, bool oneSided) { return b2RayCastSegment(&input, &shape, oneSided); }
+
+    /// Perform the cross product on a scalar and a vector. In 2D this produces
+    /// a vector.
+    [[nodiscard]] inline Vec2 CrossSV(float s, Vec2 v) { return b2CrossSV(s, v); }
+
+    /// Vector addition
+    [[nodiscard]] inline Vec2 Add(Vec2 a, Vec2 b) { return b2Add(a, b); }
+
+    /// Compute the bounding box of a transformed capsule
+    [[nodiscard]] inline AABB ComputeCapsuleAABB(const Capsule& shape, Transform transform) { return b2ComputeCapsuleAABB(&shape, transform); }
+
+    /// Ray cast versus circle in shape local space. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput RayCastCircle(const RayCastInput& input, const Circle& shape) { return b2RayCastCircle(&input, &shape); }
+
+    /// a + s * b
+    [[nodiscard]] inline Vec2 MulAdd(Vec2 a, float s, Vec2 b) { return b2MulAdd(a, s, b); }
+
+    /// This determines if a hull is valid. Checks for:
+    /// - convexity
+    /// - collinear points
+    /// This is expensive and should not be called at runtime.
+    [[nodiscard]] inline bool ValidateHull(const Hull& hull) { return b2ValidateHull(&hull); }
+
+    /// Make a convex polygon from a convex hull. This will assert if the hull is not valid.
+    [[nodiscard]] inline Polygon MakePolygon(const Hull& hull, float radius) { return b2MakePolygon(&hull, radius); }
+
+    /// Compute the bounding box of a transformed polygon
+    [[nodiscard]] inline AABB ComputePolygonAABB(const Polygon& shape, Transform transform) { return b2ComputePolygonAABB(&shape, transform); }
+
+    /// Get the distance squared between points
+    [[nodiscard]] inline float DistanceSquared(Vec2 a, Vec2 b) { return b2DistanceSquared(a, b); }
+
+    /// Compute the bounding box of a transformed circle
+    [[nodiscard]] inline AABB ComputeCircleAABB(const Circle& shape, Transform transform) { return b2ComputeCircleAABB(&shape, transform); }
+
+    /// Component-wise absolute vector
+    [[nodiscard]] inline Vec2 Abs(Vec2 a) { return b2Abs(a); }
+
+    /// Compute the bounding box of a transformed line segment
+    [[nodiscard]] inline AABB ComputeSegmentAABB(const Segment& shape, Transform transform) { return b2ComputeSegmentAABB(&shape, transform); }
+
+    inline void SleepMilliseconds(float milliseconds) { return b2SleepMilliseconds(milliseconds); }
+
+    [[nodiscard]] inline float GetMilliseconds(const Timer& timer) { return b2GetMilliseconds(&timer); }
+
+    /// Normalized linear interpolation
+    /// https://fgiesen.wordpress.com/2012/08/15/linear-interpolation-past-present-and-future/
+    [[nodiscard]] inline Rot NLerp(Rot q1, Rot q2, float t) { return b2NLerp(q1, q2, t); }
+
+    /// Compute the collision manifold between a smooth segment and a rounded polygon.
+    [[nodiscard]] inline Manifold CollideSmoothSegmentAndPolygon(const SmoothSegment& smoothSegmentA, Transform xfA, const Polygon& polygonB, Transform xfB, DistanceCache& cache) { return b2CollideSmoothSegmentAndPolygon(&smoothSegmentA, xfA, &polygonB, xfB, &cache); }
+
+    [[nodiscard]] inline Vec2 GetLengthAndNormalize(float& length, Vec2 v) { return b2GetLengthAndNormalize(&length, v); }
+
+    /// Normalize rotation
+    [[nodiscard]] inline Rot NormalizeRot(Rot q) { return b2NormalizeRot(q); }
+
+    /// Shape cast versus a capsule. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput ShapeCastCapsule(const ShapeCastInput& input, const Capsule& shape) { return b2ShapeCastCapsule(&input, &shape); }
+
+    /// Test a point for overlap with a circle in local space
+    [[nodiscard]] inline bool PointInCircle(Vec2 point, const Circle& shape) { return b2PointInCircle(point, &shape); }
+
+    /// This allows the user to override the allocation functions. These should be
+    ///	set during application startup.
+    inline void SetAllocator(b2AllocFcn* allocFcn, b2FreeFcn* freeFcn) { return b2SetAllocator(allocFcn, freeFcn); }
+
+    /// Vector linear interpolation
+    /// https://fgiesen.wordpress.com/2012/08/15/linear-interpolation-past-present-and-future/
+    [[nodiscard]] inline Vec2 Lerp(Vec2 a, Vec2 b, float t) { return b2Lerp(a, b, t); }
+
+    /// Ray cast versus capsule in shape local space. Initial overlap is treated as a miss.
+    [[nodiscard]] inline CastOutput RayCastCapsule(const RayCastInput& input, const Capsule& shape) { return b2RayCastCapsule(&input, &shape); }
+
+    /// Test a point for overlap with a convex polygon in local space
+    [[nodiscard]] inline bool PointInPolygon(Vec2 point, const Polygon& shape) { return b2PointInPolygon(point, &shape); }
+
+    /// v2 = A.q.Rot(B.q.Rot(v1) + B.p) + A.p
+    ///    = (A.q * B.q).Rot(v1) + A.q.Rot(B.p) + A.p
+    [[nodiscard]] inline Transform MulTransforms(Transform A, Transform B) { return b2MulTransforms(A, B); }
+
+    /// Make a color from a hex code and alpha
+    [[nodiscard]] inline Color MakeColorAlpha(HexColor hexCode, float alpha) { return b2MakeColorAlpha((b2HexColor)hexCode, alpha); }
+
+    [[nodiscard]] inline Transform GetSweepTransform(const Sweep& sweep, float time) { return b2GetSweepTransform(&sweep, time); }
 } // namespace box2d
