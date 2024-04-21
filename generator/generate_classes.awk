@@ -173,10 +173,16 @@ function class_order(c)
 {
     if (c == "AABB" || c == "Rot") # Those are widely used, must be before all.
         return 10
-    else if (c == "Shape") # This is needed for the `Body`.
+    else if (c == "Shape" || c == "Chain") # This is needed for the `Body`.
         return 20
-    else
+    else if (c == "Joint") # This is needed for the `Body`.
         return 30
+    else if (c ~ /Joint/) # This is needed for the `Body`.
+        return 31
+    else if (c == "Body")
+        return 40
+    else
+        return 50
 }
 
 function sort_classes_comparator(ai, av, bi, bv)
@@ -187,8 +193,10 @@ function sort_classes_comparator(ai, av, bi, bv)
 # We use this order to sort our functions, to make them look better.
 function func_order(f)
 {
-    if (f ~ /^b2Create.*Shape$/)
+    if (f ~ /^b2Create.*Shape/)
         return 10
+    if (f ~ /^b2Create/)
+        return 11
     else
         return 20
 }
@@ -203,47 +211,62 @@ function sort_funcs_comparator(ai, av, bi, bv)
 # If `type` is specified and `func_name` doesn't match it, does nothing.
 # On success, removes the function from the global list.
 # `indent` is some spaces that we prepend to every line.
-function emit_func(func_name, type, indent)
+# `func_variant_index` must initially be 0. We call ourselves recursively, increasing it, to generate some function variants.
+function emit_func(func_name, type, func_variant_index, indent)
 {
-    # Whether we're in the `Body` class and this is one of the `Create...Shape()` funcs.
-    is_shape_factory_func = type == "Body" && func_name ~ /^b2Create.*Shape$/
+    # If this is a factory function for creating other classes.
+    is_factory_func = func_name ~ /^b2Create/ && length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] == "b2" type "Id"
+    factory_func_owning = is_factory_func && func_variant_index == 0
 
     # Ignore functions not from this class.
-    if (type && func_name !~ "b2" type "_.*" && !is_shape_factory_func)
+    if (type && func_name !~ "b2" type "_.*" && !is_factory_func)
         return
 
-    print ""
+    # Figure out the return type.
+    return_type = funcs[func_name]["ret"]
+
+    return_type_fixed = gensub(/^b2/, "", 1, return_type)
+    if (is_factory_func)
+    {
+        factory_target_class = gensub(/^b2Create/, "", 1, func_name)
+        if (factory_target_class in classes_set)
+            return_type_fixed = factory_target_class
+        else
+            return_type_fixed = gensub(/Id$/, "", 1, return_type_fixed)
+    }
+    funcs[func_name]["ret_fixed"] = return_type_fixed
+
 
     # The comment of this function.
-    printf indent "%s", gensub(/\n/, "\n" indent, "g", funcs[func_name]["comment"])
+    if (!is_factory_func || factory_func_owning)
+    {
+        print ""
+        printf indent "%s", gensub(/\n/, "\n" indent, "g", funcs[func_name]["comment"])
+    }
+    else
+    {
+        printf indent
+    }
 
     # Remove class name from the func name.
     clean_func_name = func_name
-    if (type && !is_shape_factory_func)
+    if (type && !is_factory_func)
         clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
     else
         clean_func_name = gensub("^b2", "", 1, clean_func_name)
-
-    # Return type.
-    return_type = funcs[func_name]["ret"]
 
     # Nodiscard?
     if (return_type == "void")
     {}
     else if (type == "DynamicTree" && func_name == "b2DynamicTree_Rebuild")
     {} # This returns optional statistics.
-    else if (is_shape_factory_func)
-    {} # You don't have to store the shape handle.
+    else if (is_factory_func && !factory_func_owning)
+    {} # You don't have to store the shape handle when it's non-owning.
     else
         printf "[[nodiscard]] "
 
     if (!type)
         printf "inline "
-
-    return_type_fixed = gensub(/^b2/, "", 1, return_type)
-    if (is_shape_factory_func && return_type_fixed == "ShapeId")
-        return_type_fixed = "Shape"
-    funcs[func_name]["ret_fixed"] = return_type_fixed
 
     printf return_type_fixed " " clean_func_name "("
 
@@ -265,8 +288,8 @@ function emit_func(func_name, type, indent)
             first_param = 0
 
             # Inject an extra ownership parameter for shape factories.
-            if (is_shape_factory_func)
-                printf "MaybeOwningTag auto ownership, "
+            if (is_factory_func)
+                printf "%s, ", factory_func_owning ? "TagOwning" : "TagRef"
         }
         else
         {
@@ -317,7 +340,7 @@ function emit_func(func_name, type, indent)
     {
         is_const = 0 # Not a member function.
     }
-    else if (is_shape_factory_func)
+    else if (is_factory_func)
     {
         is_const = 0 # A static member function.
     }
@@ -337,7 +360,7 @@ function emit_func(func_name, type, indent)
     }
     else if (is_by_value_raii_wrapper && first_param_is_self)
     {
-        if (funcs[func_name]["params"][1]["type"] ~ /^const /)
+        if (length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] ~ /^const /)
             is_const = 1
         else
             is_const = 0
@@ -355,10 +378,10 @@ function emit_func(func_name, type, indent)
 
     printf " { return "
 
-    if ( is_shape_factory_func )
-        printf "{ownership, "
+    if (is_factory_func)
+        printf "{%s, ", factory_func_owning ? "Owning" : "Ref"
     # Cast return value to our enum if needed.
-    if ( return_type_fixed in enums )
+    if (return_type_fixed in enums)
         printf "(" return_type_fixed ")"
 
     printf func_name "("
@@ -402,9 +425,12 @@ function emit_func(func_name, type, indent)
             printf ".Handle()"
     }
     printf ")"
-    if ( is_shape_factory_func )
+    if (is_factory_func)
         printf "}"
     print "; }"
+
+    if (is_factory_func && func_variant_index == 0)
+        emit_func(func_name, type, func_variant_index + 1, indent)
 
     # Destroy the function we just generated.
     delete funcs[func_name]
@@ -426,7 +452,7 @@ END {
         if (!(type in forced_non_classes))
         {
             if (type in classes_set)
-                continue; # This is also a full-blown class, don't emit it.
+                continue; # This is a full-blown class, don't emit it.
 
             if (gensub(/Def$/, "", 1, type) in classes_set)
                 continue; # This is a `...Def` struct, we don't need to emit it outside of the respective class.
@@ -471,14 +497,14 @@ END {
 
     print ""
     print "    // This can be passed to some functions to express ownership."
-    print "    struct OwningTag { explicit OwningTag() = default; };"
-    print "    inline constexpr OwningTag Owning{};"
+    print "    struct TagOwning { explicit TagOwning() = default; };"
+    print "    inline constexpr TagOwning Owning{};"
     print ""
     print "    // This can be passed to the constructors of our classes along with a handle to just store a reference to it, without assuming ownership."
-    print "    struct RefTag { explicit RefTag() = default; };"
-    print "    inline constexpr RefTag Ref{};"
+    print "    struct TagRef { explicit TagRef() = default; };"
+    print "    inline constexpr TagRef Ref{};"
     print ""
-    print "    template <typename T> concept MaybeOwningTag = std::same_as<T, OwningTag> || std::same_as<T, RefTag>;"
+    print "    template <typename T> concept MaybeOwningTag = std::same_as<T, TagOwning> || std::same_as<T, TagRef>;"
 
     # Emit classes.
     asort(classes, classes, "sort_classes_comparator")
@@ -534,7 +560,7 @@ END {
             if (is_joint_kind)
             {
                 print "      protected:"
-                print "        " type "(OwningTag, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Owning, id) {}"
+                print "        " type "(TagOwning, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Owning, id) {}"
                 print ""
             }
             else
@@ -543,7 +569,7 @@ END {
                 print "        bool is_owner = false;"
                 print ""
                 print "      protected:"
-                print "        " type "(OwningTag, b2" type "Id id) noexcept : id(id), is_owner(true) {}"
+                print "        " type "(TagOwning, b2" type "Id id) noexcept : id(id), is_owner(true) {}"
                 print ""
             }
         }
@@ -575,11 +601,13 @@ END {
             print "            Params() : b2" type "Def(b2Default" type "Def()) {}"
             print "        };"
             print ""
+
+            delete funcs["b2Default" type "Def"]
         }
 
         # The parametrized constructor.
         has_parametrized_ctor = 0
-        if (has_params_struct)
+        if (has_params_struct && type == "World") # Only the `World` class can self-construct, others are constructed by other classes.
         {
             has_parametrized_ctor = 1
 
@@ -604,6 +632,8 @@ END {
 
             printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
             print type "(" extra_param_decl "const std::derived_from<b2" type "Def> auto &params) : " type "(Owning, b2Create" type "(" extra_param_use "&params)) {}"
+
+            delete funcs["b2Create" type]
         }
         else if (is_by_value_raii_wrapper)
         {
@@ -611,6 +641,7 @@ END {
 
             printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
             print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
+
             delete funcs["b2" type "_Create"]
         }
         else if (is_dumb_wrapper)
@@ -651,14 +682,14 @@ END {
                 if (has_parametrized_ctor)
                     print ""
                 print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
-                print "        " type "(RefTag, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Ref, id) {}"
+                print "        " type "(TagRef, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Ref, id) {}"
             }
             else
             {
                 if (has_parametrized_ctor)
                     print ""
                 print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
-                print "        " type "(RefTag, b2" type "Id id) noexcept : id(id), is_owner(false) {}"
+                print "        " type "(TagRef, b2" type "Id id) noexcept : id(id), is_owner(false) {}"
             }
         }
 
@@ -722,6 +753,7 @@ END {
                 if (destructor_needs_validation)
                     printf " && IsValid()"
                 print ") b2" type "_Destroy(&value); }"
+
                 delete funcs["b2" type "_Destroy"]
             }
             else if (is_id_based)
@@ -733,6 +765,8 @@ END {
                 if (destructor_needs_validation)
                     printf " && IsValid()"
                 print ") b2Destroy" type "(id); }"
+
+                delete funcs["b2Destroy" type]
             }
 
             # ID operations.
@@ -752,18 +786,12 @@ END {
             }
         }
 
-        delete funcs["b2Create" type]
-        delete funcs["b2Destroy" type]
-        delete funcs["b2" type "_Create"]
-        delete funcs["b2" type "_Destroy"]
-        delete funcs["b2Default" type "Def"]
-
         # Expose all the functions.
         for (i in sorted_funcs)
         {
             func_name = sorted_funcs[i]
             if (func_name in funcs) # The function could've been deleted.
-                emit_func(func_name, type, "        ")
+                emit_func(func_name, type, 0, "        ")
         }
 
         # Close the class.
@@ -776,7 +804,7 @@ END {
     {
         func_name = sorted_funcs[i]
         if (func_name in funcs) # The function could've been deleted.
-            emit_func(func_name, "", "    ")
+            emit_func(func_name, "", 0, "    ")
     }
 
     print "} // namespace box2d"

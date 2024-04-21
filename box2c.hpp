@@ -743,14 +743,14 @@ namespace b2
     };
 
     // This can be passed to some functions to express ownership.
-    struct OwningTag { explicit OwningTag() = default; };
-    inline constexpr OwningTag Owning{};
+    struct TagOwning { explicit TagOwning() = default; };
+    inline constexpr TagOwning Owning{};
 
     // This can be passed to the constructors of our classes along with a handle to just store a reference to it, without assuming ownership.
-    struct RefTag { explicit RefTag() = default; };
-    inline constexpr RefTag Ref{};
+    struct TagRef { explicit TagRef() = default; };
+    inline constexpr TagRef Ref{};
 
-    template <typename T> concept MaybeOwningTag = std::same_as<T, OwningTag> || std::same_as<T, RefTag>;
+    template <typename T> concept MaybeOwningTag = std::same_as<T, TagOwning> || std::same_as<T, TagRef>;
 
     class Rot : public b2Rot
     {
@@ -808,7 +808,7 @@ namespace b2
         bool is_owner = false;
 
       protected:
-        Shape(OwningTag, b2ShapeId id) noexcept : id(id), is_owner(true) {}
+        Shape(TagOwning, b2ShapeId id) noexcept : id(id), is_owner(true) {}
 
       public:
         // Consturcts a null (invalid) object.
@@ -820,10 +820,8 @@ namespace b2
             Params() : b2ShapeDef(b2DefaultShapeDef()) {}
         };
 
-        Shape(const std::derived_from<b2ShapeDef> auto &params) : Shape(Owning, b2CreateShape(&params)) {}
-
         // Will act as a reference to this handle, but will not destroy it in the destructor.
-        Shape(RefTag, b2ShapeId id) noexcept : id(id), is_owner(false) {}
+        Shape(TagRef, b2ShapeId id) noexcept : id(id), is_owner(false) {}
 
         Shape(Shape&& other) noexcept : id(std::exchange(other.id, b2_nullShapeId)), is_owner(std::exchange(other.is_owner, false)) {}
         Shape& operator=(Shape other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
@@ -947,121 +945,526 @@ namespace b2
         void EnableSensorEvents(bool flag) { return b2Shape_EnableSensorEvents(Handle(), flag); }
     };
 
-    /// World definition used to create a simulation world. Must be initialized using b2DefaultWorldDef.
-    class World
+    /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
+    ///	- DO NOT use chain shapes unless you understand the limitations. This is an advanced feature!
+    ///	- chains are one-sided
+    ///	- chains have no mass and should be used on static bodies
+    ///	- the front side of the chain points the right of the point sequence
+    ///	- chains are either a loop or open
+    /// - a chain must have at least 4 points
+    ///	- the distance between any two points must be greater than b2_linearSlop
+    ///	- a chain shape should not self intersect (this is not validated)
+    ///	- an open chain shape has NO COLLISION on the first and final edge
+    ///	- you may overlap two open chains on their first three and/or last three points to get smooth collision
+    ///	- a chain shape creates multiple hidden shapes on the body
+    /// https://en.wikipedia.org/wiki/Polygonal_chain
+    class Chain
     {
-        b2WorldId id = b2_nullWorldId;
+        b2ChainId id = b2_nullChainId;
         bool is_owner = false;
 
       protected:
-        World(OwningTag, b2WorldId id) noexcept : id(id), is_owner(true) {}
+        Chain(TagOwning, b2ChainId id) noexcept : id(id), is_owner(true) {}
 
       public:
         // Consturcts a null (invalid) object.
-        constexpr World() {}
+        constexpr Chain() {}
 
-        // The constructor accepts either this or directly `b2WorldDef`.
-        struct Params : b2WorldDef
+        // The constructor accepts either this or directly `b2ChainDef`.
+        struct Params : b2ChainDef
         {
-            Params() : b2WorldDef(b2DefaultWorldDef()) {}
+            Params() : b2ChainDef(b2DefaultChainDef()) {}
         };
 
-        /// Create a world for rigid body simulation. This contains all the bodies, shapes, and constraints.
-        World(const std::derived_from<b2WorldDef> auto &params) : World(Owning, b2CreateWorld(&params)) {}
-
         // Will act as a reference to this handle, but will not destroy it in the destructor.
-        World(RefTag, b2WorldId id) noexcept : id(id), is_owner(false) {}
+        Chain(TagRef, b2ChainId id) noexcept : id(id), is_owner(false) {}
 
-        World(World&& other) noexcept : id(std::exchange(other.id, b2_nullWorldId)), is_owner(std::exchange(other.is_owner, false)) {}
-        World& operator=(World other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+        Chain(Chain&& other) noexcept : id(std::exchange(other.id, b2_nullChainId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Chain& operator=(Chain other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~World() { if (IsOwner()) b2DestroyWorld(id); }
+        ~Chain() { if (IsOwner()) b2DestroyChain(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2WorldId &Handle() const { return id; }
+        [[nodiscard]] const b2ChainId &Handle() const { return id; }
         [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
-        /// Overlap test for all shapes that overlap the provided capsule.
-        void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
+        /// Set the restitution (bounciness) on a chain. Normally this is specified in b2ChainDef.
+        void SetRestitution(float restitution) { return b2Chain_SetRestitution(Handle(), restitution); }
 
-        /// Get counters and sizes
-        [[nodiscard]] Counters GetCounters() const { return b2World_GetCounters(Handle()); }
+        /// Chain identifier validation. Provides validation for up to 64K allocations.
+        [[nodiscard]] bool IsValid() const { return b2Chain_IsValid(Handle()); }
 
-        /// Get sensor events for the current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
+        /// Set the friction of a chain. Normally this is set in b2ChainDef.
+        void SetFriction(float friction) { return b2Chain_SetFriction(Handle(), friction); }
+    };
 
-        /// Register the pre-solve callback. This is optional.
-        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), fcn, context); }
+    class Joint
+    {
+        b2JointId id = b2_nullJointId;
+        bool is_owner = false;
 
-        /// Take a time step. This performs collision detection, integration,
-        /// and constraint solution.
-        /// @param timeStep the amount of time to simulate, this should not vary.
-        /// @param velocityIterations for the velocity constraint solver.
-        /// @param relaxIterations for reducing constraint bounce solver.
-        void Step(float timeStep, int32_t subStepCount) { return b2World_Step(Handle(), timeStep, subStepCount); }
+      protected:
+        Joint(TagOwning, b2JointId id) noexcept : id(id), is_owner(true) {}
 
-        /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
-        [[nodiscard]] RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr Joint() {}
 
-        /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
-        void CapsuleCast(const Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        Joint(TagRef, b2JointId id) noexcept : id(id), is_owner(false) {}
 
-        /// Adjust the restitution threshold. Advanced feature for testing.
-        void SetRestitutionThreshold(float value) { return b2World_SetRestitutionThreshold(Handle(), value); }
+        Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)), is_owner(std::exchange(other.is_owner, false)) {}
+        Joint& operator=(Joint other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
-        void PolygonCast(const Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
+        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`.
+        ~Joint() { if (IsOwner() && IsValid()) b2DestroyJoint(id); }
 
-        /// Overlap test for all shapes that overlap the provided polygon.
-        void OverlapPolygon(const Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
+        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
+        [[nodiscard]] const b2JointId &Handle() const { return id; }
+        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
 
-        /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
-        void CircleCast(const Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
+        /// Get local anchor on bodyA
+        [[nodiscard]] Vec2 GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(Handle()); }
 
-        /// Overlap test for for all shapes that overlap the provided circle.
-        void OverlapCircle(const Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
+        /// Get local anchor on bodyB
+        [[nodiscard]] Vec2 GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(Handle()); }
 
-        /// Adjust contact tuning parameters:
-        /// - hertz is the contact stiffness (cycles per second)
-        /// - damping ratio is the contact bounciness with 1 being critical damping (non-dimensional)
-        /// - push velocity is the maximum contact constraint push out velocity (meters per second)
-        ///	Advanced feature
-        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) { return b2World_SetContactTuning(Handle(), hertz, dampingRatio, pushVelocity); }
+        /// Wake the bodies connect to this joint
+        void WakeBodies() { return b2Joint_WakeBodies(Handle()); }
 
-        /// Get the current profile
-        [[nodiscard]] Profile GetProfile() const { return b2World_GetProfile(Handle()); }
+        /// Set the user data on a joint
+        void SetUserData(void* userData) { return b2Joint_SetUserData(Handle(), userData); }
 
-        /// Call this to draw shapes and other debug draw data. This is intentionally non-const.
-        void Draw(DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
+        /// Get the user data on a joint
+        [[nodiscard]] void* GetUserData() const { return b2Joint_GetUserData(Handle()); }
 
-        /// Enable/disable continuous collision. Advanced feature for testing.
-        void EnableContinuous(bool flag) { return b2World_EnableContinuous(Handle(), flag); }
+        /// Get body A on a joint
+        [[nodiscard]] BodyId GetBodyA() const { return b2Joint_GetBodyA(Handle()); }
 
-        /// Enable/disable sleep. Advanced feature for testing.
-        void EnableSleeping(bool flag) { return b2World_EnableSleeping(Handle(), flag); }
+        /// Get body B on a joint
+        [[nodiscard]] BodyId GetBodyB() const { return b2Joint_GetBodyB(Handle()); }
 
-        /// World identifier validation. Provides validation for up to 64K allocations.
-        [[nodiscard]] bool IsValid() const { return b2World_IsValid(Handle()); }
+        /// Toggle collision between connected bodies
+        void SetCollideConnected(bool shouldCollide) { return b2Joint_SetCollideConnected(Handle(), shouldCollide); }
 
-        /// Overlap test for all shapes that *potentially* overlap the provided AABB.
-        void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
+        /// Is collision allowed between connected bodies?
+        [[nodiscard]] bool GetCollideConnected() const { return b2Joint_GetCollideConnected(Handle()); }
 
-        /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
+        /// Joint identifier validation. Provides validation for up to 64K allocations.
+        [[nodiscard]] bool IsValid() const { return b2Joint_IsValid(Handle()); }
 
-        /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] BodyEvents GetBodyEvents() const { return b2World_GetBodyEvents(Handle()); }
+        /// Get the joint type
+        [[nodiscard]] JointType GetType() const { return (JointType)b2Joint_GetType(Handle()); }
+    };
 
-        /// Ray-cast the world for all shapes in the path of the ray. Your callback
-        /// controls whether you get the closest point, any point, or n-points.
-        /// The ray-cast ignores shapes that contain the starting point.
-        /// @param callback a user implemented callback class.
-        /// @param point1 the ray starting point
-        /// @param point2 the ray ending point
-        void RayCast(Vec2 origin, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_RayCast(Handle(), origin, translation, filter, fcn, context); }
+    /// Distance joint definition. This requires defining an anchor point on both
+    /// bodies and the non-zero distance of the distance joint. The definition uses
+    /// local anchor points so that the initial configuration can violate the
+    /// constraint slightly. This helps when saving and loading a game.
+    class DistanceJoint : public Joint
+    {
+      protected:
+        DistanceJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
 
-        /// Enable/disable constraint warm starting. Advanced feature for testing.
-        void EnableWarmStarting(bool flag) { return b2World_EnableWarmStarting(Handle(), flag); }
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr DistanceJoint() {}
+
+        // The constructor accepts either this or directly `b2DistanceJointDef`.
+        struct Params : b2DistanceJointDef
+        {
+            Params() : b2DistanceJointDef(b2DefaultDistanceJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        DistanceJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// Adjust the softness parameters of a distance joint
+        void SetTuning(float hertz, float dampingRatio) { return b2DistanceJoint_SetTuning(Handle(), hertz, dampingRatio); }
+
+        /// Get the current length of a distance joint
+        [[nodiscard]] float GetCurrentLength() const { return b2DistanceJoint_GetCurrentLength(Handle()); }
+
+        /// Get the minimum distance joint length
+        [[nodiscard]] float GetMinLength() const { return b2DistanceJoint_GetMinLength(Handle()); }
+
+        /// Get the constraint force on a distance joint
+        [[nodiscard]] float GetConstraintForce(float timeStep) const { return b2DistanceJoint_GetConstraintForce(Handle(), timeStep); }
+
+        /// Set the minimum and maximum length parameters of a distance joint
+        void SetLengthRange(float minLength, float maxLength) { return b2DistanceJoint_SetLengthRange(Handle(), minLength, maxLength); }
+
+        /// Set the rest length of a distance joint
+        void SetLength(float length) { return b2DistanceJoint_SetLength(Handle(), length); }
+
+        /// Get the Hertz of a distance joint
+        [[nodiscard]] float GetHertz() const { return b2DistanceJoint_GetHertz(Handle()); }
+
+        /// Get the maximum distance joint length
+        [[nodiscard]] float GetMaxLength() const { return b2DistanceJoint_GetMaxLength(Handle()); }
+
+        /// Get the damping ratio of a distance joint
+        [[nodiscard]] float GetDampingRatio() const { return b2DistanceJoint_GetDampingRatio(Handle()); }
+
+        /// Get the rest length of a distance joint
+        [[nodiscard]] float GetLength() const { return b2DistanceJoint_GetLength(Handle()); }
+    };
+
+    /// A motor joint is used to control the relative motion
+    /// between two bodies. A typical usage is to control the movement
+    /// of a dynamic body with respect to the ground.
+    class MotorJoint : public Joint
+    {
+      protected:
+        MotorJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr MotorJoint() {}
+
+        // The constructor accepts either this or directly `b2MotorJointDef`.
+        struct Params : b2MotorJointDef
+        {
+            Params() : b2MotorJointDef(b2DefaultMotorJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        MotorJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// Get the current constraint force for a motor joint
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(Handle()); }
+
+        /// Get the current constraint torque for a motor joint
+        [[nodiscard]] float GetConstraintTorque() const { return b2MotorJoint_GetConstraintTorque(Handle()); }
+
+        /// @return the angular offset target for a motor joint in radians
+        [[nodiscard]] float GetAngularOffset() const { return b2MotorJoint_GetAngularOffset(Handle()); }
+
+        /// Set the maximum force for a motor joint
+        void SetMaxForce(float maxForce) { return b2MotorJoint_SetMaxForce(Handle(), maxForce); }
+
+        /// @return the maximum force for a motor joint
+        [[nodiscard]] float GetMaxForce() const { return b2MotorJoint_GetMaxForce(Handle()); }
+
+        /// Set/Get the linear offset target for a motor joint
+        void SetLinearOffset(Vec2 linearOffset) { return b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
+
+        /// Set the correction factor for a motor joint
+        void SetCorrectionFactor(float correctionFactor) { return b2MotorJoint_SetCorrectionFactor(Handle(), correctionFactor); }
+
+        /// @return the correction factor for a motor joint
+        [[nodiscard]] float GetCorrectionFactor() const { return b2MotorJoint_GetCorrectionFactor(Handle()); }
+
+        /// Set the maximum torque for a motor joint
+        void SetMaxTorque(float maxTorque) { return b2MotorJoint_SetMaxTorque(Handle(), maxTorque); }
+
+        /// @return the linear offset target for a motor joint
+        [[nodiscard]] Vec2 GetLinearOffset() const { return b2MotorJoint_GetLinearOffset(Handle()); }
+
+        /// Set the angular offset target for a motor joint in radians
+        void SetAngularOffset(float angularOffset) { return b2MotorJoint_SetAngularOffset(Handle(), angularOffset); }
+
+        /// @return the maximum torque for a motor joint
+        [[nodiscard]] float GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(Handle()); }
+    };
+
+    /// A mouse joint is used to make a point on a body track a
+    /// specified world point. This a soft constraint and allows the constraint to stretch without
+    /// applying huge forces. This also applies rotation constraint heuristic to improve control.
+    class MouseJoint : public Joint
+    {
+      protected:
+        MouseJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr MouseJoint() {}
+
+        // The constructor accepts either this or directly `b2MouseJointDef`.
+        struct Params : b2MouseJointDef
+        {
+            Params() : b2MouseJointDef(b2DefaultMouseJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        MouseJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// @return the target for a mouse joint
+        [[nodiscard]] Vec2 GetTarget() const { return b2MouseJoint_GetTarget(Handle()); }
+
+        /// Get the Hertz of a mouse joint
+        [[nodiscard]] float GetHertz() const { return b2MouseJoint_GetHertz(Handle()); }
+
+        /// Get the damping ratio of a mouse joint
+        [[nodiscard]] float GetDampingRatio() const { return b2MouseJoint_GetDampingRatio(Handle()); }
+
+        /// Set the target for a mouse joint
+        void SetTarget(Vec2 target) { return b2MouseJoint_SetTarget(Handle(), target); }
+
+        /// Adjust the softness parameters of a mouse joint
+        void SetTuning(float hertz, float dampingRatio) { return b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
+    };
+
+    /// Prismatic joint definition. This requires defining a line of
+    /// motion using an axis and an anchor point. The definition uses local
+    /// anchor points and a local axis so that the initial configuration
+    /// can violate the constraint slightly. The joint translation is zero
+    /// when the local anchor points coincide in world space.
+    class PrismaticJoint : public Joint
+    {
+      protected:
+        PrismaticJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr PrismaticJoint() {}
+
+        // The constructor accepts either this or directly `b2PrismaticJointDef`.
+        struct Params : b2PrismaticJointDef
+        {
+            Params() : b2PrismaticJointDef(b2DefaultPrismaticJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        PrismaticJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// @return is the prismatic joint motor enabled
+        [[nodiscard]] bool IsMotorEnabled() const { return b2PrismaticJoint_IsMotorEnabled(Handle()); }
+
+        /// @return is the prismatic joint limit enabled
+        [[nodiscard]] bool IsLimitEnabled() const { return b2PrismaticJoint_IsLimitEnabled(Handle()); }
+
+        /// Enable/disable a prismatic joint motor
+        void EnableMotor(bool enableMotor) { return b2PrismaticJoint_EnableMotor(Handle(), enableMotor); }
+
+        /// Enable/disable a prismatic joint limit
+        void EnableLimit(bool enableLimit) { return b2PrismaticJoint_EnableLimit(Handle(), enableLimit); }
+
+        /// @return the maximum force for a prismatic joint motor
+        [[nodiscard]] float GetMaxMotorForce() const { return b2PrismaticJoint_GetMaxMotorForce(Handle()); }
+
+        /// Get the upper joint limit in length units (meters).
+        [[nodiscard]] float GetUpperLimit() const { return b2PrismaticJoint_GetUpperLimit(Handle()); }
+
+        /// Set the motor speed for a prismatic joint
+        void SetMotorSpeed(float motorSpeed) { return b2PrismaticJoint_SetMotorSpeed(Handle(), motorSpeed); }
+
+        /// Set the joint limits in length units (meters).
+        void SetLimits(float lower, float upper) { return b2PrismaticJoint_SetLimits(Handle(), lower, upper); }
+
+        /// @return the motor speed for a prismatic joint
+        [[nodiscard]] float GetMotorSpeed() const { return b2PrismaticJoint_GetMotorSpeed(Handle()); }
+
+        /// Get the lower joint limit in length units (meters).
+        [[nodiscard]] float GetLowerLimit() const { return b2PrismaticJoint_GetLowerLimit(Handle()); }
+
+        /// Get the current constraint torque for a prismatic joint
+        [[nodiscard]] float GetConstraintTorque() const { return b2PrismaticJoint_GetConstraintTorque(Handle()); }
+
+        /// Get the current constraint force for a prismatic joint
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2PrismaticJoint_GetConstraintForce(Handle()); }
+
+        /// Get the current motor force for a prismatic joint
+        [[nodiscard]] float GetMotorForce() const { return b2PrismaticJoint_GetMotorForce(Handle()); }
+
+        /// Set the maximum force for a prismatic joint motor
+        void SetMaxMotorForce(float force) { return b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
+    };
+
+    /// Revolute joint definition. This requires defining an anchor point where the
+    /// bodies are joined. The definition uses local anchor points so that the
+    /// initial configuration can violate the constraint slightly. You also need to
+    /// specify the initial relative angle for joint limits. This helps when saving
+    /// and loading a game.
+    /// The local anchor points are measured from the body's origin
+    /// rather than the center of mass because:
+    /// 1. you might not know where the center of mass will be.
+    /// 2. if you add/remove shapes from a body and recompute the mass,
+    ///    the joints will be broken.
+    class RevoluteJoint : public Joint
+    {
+      protected:
+        RevoluteJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr RevoluteJoint() {}
+
+        // The constructor accepts either this or directly `b2RevoluteJointDef`.
+        struct Params : b2RevoluteJointDef
+        {
+            Params() : b2RevoluteJointDef(b2DefaultRevoluteJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        RevoluteJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// Set the maximum torque for a revolute joint motor
+        void SetMaxMotorTorque(float torque) { return b2RevoluteJoint_SetMaxMotorTorque(Handle(), torque); }
+
+        /// Get the upper joint limit in radians.
+        [[nodiscard]] float GetUpperLimit() const { return b2RevoluteJoint_GetUpperLimit(Handle()); }
+
+        /// @return the motor speed for a revolute joint in radians per second
+        [[nodiscard]] float GetMotorSpeed() const { return b2RevoluteJoint_GetMotorSpeed(Handle()); }
+
+        /// Set the motor speed for a revolute joint in radians per second
+        void SetMotorSpeed(float motorSpeed) { return b2RevoluteJoint_SetMotorSpeed(Handle(), motorSpeed); }
+
+        /// Get the lower joint limit in radians.
+        [[nodiscard]] float GetLowerLimit() const { return b2RevoluteJoint_GetLowerLimit(Handle()); }
+
+        /// Set the joint limits in radians.
+        void SetLimits(float lower, float upper) { return b2RevoluteJoint_SetLimits(Handle(), lower, upper); }
+
+        /// Get the current motor torque for a revolute joint
+        [[nodiscard]] float GetMotorTorque() const { return b2RevoluteJoint_GetMotorTorque(Handle()); }
+
+        /// Get the current constraint torque for a revolute joint
+        [[nodiscard]] float GetConstraintTorque() const { return b2RevoluteJoint_GetConstraintTorque(Handle()); }
+
+        /// Get the current constraint force for a revolute joint
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(Handle()); }
+
+        /// @return is the revolute joint motor enabled
+        [[nodiscard]] bool IsMotorEnabled() const { return b2RevoluteJoint_IsMotorEnabled(Handle()); }
+
+        /// @return is the revolute joint limit enabled
+        [[nodiscard]] bool IsLimitEnabled() const { return b2RevoluteJoint_IsLimitEnabled(Handle()); }
+
+        /// Enable/disable a revolute joint motor.
+        void EnableMotor(bool enableMotor) { return b2RevoluteJoint_EnableMotor(Handle(), enableMotor); }
+
+        /// Enable/disable a revolute joint limit.
+        void EnableLimit(bool enableLimit) { return b2RevoluteJoint_EnableLimit(Handle(), enableLimit); }
+
+        /// @return the maximum torque for a revolute joint motor
+        [[nodiscard]] float GetMaxMotorTorque() const { return b2RevoluteJoint_GetMaxMotorTorque(Handle()); }
+    };
+
+    /// Wheel joint definition. This requires defining a line of
+    /// motion using an axis and an anchor point. The definition uses local
+    /// anchor points and a local axis so that the initial configuration
+    /// can violate the constraint slightly. The joint translation is zero
+    /// when the local anchor points coincide in world space. Using local
+    /// anchors and a local axis helps when saving and loading a game.
+    class WheelJoint : public Joint
+    {
+      protected:
+        WheelJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr WheelJoint() {}
+
+        // The constructor accepts either this or directly `b2WheelJointDef`.
+        struct Params : b2WheelJointDef
+        {
+            Params() : b2WheelJointDef(b2DefaultWheelJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        WheelJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// Set the wheel joint damping ratio (non-dimensional)
+        void SetSpringDampingRatio(float dampingRatio) { return b2WheelJoint_SetSpringDampingRatio(Handle(), dampingRatio); }
+
+        /// Get the upper joint limit in length units (meters).
+        [[nodiscard]] float GetUpperLimit() const { return b2WheelJoint_GetUpperLimit(Handle()); }
+
+        /// Get the current wheel joint constraint torque
+        [[nodiscard]] float GetConstraintTorque() const { return b2WheelJoint_GetConstraintTorque(Handle()); }
+
+        /// Set the wheel joint stiffness in Hertz
+        void SetSpringHertz(float hertz) { return b2WheelJoint_SetSpringHertz(Handle(), hertz); }
+
+        /// @return the wheel joint motor speed in radians per second
+        [[nodiscard]] float GetMotorSpeed() const { return b2WheelJoint_GetMotorSpeed(Handle()); }
+
+        /// Get the wheel joint current motor torque
+        [[nodiscard]] float GetMotorTorque() const { return b2WheelJoint_GetMotorTorque(Handle()); }
+
+        /// Set the wheel joint motor speed in radians per second
+        void SetMotorSpeed(float motorSpeed) { return b2WheelJoint_SetMotorSpeed(Handle(), motorSpeed); }
+
+        /// Get the lower joint limit in length units (meters).
+        [[nodiscard]] float GetLowerLimit() const { return b2WheelJoint_GetLowerLimit(Handle()); }
+
+        /// Set the wheel joint maximum motor torque
+        void SetMaxMotorTorque(float torque) { return b2WheelJoint_SetMaxMotorTorque(Handle(), torque); }
+
+        /// @return is the wheel joint motor enabled
+        [[nodiscard]] bool IsMotorEnabled() const { return b2WheelJoint_IsMotorEnabled(Handle()); }
+
+        /// @return is the wheel joint limit enabled
+        [[nodiscard]] bool IsLimitEnabled() const { return b2WheelJoint_IsLimitEnabled(Handle()); }
+
+        /// @return the wheel joint damping ratio (non-dimensional)
+        [[nodiscard]] float GetSpringDampingRatio() const { return b2WheelJoint_GetSpringDampingRatio(Handle()); }
+
+        /// Enable/disable the wheel joint limit.
+        void EnableLimit(bool enableLimit) { return b2WheelJoint_EnableLimit(Handle(), enableLimit); }
+
+        /// Set the joint limits in length units (meters).
+        void SetLimits(float lower, float upper) { return b2WheelJoint_SetLimits(Handle(), lower, upper); }
+
+        /// Get the current wheel joint constraint force
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(Handle()); }
+
+        /// Enable/disable the wheel joint motor
+        void EnableMotor(bool enableMotor) { return b2WheelJoint_EnableMotor(Handle(), enableMotor); }
+
+        /// @return the wheel joint stiffness in Hertz
+        [[nodiscard]] float GetSpringHertz() const { return b2WheelJoint_GetSpringHertz(Handle()); }
+
+        /// @return the wheel joint maximum motor torque
+        [[nodiscard]] float GetMaxMotorTorque() const { return b2WheelJoint_GetMaxMotorTorque(Handle()); }
+    };
+
+    /// A weld joint connect to bodies together rigidly. This constraint can be made soft to mimic
+    ///	soft-body simulation.
+    /// @warning the approximate solver in Box2D cannot hold many bodies together rigidly
+    class WeldJoint : public Joint
+    {
+      protected:
+        WeldJoint(TagOwning, b2JointId id) noexcept : Joint(Owning, id) {}
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr WeldJoint() {}
+
+        // The constructor accepts either this or directly `b2WeldJointDef`.
+        struct Params : b2WeldJointDef
+        {
+            Params() : b2WeldJointDef(b2DefaultWeldJointDef()) {}
+        };
+
+        // Will act as a reference to this handle, but will not destroy it in the destructor.
+        WeldJoint(TagRef, b2JointId id) noexcept : Joint(Ref, id) {}
+
+        /// Set weld joint angular stiffness in Hertz. 0 is rigid.
+        void SetAngularHertz(float hertz) { return b2WeldJoint_SetAngularHertz(Handle(), hertz); }
+
+        /// Set weld joint angular damping ratio (non-dimensional)
+        void SetAngularDampingRatio(float dampingRatio) { return b2WeldJoint_SetAngularDampingRatio(Handle(), dampingRatio); }
+
+        /// @return the weld joint angular stiffness in Hertz.
+        [[nodiscard]] float GetAngularHertz() const { return b2WeldJoint_GetAngularHertz(Handle()); }
+
+        /// @return the weld joint linear stiffness in Hertz.
+        [[nodiscard]] float GetLinearHertz() const { return b2WeldJoint_GetLinearHertz(Handle()); }
+
+        /// @return the weld joint angular damping ratio (non-dimensional)
+        [[nodiscard]] float GetAngularDampingRatio() const { return b2WeldJoint_GetAngularDampingRatio(Handle()); }
+
+        /// @return the weld joint linear damping ratio (non-dimensional)
+        [[nodiscard]] float GetLinearDampingRatio() const { return b2WeldJoint_GetLinearDampingRatio(Handle()); }
+
+        /// Set weld joint linear stiffness in Hertz. 0 is rigid.
+        void SetLinearHertz(float hertz) { return b2WeldJoint_SetLinearHertz(Handle(), hertz); }
+
+        /// Set weld joint linear damping ratio (non-dimensional)
+        void SetLinearDampingRatio(float dampingRatio) { return b2WeldJoint_SetLinearDampingRatio(Handle(), dampingRatio); }
     };
 
     /// A body definition holds all the data needed to construct a rigid body.
@@ -1072,7 +1475,7 @@ namespace b2
         bool is_owner = false;
 
       protected:
-        Body(OwningTag, b2BodyId id) noexcept : id(id), is_owner(true) {}
+        Body(TagOwning, b2BodyId id) noexcept : id(id), is_owner(true) {}
 
       public:
         // Consturcts a null (invalid) object.
@@ -1084,12 +1487,8 @@ namespace b2
             Params() : b2BodyDef(b2DefaultBodyDef()) {}
         };
 
-        /// Create a rigid body given a definition. No reference to the definition is retained.
-        /// @warning This function is locked during callbacks.
-        Body(World &world, const std::derived_from<b2BodyDef> auto &params) : Body(Owning, b2CreateBody(world.Handle(), &params)) {}
-
         // Will act as a reference to this handle, but will not destroy it in the destructor.
-        Body(RefTag, b2BodyId id) noexcept : id(id), is_owner(false) {}
+        Body(TagRef, b2BodyId id) noexcept : id(id), is_owner(false) {}
 
         Body(Body&& other) noexcept : id(std::exchange(other.id, b2_nullBodyId)), is_owner(std::exchange(other.is_owner, false)) {}
         Body& operator=(Body other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
@@ -1103,22 +1502,31 @@ namespace b2
         /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        Shape CreatePolygonShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return {ownership, b2CreatePolygonShape(Handle(), &def, &polygon)}; }
+        [[nodiscard]] Shape CreatePolygonShape(TagOwning, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return {Owning, b2CreatePolygonShape(Handle(), &def, &polygon)}; }
+        Shape CreatePolygonShape(TagRef, const std::derived_from<b2ShapeDef> auto& def, const Polygon& polygon) { return {Ref, b2CreatePolygonShape(Handle(), &def, &polygon)}; }
 
         /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        Shape CreateCircleShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return {ownership, b2CreateCircleShape(Handle(), &def, &circle)}; }
+        [[nodiscard]] Shape CreateCircleShape(TagOwning, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return {Owning, b2CreateCircleShape(Handle(), &def, &circle)}; }
+        Shape CreateCircleShape(TagRef, const std::derived_from<b2ShapeDef> auto& def, const Circle& circle) { return {Ref, b2CreateCircleShape(Handle(), &def, &circle)}; }
 
         /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        Shape CreateSegmentShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return {ownership, b2CreateSegmentShape(Handle(), &def, &segment)}; }
+        [[nodiscard]] Shape CreateSegmentShape(TagOwning, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return {Owning, b2CreateSegmentShape(Handle(), &def, &segment)}; }
+        Shape CreateSegmentShape(TagRef, const std::derived_from<b2ShapeDef> auto& def, const Segment& segment) { return {Ref, b2CreateSegmentShape(Handle(), &def, &segment)}; }
 
         /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        Shape CreateCapsuleShape(MaybeOwningTag auto ownership, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return {ownership, b2CreateCapsuleShape(Handle(), &def, &capsule)}; }
+        [[nodiscard]] Shape CreateCapsuleShape(TagOwning, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return {Owning, b2CreateCapsuleShape(Handle(), &def, &capsule)}; }
+        Shape CreateCapsuleShape(TagRef, const std::derived_from<b2ShapeDef> auto& def, const Capsule& capsule) { return {Ref, b2CreateCapsuleShape(Handle(), &def, &capsule)}; }
+
+        /// Create a chain shape
+        ///	@see b2ChainDef for details
+        [[nodiscard]] Chain CreateChain(TagOwning, const std::derived_from<b2ChainDef> auto& def) { return {Owning, b2CreateChain(Handle(), &def)}; }
+        Chain CreateChain(TagRef, const std::derived_from<b2ChainDef> auto& def) { return {Ref, b2CreateChain(Handle(), &def)}; }
 
         /// Get the inertia tensor of the body. In 2D this is a single number. (kilograms * meters^2)
         [[nodiscard]] float GetInertiaTensor() const { return b2Body_GetInertiaTensor(Handle()); }
@@ -1311,558 +1719,161 @@ namespace b2
         [[nodiscard]] float GetLinearDamping() const { return b2Body_GetLinearDamping(Handle()); }
     };
 
-    /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
-    ///	- DO NOT use chain shapes unless you understand the limitations. This is an advanced feature!
-    ///	- chains are one-sided
-    ///	- chains have no mass and should be used on static bodies
-    ///	- the front side of the chain points the right of the point sequence
-    ///	- chains are either a loop or open
-    /// - a chain must have at least 4 points
-    ///	- the distance between any two points must be greater than b2_linearSlop
-    ///	- a chain shape should not self intersect (this is not validated)
-    ///	- an open chain shape has NO COLLISION on the first and final edge
-    ///	- you may overlap two open chains on their first three and/or last three points to get smooth collision
-    ///	- a chain shape creates multiple hidden shapes on the body
-    /// https://en.wikipedia.org/wiki/Polygonal_chain
-    class Chain
+    /// World definition used to create a simulation world. Must be initialized using b2DefaultWorldDef.
+    class World
     {
-        b2ChainId id = b2_nullChainId;
+        b2WorldId id = b2_nullWorldId;
         bool is_owner = false;
 
       protected:
-        Chain(OwningTag, b2ChainId id) noexcept : id(id), is_owner(true) {}
+        World(TagOwning, b2WorldId id) noexcept : id(id), is_owner(true) {}
 
       public:
         // Consturcts a null (invalid) object.
-        constexpr Chain() {}
+        constexpr World() {}
 
-        // The constructor accepts either this or directly `b2ChainDef`.
-        struct Params : b2ChainDef
+        // The constructor accepts either this or directly `b2WorldDef`.
+        struct Params : b2WorldDef
         {
-            Params() : b2ChainDef(b2DefaultChainDef()) {}
+            Params() : b2WorldDef(b2DefaultWorldDef()) {}
         };
 
-        /// Create a chain shape
-        ///	@see b2ChainDef for details
-        Chain(Body &body, const std::derived_from<b2ChainDef> auto &params) : Chain(Owning, b2CreateChain(body.Handle(), &params)) {}
+        /// Create a world for rigid body simulation. This contains all the bodies, shapes, and constraints.
+        World(const std::derived_from<b2WorldDef> auto &params) : World(Owning, b2CreateWorld(&params)) {}
 
         // Will act as a reference to this handle, but will not destroy it in the destructor.
-        Chain(RefTag, b2ChainId id) noexcept : id(id), is_owner(false) {}
+        World(TagRef, b2WorldId id) noexcept : id(id), is_owner(false) {}
 
-        Chain(Chain&& other) noexcept : id(std::exchange(other.id, b2_nullChainId)), is_owner(std::exchange(other.is_owner, false)) {}
-        Chain& operator=(Chain other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
+        World(World&& other) noexcept : id(std::exchange(other.id, b2_nullWorldId)), is_owner(std::exchange(other.is_owner, false)) {}
+        World& operator=(World other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
 
-        ~Chain() { if (IsOwner()) b2DestroyChain(id); }
+        ~World() { if (IsOwner()) b2DestroyWorld(id); }
 
         [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2ChainId &Handle() const { return id; }
+        [[nodiscard]] const b2WorldId &Handle() const { return id; }
         [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
-
-        /// Set the restitution (bounciness) on a chain. Normally this is specified in b2ChainDef.
-        void SetRestitution(float restitution) { return b2Chain_SetRestitution(Handle(), restitution); }
-
-        /// Chain identifier validation. Provides validation for up to 64K allocations.
-        [[nodiscard]] bool IsValid() const { return b2Chain_IsValid(Handle()); }
-
-        /// Set the friction of a chain. Normally this is set in b2ChainDef.
-        void SetFriction(float friction) { return b2Chain_SetFriction(Handle(), friction); }
-    };
-
-    class Joint
-    {
-        b2JointId id = b2_nullJointId;
-        bool is_owner = false;
-
-      protected:
-        Joint(OwningTag, b2JointId id) noexcept : id(id), is_owner(true) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr Joint() {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        Joint(RefTag, b2JointId id) noexcept : id(id), is_owner(false) {}
-
-        Joint(Joint&& other) noexcept : id(std::exchange(other.id, b2_nullJointId)), is_owner(std::exchange(other.is_owner, false)) {}
-        Joint& operator=(Joint other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }
-
-        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`.
-        ~Joint() { if (IsOwner() && IsValid()) b2DestroyJoint(id); }
-
-        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }
-        [[nodiscard]] const b2JointId &Handle() const { return id; }
-        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference.
-
-        /// Get local anchor on bodyA
-        [[nodiscard]] Vec2 GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(Handle()); }
-
-        /// Get local anchor on bodyB
-        [[nodiscard]] Vec2 GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(Handle()); }
-
-        /// Wake the bodies connect to this joint
-        void WakeBodies() { return b2Joint_WakeBodies(Handle()); }
-
-        /// Set the user data on a joint
-        void SetUserData(void* userData) { return b2Joint_SetUserData(Handle(), userData); }
-
-        /// Get the user data on a joint
-        [[nodiscard]] void* GetUserData() const { return b2Joint_GetUserData(Handle()); }
-
-        /// Get body A on a joint
-        [[nodiscard]] BodyId GetBodyA() const { return b2Joint_GetBodyA(Handle()); }
-
-        /// Get body B on a joint
-        [[nodiscard]] BodyId GetBodyB() const { return b2Joint_GetBodyB(Handle()); }
-
-        /// Toggle collision between connected bodies
-        void SetCollideConnected(bool shouldCollide) { return b2Joint_SetCollideConnected(Handle(), shouldCollide); }
-
-        /// Is collision allowed between connected bodies?
-        [[nodiscard]] bool GetCollideConnected() const { return b2Joint_GetCollideConnected(Handle()); }
-
-        /// Joint identifier validation. Provides validation for up to 64K allocations.
-        [[nodiscard]] bool IsValid() const { return b2Joint_IsValid(Handle()); }
-
-        /// Get the joint type
-        [[nodiscard]] JointType GetType() const { return (JointType)b2Joint_GetType(Handle()); }
-    };
-
-    /// Distance joint definition. This requires defining an anchor point on both
-    /// bodies and the non-zero distance of the distance joint. The definition uses
-    /// local anchor points so that the initial configuration can violate the
-    /// constraint slightly. This helps when saving and loading a game.
-    class DistanceJoint : public Joint
-    {
-      protected:
-        DistanceJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr DistanceJoint() {}
-
-        // The constructor accepts either this or directly `b2DistanceJointDef`.
-        struct Params : b2DistanceJointDef
-        {
-            Params() : b2DistanceJointDef(b2DefaultDistanceJointDef()) {}
-        };
-
-        /// Create a distance joint
-        ///	@see b2DistanceJointDef for details
-        DistanceJoint(World &world, const std::derived_from<b2DistanceJointDef> auto &params) : DistanceJoint(Owning, b2CreateDistanceJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        DistanceJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// Adjust the softness parameters of a distance joint
-        void SetTuning(float hertz, float dampingRatio) { return b2DistanceJoint_SetTuning(Handle(), hertz, dampingRatio); }
-
-        /// Get the current length of a distance joint
-        [[nodiscard]] float GetCurrentLength() const { return b2DistanceJoint_GetCurrentLength(Handle()); }
-
-        /// Get the minimum distance joint length
-        [[nodiscard]] float GetMinLength() const { return b2DistanceJoint_GetMinLength(Handle()); }
-
-        /// Get the constraint force on a distance joint
-        [[nodiscard]] float GetConstraintForce(float timeStep) const { return b2DistanceJoint_GetConstraintForce(Handle(), timeStep); }
-
-        /// Set the minimum and maximum length parameters of a distance joint
-        void SetLengthRange(float minLength, float maxLength) { return b2DistanceJoint_SetLengthRange(Handle(), minLength, maxLength); }
-
-        /// Set the rest length of a distance joint
-        void SetLength(float length) { return b2DistanceJoint_SetLength(Handle(), length); }
-
-        /// Get the Hertz of a distance joint
-        [[nodiscard]] float GetHertz() const { return b2DistanceJoint_GetHertz(Handle()); }
-
-        /// Get the maximum distance joint length
-        [[nodiscard]] float GetMaxLength() const { return b2DistanceJoint_GetMaxLength(Handle()); }
-
-        /// Get the damping ratio of a distance joint
-        [[nodiscard]] float GetDampingRatio() const { return b2DistanceJoint_GetDampingRatio(Handle()); }
-
-        /// Get the rest length of a distance joint
-        [[nodiscard]] float GetLength() const { return b2DistanceJoint_GetLength(Handle()); }
-    };
-
-    /// A motor joint is used to control the relative motion
-    /// between two bodies. A typical usage is to control the movement
-    /// of a dynamic body with respect to the ground.
-    class MotorJoint : public Joint
-    {
-      protected:
-        MotorJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr MotorJoint() {}
-
-        // The constructor accepts either this or directly `b2MotorJointDef`.
-        struct Params : b2MotorJointDef
-        {
-            Params() : b2MotorJointDef(b2DefaultMotorJointDef()) {}
-        };
-
-        /// Create a motor joint
-        ///	@see b2MotorJointDef for details
-        MotorJoint(World &world, const std::derived_from<b2MotorJointDef> auto &params) : MotorJoint(Owning, b2CreateMotorJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        MotorJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// Get the current constraint force for a motor joint
-        [[nodiscard]] Vec2 GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(Handle()); }
-
-        /// Get the current constraint torque for a motor joint
-        [[nodiscard]] float GetConstraintTorque() const { return b2MotorJoint_GetConstraintTorque(Handle()); }
-
-        /// @return the angular offset target for a motor joint in radians
-        [[nodiscard]] float GetAngularOffset() const { return b2MotorJoint_GetAngularOffset(Handle()); }
-
-        /// Set the maximum force for a motor joint
-        void SetMaxForce(float maxForce) { return b2MotorJoint_SetMaxForce(Handle(), maxForce); }
-
-        /// @return the maximum force for a motor joint
-        [[nodiscard]] float GetMaxForce() const { return b2MotorJoint_GetMaxForce(Handle()); }
-
-        /// Set/Get the linear offset target for a motor joint
-        void SetLinearOffset(Vec2 linearOffset) { return b2MotorJoint_SetLinearOffset(Handle(), linearOffset); }
-
-        /// Set the correction factor for a motor joint
-        void SetCorrectionFactor(float correctionFactor) { return b2MotorJoint_SetCorrectionFactor(Handle(), correctionFactor); }
-
-        /// @return the correction factor for a motor joint
-        [[nodiscard]] float GetCorrectionFactor() const { return b2MotorJoint_GetCorrectionFactor(Handle()); }
-
-        /// Set the maximum torque for a motor joint
-        void SetMaxTorque(float maxTorque) { return b2MotorJoint_SetMaxTorque(Handle(), maxTorque); }
-
-        /// @return the linear offset target for a motor joint
-        [[nodiscard]] Vec2 GetLinearOffset() const { return b2MotorJoint_GetLinearOffset(Handle()); }
-
-        /// Set the angular offset target for a motor joint in radians
-        void SetAngularOffset(float angularOffset) { return b2MotorJoint_SetAngularOffset(Handle(), angularOffset); }
-
-        /// @return the maximum torque for a motor joint
-        [[nodiscard]] float GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(Handle()); }
-    };
-
-    /// A mouse joint is used to make a point on a body track a
-    /// specified world point. This a soft constraint and allows the constraint to stretch without
-    /// applying huge forces. This also applies rotation constraint heuristic to improve control.
-    class MouseJoint : public Joint
-    {
-      protected:
-        MouseJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr MouseJoint() {}
-
-        // The constructor accepts either this or directly `b2MouseJointDef`.
-        struct Params : b2MouseJointDef
-        {
-            Params() : b2MouseJointDef(b2DefaultMouseJointDef()) {}
-        };
-
-        /// Create a mouse joint
-        ///	@see b2MouseJointDef for details
-        MouseJoint(World &world, const std::derived_from<b2MouseJointDef> auto &params) : MouseJoint(Owning, b2CreateMouseJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        MouseJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// @return the target for a mouse joint
-        [[nodiscard]] Vec2 GetTarget() const { return b2MouseJoint_GetTarget(Handle()); }
-
-        /// Get the Hertz of a mouse joint
-        [[nodiscard]] float GetHertz() const { return b2MouseJoint_GetHertz(Handle()); }
-
-        /// Get the damping ratio of a mouse joint
-        [[nodiscard]] float GetDampingRatio() const { return b2MouseJoint_GetDampingRatio(Handle()); }
-
-        /// Set the target for a mouse joint
-        void SetTarget(Vec2 target) { return b2MouseJoint_SetTarget(Handle(), target); }
-
-        /// Adjust the softness parameters of a mouse joint
-        void SetTuning(float hertz, float dampingRatio) { return b2MouseJoint_SetTuning(Handle(), hertz, dampingRatio); }
-    };
-
-    /// Prismatic joint definition. This requires defining a line of
-    /// motion using an axis and an anchor point. The definition uses local
-    /// anchor points and a local axis so that the initial configuration
-    /// can violate the constraint slightly. The joint translation is zero
-    /// when the local anchor points coincide in world space.
-    class PrismaticJoint : public Joint
-    {
-      protected:
-        PrismaticJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr PrismaticJoint() {}
-
-        // The constructor accepts either this or directly `b2PrismaticJointDef`.
-        struct Params : b2PrismaticJointDef
-        {
-            Params() : b2PrismaticJointDef(b2DefaultPrismaticJointDef()) {}
-        };
-
-        /// Create a prismatic (slider) joint
-        ///	@see b2PrismaticJointDef for details
-        PrismaticJoint(World &world, const std::derived_from<b2PrismaticJointDef> auto &params) : PrismaticJoint(Owning, b2CreatePrismaticJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        PrismaticJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// @return is the prismatic joint motor enabled
-        [[nodiscard]] bool IsMotorEnabled() const { return b2PrismaticJoint_IsMotorEnabled(Handle()); }
-
-        /// @return is the prismatic joint limit enabled
-        [[nodiscard]] bool IsLimitEnabled() const { return b2PrismaticJoint_IsLimitEnabled(Handle()); }
-
-        /// Enable/disable a prismatic joint motor
-        void EnableMotor(bool enableMotor) { return b2PrismaticJoint_EnableMotor(Handle(), enableMotor); }
-
-        /// Enable/disable a prismatic joint limit
-        void EnableLimit(bool enableLimit) { return b2PrismaticJoint_EnableLimit(Handle(), enableLimit); }
-
-        /// @return the maximum force for a prismatic joint motor
-        [[nodiscard]] float GetMaxMotorForce() const { return b2PrismaticJoint_GetMaxMotorForce(Handle()); }
-
-        /// Get the upper joint limit in length units (meters).
-        [[nodiscard]] float GetUpperLimit() const { return b2PrismaticJoint_GetUpperLimit(Handle()); }
-
-        /// Set the motor speed for a prismatic joint
-        void SetMotorSpeed(float motorSpeed) { return b2PrismaticJoint_SetMotorSpeed(Handle(), motorSpeed); }
-
-        /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) { return b2PrismaticJoint_SetLimits(Handle(), lower, upper); }
-
-        /// @return the motor speed for a prismatic joint
-        [[nodiscard]] float GetMotorSpeed() const { return b2PrismaticJoint_GetMotorSpeed(Handle()); }
-
-        /// Get the lower joint limit in length units (meters).
-        [[nodiscard]] float GetLowerLimit() const { return b2PrismaticJoint_GetLowerLimit(Handle()); }
-
-        /// Get the current constraint torque for a prismatic joint
-        [[nodiscard]] float GetConstraintTorque() const { return b2PrismaticJoint_GetConstraintTorque(Handle()); }
-
-        /// Get the current constraint force for a prismatic joint
-        [[nodiscard]] Vec2 GetConstraintForce() const { return b2PrismaticJoint_GetConstraintForce(Handle()); }
-
-        /// Get the current motor force for a prismatic joint
-        [[nodiscard]] float GetMotorForce() const { return b2PrismaticJoint_GetMotorForce(Handle()); }
-
-        /// Set the maximum force for a prismatic joint motor
-        void SetMaxMotorForce(float force) { return b2PrismaticJoint_SetMaxMotorForce(Handle(), force); }
-    };
-
-    /// Revolute joint definition. This requires defining an anchor point where the
-    /// bodies are joined. The definition uses local anchor points so that the
-    /// initial configuration can violate the constraint slightly. You also need to
-    /// specify the initial relative angle for joint limits. This helps when saving
-    /// and loading a game.
-    /// The local anchor points are measured from the body's origin
-    /// rather than the center of mass because:
-    /// 1. you might not know where the center of mass will be.
-    /// 2. if you add/remove shapes from a body and recompute the mass,
-    ///    the joints will be broken.
-    class RevoluteJoint : public Joint
-    {
-      protected:
-        RevoluteJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr RevoluteJoint() {}
-
-        // The constructor accepts either this or directly `b2RevoluteJointDef`.
-        struct Params : b2RevoluteJointDef
-        {
-            Params() : b2RevoluteJointDef(b2DefaultRevoluteJointDef()) {}
-        };
-
-        /// Create a revolute (hinge) joint
-        ///	@see b2RevoluteJointDef for details
-        RevoluteJoint(World &world, const std::derived_from<b2RevoluteJointDef> auto &params) : RevoluteJoint(Owning, b2CreateRevoluteJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        RevoluteJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// Set the maximum torque for a revolute joint motor
-        void SetMaxMotorTorque(float torque) { return b2RevoluteJoint_SetMaxMotorTorque(Handle(), torque); }
-
-        /// Get the upper joint limit in radians.
-        [[nodiscard]] float GetUpperLimit() const { return b2RevoluteJoint_GetUpperLimit(Handle()); }
-
-        /// @return the motor speed for a revolute joint in radians per second
-        [[nodiscard]] float GetMotorSpeed() const { return b2RevoluteJoint_GetMotorSpeed(Handle()); }
-
-        /// Set the motor speed for a revolute joint in radians per second
-        void SetMotorSpeed(float motorSpeed) { return b2RevoluteJoint_SetMotorSpeed(Handle(), motorSpeed); }
-
-        /// Get the lower joint limit in radians.
-        [[nodiscard]] float GetLowerLimit() const { return b2RevoluteJoint_GetLowerLimit(Handle()); }
-
-        /// Set the joint limits in radians.
-        void SetLimits(float lower, float upper) { return b2RevoluteJoint_SetLimits(Handle(), lower, upper); }
-
-        /// Get the current motor torque for a revolute joint
-        [[nodiscard]] float GetMotorTorque() const { return b2RevoluteJoint_GetMotorTorque(Handle()); }
-
-        /// Get the current constraint torque for a revolute joint
-        [[nodiscard]] float GetConstraintTorque() const { return b2RevoluteJoint_GetConstraintTorque(Handle()); }
-
-        /// Get the current constraint force for a revolute joint
-        [[nodiscard]] Vec2 GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(Handle()); }
-
-        /// @return is the revolute joint motor enabled
-        [[nodiscard]] bool IsMotorEnabled() const { return b2RevoluteJoint_IsMotorEnabled(Handle()); }
-
-        /// @return is the revolute joint limit enabled
-        [[nodiscard]] bool IsLimitEnabled() const { return b2RevoluteJoint_IsLimitEnabled(Handle()); }
-
-        /// Enable/disable a revolute joint motor.
-        void EnableMotor(bool enableMotor) { return b2RevoluteJoint_EnableMotor(Handle(), enableMotor); }
-
-        /// Enable/disable a revolute joint limit.
-        void EnableLimit(bool enableLimit) { return b2RevoluteJoint_EnableLimit(Handle(), enableLimit); }
-
-        /// @return the maximum torque for a revolute joint motor
-        [[nodiscard]] float GetMaxMotorTorque() const { return b2RevoluteJoint_GetMaxMotorTorque(Handle()); }
-    };
-
-    /// Wheel joint definition. This requires defining a line of
-    /// motion using an axis and an anchor point. The definition uses local
-    /// anchor points and a local axis so that the initial configuration
-    /// can violate the constraint slightly. The joint translation is zero
-    /// when the local anchor points coincide in world space. Using local
-    /// anchors and a local axis helps when saving and loading a game.
-    class WheelJoint : public Joint
-    {
-      protected:
-        WheelJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr WheelJoint() {}
-
-        // The constructor accepts either this or directly `b2WheelJointDef`.
-        struct Params : b2WheelJointDef
-        {
-            Params() : b2WheelJointDef(b2DefaultWheelJointDef()) {}
-        };
-
-        /// Create a wheel joint
-        ///	@see b2WheelJointDef for details
-        WheelJoint(World &world, const std::derived_from<b2WheelJointDef> auto &params) : WheelJoint(Owning, b2CreateWheelJoint(world.Handle(), &params)) {}
-
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        WheelJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
-
-        /// Set the wheel joint damping ratio (non-dimensional)
-        void SetSpringDampingRatio(float dampingRatio) { return b2WheelJoint_SetSpringDampingRatio(Handle(), dampingRatio); }
-
-        /// Get the upper joint limit in length units (meters).
-        [[nodiscard]] float GetUpperLimit() const { return b2WheelJoint_GetUpperLimit(Handle()); }
-
-        /// Get the current wheel joint constraint torque
-        [[nodiscard]] float GetConstraintTorque() const { return b2WheelJoint_GetConstraintTorque(Handle()); }
-
-        /// Set the wheel joint stiffness in Hertz
-        void SetSpringHertz(float hertz) { return b2WheelJoint_SetSpringHertz(Handle(), hertz); }
-
-        /// @return the wheel joint motor speed in radians per second
-        [[nodiscard]] float GetMotorSpeed() const { return b2WheelJoint_GetMotorSpeed(Handle()); }
-
-        /// Get the wheel joint current motor torque
-        [[nodiscard]] float GetMotorTorque() const { return b2WheelJoint_GetMotorTorque(Handle()); }
-
-        /// Set the wheel joint motor speed in radians per second
-        void SetMotorSpeed(float motorSpeed) { return b2WheelJoint_SetMotorSpeed(Handle(), motorSpeed); }
-
-        /// Get the lower joint limit in length units (meters).
-        [[nodiscard]] float GetLowerLimit() const { return b2WheelJoint_GetLowerLimit(Handle()); }
-
-        /// Set the wheel joint maximum motor torque
-        void SetMaxMotorTorque(float torque) { return b2WheelJoint_SetMaxMotorTorque(Handle(), torque); }
-
-        /// @return is the wheel joint motor enabled
-        [[nodiscard]] bool IsMotorEnabled() const { return b2WheelJoint_IsMotorEnabled(Handle()); }
-
-        /// @return is the wheel joint limit enabled
-        [[nodiscard]] bool IsLimitEnabled() const { return b2WheelJoint_IsLimitEnabled(Handle()); }
-
-        /// @return the wheel joint damping ratio (non-dimensional)
-        [[nodiscard]] float GetSpringDampingRatio() const { return b2WheelJoint_GetSpringDampingRatio(Handle()); }
-
-        /// Enable/disable the wheel joint limit.
-        void EnableLimit(bool enableLimit) { return b2WheelJoint_EnableLimit(Handle(), enableLimit); }
-
-        /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) { return b2WheelJoint_SetLimits(Handle(), lower, upper); }
-
-        /// Get the current wheel joint constraint force
-        [[nodiscard]] Vec2 GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(Handle()); }
-
-        /// Enable/disable the wheel joint motor
-        void EnableMotor(bool enableMotor) { return b2WheelJoint_EnableMotor(Handle(), enableMotor); }
-
-        /// @return the wheel joint stiffness in Hertz
-        [[nodiscard]] float GetSpringHertz() const { return b2WheelJoint_GetSpringHertz(Handle()); }
-
-        /// @return the wheel joint maximum motor torque
-        [[nodiscard]] float GetMaxMotorTorque() const { return b2WheelJoint_GetMaxMotorTorque(Handle()); }
-    };
-
-    /// A weld joint connect to bodies together rigidly. This constraint can be made soft to mimic
-    ///	soft-body simulation.
-    /// @warning the approximate solver in Box2D cannot hold many bodies together rigidly
-    class WeldJoint : public Joint
-    {
-      protected:
-        WeldJoint(OwningTag, b2JointId id) noexcept : Joint(Owning, id) {}
-
-      public:
-        // Consturcts a null (invalid) object.
-        constexpr WeldJoint() {}
-
-        // The constructor accepts either this or directly `b2WeldJointDef`.
-        struct Params : b2WeldJointDef
-        {
-            Params() : b2WeldJointDef(b2DefaultWeldJointDef()) {}
-        };
 
         /// Create a weld joint
         ///	@see b2WeldJointDef for details
-        WeldJoint(World &world, const std::derived_from<b2WeldJointDef> auto &params) : WeldJoint(Owning, b2CreateWeldJoint(world.Handle(), &params)) {}
+        [[nodiscard]] WeldJoint CreateWeldJoint(TagOwning, const std::derived_from<b2WeldJointDef> auto& def) { return {Owning, b2CreateWeldJoint(Handle(), &def)}; }
+        WeldJoint CreateWeldJoint(TagRef, const std::derived_from<b2WeldJointDef> auto& def) { return {Ref, b2CreateWeldJoint(Handle(), &def)}; }
 
-        // Will act as a reference to this handle, but will not destroy it in the destructor.
-        WeldJoint(RefTag, b2JointId id) noexcept : Joint(Ref, id) {}
+        /// Create a rigid body given a definition. No reference to the definition is retained.
+        /// @warning This function is locked during callbacks.
+        [[nodiscard]] Body CreateBody(TagOwning, const std::derived_from<b2BodyDef> auto& def) { return {Owning, b2CreateBody(Handle(), &def)}; }
+        Body CreateBody(TagRef, const std::derived_from<b2BodyDef> auto& def) { return {Ref, b2CreateBody(Handle(), &def)}; }
 
-        /// Set weld joint angular stiffness in Hertz. 0 is rigid.
-        void SetAngularHertz(float hertz) { return b2WeldJoint_SetAngularHertz(Handle(), hertz); }
+        /// Create a distance joint
+        ///	@see b2DistanceJointDef for details
+        [[nodiscard]] DistanceJoint CreateDistanceJoint(TagOwning, const std::derived_from<b2DistanceJointDef> auto& def) { return {Owning, b2CreateDistanceJoint(Handle(), &def)}; }
+        DistanceJoint CreateDistanceJoint(TagRef, const std::derived_from<b2DistanceJointDef> auto& def) { return {Ref, b2CreateDistanceJoint(Handle(), &def)}; }
 
-        /// Set weld joint angular damping ratio (non-dimensional)
-        void SetAngularDampingRatio(float dampingRatio) { return b2WeldJoint_SetAngularDampingRatio(Handle(), dampingRatio); }
+        /// Create a mouse joint
+        ///	@see b2MouseJointDef for details
+        [[nodiscard]] MouseJoint CreateMouseJoint(TagOwning, const std::derived_from<b2MouseJointDef> auto& def) { return {Owning, b2CreateMouseJoint(Handle(), &def)}; }
+        MouseJoint CreateMouseJoint(TagRef, const std::derived_from<b2MouseJointDef> auto& def) { return {Ref, b2CreateMouseJoint(Handle(), &def)}; }
 
-        /// @return the weld joint angular stiffness in Hertz.
-        [[nodiscard]] float GetAngularHertz() const { return b2WeldJoint_GetAngularHertz(Handle()); }
+        /// Create a wheel joint
+        ///	@see b2WheelJointDef for details
+        [[nodiscard]] WheelJoint CreateWheelJoint(TagOwning, const std::derived_from<b2WheelJointDef> auto& def) { return {Owning, b2CreateWheelJoint(Handle(), &def)}; }
+        WheelJoint CreateWheelJoint(TagRef, const std::derived_from<b2WheelJointDef> auto& def) { return {Ref, b2CreateWheelJoint(Handle(), &def)}; }
 
-        /// @return the weld joint linear stiffness in Hertz.
-        [[nodiscard]] float GetLinearHertz() const { return b2WeldJoint_GetLinearHertz(Handle()); }
+        /// Create a motor joint
+        ///	@see b2MotorJointDef for details
+        [[nodiscard]] MotorJoint CreateMotorJoint(TagOwning, const std::derived_from<b2MotorJointDef> auto& def) { return {Owning, b2CreateMotorJoint(Handle(), &def)}; }
+        MotorJoint CreateMotorJoint(TagRef, const std::derived_from<b2MotorJointDef> auto& def) { return {Ref, b2CreateMotorJoint(Handle(), &def)}; }
 
-        /// @return the weld joint angular damping ratio (non-dimensional)
-        [[nodiscard]] float GetAngularDampingRatio() const { return b2WeldJoint_GetAngularDampingRatio(Handle()); }
+        /// Create a revolute (hinge) joint
+        ///	@see b2RevoluteJointDef for details
+        [[nodiscard]] RevoluteJoint CreateRevoluteJoint(TagOwning, const std::derived_from<b2RevoluteJointDef> auto& def) { return {Owning, b2CreateRevoluteJoint(Handle(), &def)}; }
+        RevoluteJoint CreateRevoluteJoint(TagRef, const std::derived_from<b2RevoluteJointDef> auto& def) { return {Ref, b2CreateRevoluteJoint(Handle(), &def)}; }
 
-        /// @return the weld joint linear damping ratio (non-dimensional)
-        [[nodiscard]] float GetLinearDampingRatio() const { return b2WeldJoint_GetLinearDampingRatio(Handle()); }
+        /// Create a prismatic (slider) joint
+        ///	@see b2PrismaticJointDef for details
+        [[nodiscard]] PrismaticJoint CreatePrismaticJoint(TagOwning, const std::derived_from<b2PrismaticJointDef> auto& def) { return {Owning, b2CreatePrismaticJoint(Handle(), &def)}; }
+        PrismaticJoint CreatePrismaticJoint(TagRef, const std::derived_from<b2PrismaticJointDef> auto& def) { return {Ref, b2CreatePrismaticJoint(Handle(), &def)}; }
 
-        /// Set weld joint linear stiffness in Hertz. 0 is rigid.
-        void SetLinearHertz(float hertz) { return b2WeldJoint_SetLinearHertz(Handle(), hertz); }
+        /// Overlap test for all shapes that overlap the provided capsule.
+        void OverlapCapsule(const Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
 
-        /// Set weld joint linear damping ratio (non-dimensional)
-        void SetLinearDampingRatio(float dampingRatio) { return b2WeldJoint_SetLinearDampingRatio(Handle(), dampingRatio); }
+        /// Get counters and sizes
+        [[nodiscard]] Counters GetCounters() const { return b2World_GetCounters(Handle()); }
+
+        /// Get sensor events for the current time step. The event data is transient. Do not store a reference to this data.
+        [[nodiscard]] SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
+
+        /// Register the pre-solve callback. This is optional.
+        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), fcn, context); }
+
+        /// Take a time step. This performs collision detection, integration,
+        /// and constraint solution.
+        /// @param timeStep the amount of time to simulate, this should not vary.
+        /// @param velocityIterations for the velocity constraint solver.
+        /// @param relaxIterations for reducing constraint bounce solver.
+        void Step(float timeStep, int32_t subStepCount) { return b2World_Step(Handle(), timeStep, subStepCount); }
+
+        /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
+        [[nodiscard]] RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
+
+        /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
+        void CapsuleCast(const Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
+
+        /// Adjust the restitution threshold. Advanced feature for testing.
+        void SetRestitutionThreshold(float value) { return b2World_SetRestitutionThreshold(Handle(), value); }
+
+        /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
+        void PolygonCast(const Polygon& polygon, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_PolygonCast(Handle(), &polygon, originTransform, translation, filter, fcn, context); }
+
+        /// Overlap test for all shapes that overlap the provided polygon.
+        void OverlapPolygon(const Polygon& polygon, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapPolygon(Handle(), &polygon, transform, filter, fcn, context); }
+
+        /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
+        void CircleCast(const Circle& circle, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CircleCast(Handle(), &circle, originTransform, translation, filter, fcn, context); }
+
+        /// Overlap test for for all shapes that overlap the provided circle.
+        void OverlapCircle(const Circle& circle, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCircle(Handle(), &circle, transform, filter, fcn, context); }
+
+        /// Adjust contact tuning parameters:
+        /// - hertz is the contact stiffness (cycles per second)
+        /// - damping ratio is the contact bounciness with 1 being critical damping (non-dimensional)
+        /// - push velocity is the maximum contact constraint push out velocity (meters per second)
+        ///	Advanced feature
+        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) { return b2World_SetContactTuning(Handle(), hertz, dampingRatio, pushVelocity); }
+
+        /// Get the current profile
+        [[nodiscard]] Profile GetProfile() const { return b2World_GetProfile(Handle()); }
+
+        /// Call this to draw shapes and other debug draw data. This is intentionally non-const.
+        void Draw(DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
+
+        /// Enable/disable continuous collision. Advanced feature for testing.
+        void EnableContinuous(bool flag) { return b2World_EnableContinuous(Handle(), flag); }
+
+        /// Enable/disable sleep. Advanced feature for testing.
+        void EnableSleeping(bool flag) { return b2World_EnableSleeping(Handle(), flag); }
+
+        /// World identifier validation. Provides validation for up to 64K allocations.
+        [[nodiscard]] bool IsValid() const { return b2World_IsValid(Handle()); }
+
+        /// Overlap test for all shapes that *potentially* overlap the provided AABB.
+        void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
+
+        /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
+        [[nodiscard]] ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
+
+        /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
+        [[nodiscard]] BodyEvents GetBodyEvents() const { return b2World_GetBodyEvents(Handle()); }
+
+        /// Ray-cast the world for all shapes in the path of the ray. Your callback
+        /// controls whether you get the closest point, any point, or n-points.
+        /// The ray-cast ignores shapes that contain the starting point.
+        /// @param callback a user implemented callback class.
+        /// @param point1 the ray starting point
+        /// @param point2 the ray ending point
+        void RayCast(Vec2 origin, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_RayCast(Handle(), origin, translation, filter, fcn, context); }
+
+        /// Enable/disable constraint warm starting. Advanced feature for testing.
+        void EnableWarmStarting(bool flag) { return b2World_EnableWarmStarting(Handle(), flag); }
     };
 
     class DynamicTree
@@ -1979,6 +1990,8 @@ namespace b2
         void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     };
 
+    [[nodiscard]] inline Timer CreateTimer() { return b2CreateTimer(); }
+
     /// Inverse transform a point (e.g. world space to local space)
     [[nodiscard]] inline Vec2 InvTransformPoint(Transform xf, const Vec2 p) { return b2InvTransformPoint(xf, p); }
 
@@ -2003,8 +2016,6 @@ namespace b2
     /// Perform a linear shape cast of shape B moving and shape A fixed. Determines the hit point, normal, and translation fraction.
     /// @returns true if hit, false if there is no hit or an initial overlap
     [[nodiscard]] inline CastOutput ShapeCast(const ShapeCastPairInput& input) { return b2ShapeCast(&input); }
-
-    [[nodiscard]] inline Timer CreateTimer() { return b2CreateTimer(); }
 
     /// Component-wise clamp vector so v into the range [a, b]
     [[nodiscard]] inline Vec2 Clamp(Vec2 v, Vec2 a, Vec2 b) { return b2Clamp(v, a, b); }
