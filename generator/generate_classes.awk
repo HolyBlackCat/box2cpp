@@ -161,7 +161,7 @@ cur_enum_name {
 # We use this order to sort our classes in the correct order. (Since some classes depend on others.)
 function class_order(c)
 {
-    if (c == "AABB")
+    if (c == "AABB" || c == "Rot")
         return 10
     else
         return 20
@@ -372,6 +372,7 @@ END {
             {
                 has_parametrized_ctor = 1
 
+                # A member-wise constructor, manually written.
                 if (type == "Rot")
                 {
                     # Why, why isn't the consine argument first? D:
@@ -390,6 +391,11 @@ END {
                     print "How do I generate a parametrized constructor for this type?" >"/dev/stderr"
                     exit 1
                 }
+
+                # Functions to construct from the parent class.
+                print ""
+                print "        constexpr " type "(const b2" type "& raw_value) noexcept : b2" type "(raw_value) {}"
+                print "        constexpr " type "& operator=(const b2" type "& raw_value) noexcept { b2" type "::operator=(raw_value); return *this; }"
             }
         }
 
@@ -503,10 +509,16 @@ END {
             printf "        %s", funcs[func_name]["comment"]
 
             clean_func_name = gensub("^b2" type "_", "", 1, func_name)
+
+            # Return type.
             return_type = funcs[func_name]["ret"]
             if (return_type != "void")
                 printf "[[nodiscard]] "
-            printf return_type " " clean_func_name "("
+
+            return_type_fixed = gensub(/^b2/, "", 1, return_type)
+            funcs[func_name]["ret_fixed"] = return_type_fixed
+
+            printf return_type_fixed " " clean_func_name "("
 
             # Parameters.
             first_param = 1
@@ -540,10 +552,12 @@ END {
                 if (!param_is_func)
                     param_type_fixed = gensub(/^b2/, "", 1, param_type_fixed)
 
+                funcs[func_name]["params"][i]["type_fixed"] = param_type_fixed
                 printf param_type_fixed " " funcs[func_name]["params"][i]["name"]
             }
             printf ")"
 
+            # Constness.
             is_const = 0
             if (is_id_based || is_dumb_wrapper)
             {
@@ -575,7 +589,13 @@ END {
 
             # Function body.
 
-            printf " { return " func_name "("
+            printf " { return "
+
+            # Cast return value to our enum if needed.
+            if ( return_type_fixed in enums )
+                printf "(" return_type_fixed ")"
+
+            printf func_name "("
 
             first_param = 1
             for (i in funcs[func_name]["params"])
@@ -601,10 +621,10 @@ END {
                 if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
                     printf "&"
 
-                param_type = funcs[func_name]["params"][i]["type"]
+                param_type = funcs[func_name]["params"][i]["type_fixed"]
 
                 # Cast our enums to the original enums.
-                if (param_type in enums)
+                if (param_type in enums) # Note, `param_type` is not "fixed" here.
                     printf "(b2" param_type ")"
 
                 param_name = funcs[func_name]["params"][i]["name"]

@@ -741,6 +741,28 @@ namespace b2
         Separated = b2_toiStateSeparated, 
     };
 
+    class Rot : public b2Rot
+    {
+      public:
+        constexpr Rot() {}
+
+        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}
+
+        constexpr Rot(const b2Rot& raw_value) noexcept : b2Rot(raw_value) {}
+        constexpr Rot& operator=(const b2Rot& raw_value) noexcept { b2Rot::operator=(raw_value); return *this; }
+
+        [[nodiscard]] bool IsValid() const { return b2Rot_IsValid(*this); }
+
+        /// Get the x-axis
+        [[nodiscard]] Vec2 GetXAxis() const { return b2Rot_GetXAxis(*this); }
+
+        /// Get the y-axis
+        [[nodiscard]] Vec2 GetYAxis() const { return b2Rot_GetYAxis(*this); }
+
+        /// Get the angle in radians
+        [[nodiscard]] float GetAngle() const { return b2Rot_GetAngle(*this); }
+    };
+
     class AABB : public b2AABB
     {
       public:
@@ -748,17 +770,20 @@ namespace b2
 
         constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}
 
+        constexpr AABB(const b2AABB& raw_value) noexcept : b2AABB(raw_value) {}
+        constexpr AABB& operator=(const b2AABB& raw_value) noexcept { b2AABB::operator=(raw_value); return *this; }
+
         /// Get the extents of the AABB (half-widths).
-        [[nodiscard]] b2Vec2 Extents() const { return b2AABB_Extents(*this); }
+        [[nodiscard]] Vec2 Extents() const { return b2AABB_Extents(*this); }
 
         /// Does a fully contain b
         [[nodiscard]] bool Contains(AABB b) const { return b2AABB_Contains(*this, b); }
 
         /// Union of two AABBs
-        [[nodiscard]] b2AABB Union(AABB b) const { return b2AABB_Union(*this, b); }
+        [[nodiscard]] AABB Union(AABB b) const { return b2AABB_Union(*this, b); }
 
         /// Get the center of the AABB.
-        [[nodiscard]] b2Vec2 Center() const { return b2AABB_Center(*this); }
+        [[nodiscard]] Vec2 Center() const { return b2AABB_Center(*this); }
 
         [[nodiscard]] bool IsValid() const { return b2AABB_IsValid(*this); }
     };
@@ -792,10 +817,10 @@ namespace b2
         void OverlapCapsule(const b2Capsule& capsule, Transform transform, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapCapsule(Handle(), &capsule, transform, filter, fcn, context); }
 
         /// Get counters and sizes
-        [[nodiscard]] b2Counters GetCounters() const { return b2World_GetCounters(Handle()); }
+        [[nodiscard]] Counters GetCounters() const { return b2World_GetCounters(Handle()); }
 
         /// Get sensor events for the current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] b2SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
+        [[nodiscard]] SensorEvents GetSensorEvents() const { return b2World_GetSensorEvents(Handle()); }
 
         /// Register the pre-solve callback. This is optional.
         void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) { return b2World_SetPreSolveCallback(Handle(), fcn, context); }
@@ -808,7 +833,7 @@ namespace b2
         void Step(float timeStep, int32_t subStepCount) { return b2World_Step(Handle(), timeStep, subStepCount); }
 
         /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
-        [[nodiscard]] b2RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
+        [[nodiscard]] RayResult RayCastClosest(Vec2 origin, Vec2 translation, QueryFilter filter) const { return b2World_RayCastClosest(Handle(), origin, translation, filter); }
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
         void CapsuleCast(const b2Capsule& capsule, Transform originTransform, Vec2 translation, QueryFilter filter, b2CastResultFcn* fcn, void* context) const { return b2World_CapsuleCast(Handle(), &capsule, originTransform, translation, filter, fcn, context); }
@@ -836,7 +861,7 @@ namespace b2
         void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) { return b2World_SetContactTuning(Handle(), hertz, dampingRatio, pushVelocity); }
 
         /// Get the current profile
-        [[nodiscard]] b2Profile GetProfile() const { return b2World_GetProfile(Handle()); }
+        [[nodiscard]] Profile GetProfile() const { return b2World_GetProfile(Handle()); }
 
         /// Call this to draw shapes and other debug draw data. This is intentionally non-const.
         void Draw(DebugDraw& debugDraw) const { return b2World_Draw(Handle(), &debugDraw); }
@@ -854,10 +879,10 @@ namespace b2
         void OverlapAABB(AABB aabb, QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { return b2World_OverlapAABB(Handle(), aabb, filter, fcn, context); }
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] b2ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
+        [[nodiscard]] ContactEvents GetContactEvents() const { return b2World_GetContactEvents(Handle()); }
 
         /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
-        [[nodiscard]] b2BodyEvents GetBodyEvents() const { return b2World_GetBodyEvents(Handle()); }
+        [[nodiscard]] BodyEvents GetBodyEvents() const { return b2World_GetBodyEvents(Handle()); }
 
         /// Ray-cast the world for all shapes in the path of the ray. Your callback
         /// controls whether you get the closest point, any point, or n-points.
@@ -912,7 +937,7 @@ namespace b2
         void ApplyLinearImpulse(Vec2 impulse, Vec2 point, bool wake) { return b2Body_ApplyLinearImpulse(Handle(), impulse, point, wake); }
 
         /// Get a world point on a body given a local point
-        [[nodiscard]] b2Vec2 GetWorldPoint(Vec2 localPoint) const { return b2Body_GetWorldPoint(Handle(), localPoint); }
+        [[nodiscard]] Vec2 GetWorldPoint(Vec2 localPoint) const { return b2Body_GetWorldPoint(Handle(), localPoint); }
 
         /// Is this body a bullet?
         [[nodiscard]] bool IsBullet() const { return b2Body_IsBullet(Handle()); }
@@ -921,7 +946,7 @@ namespace b2
         void SetGravityScale(float gravityScale) { return b2Body_SetGravityScale(Handle(), gravityScale); }
 
         /// Set the type of a body. This has a similar cost to re-creating the body.
-        void SetType(BodyType type) { return b2Body_SetType(Handle(), type); }
+        void SetType(BodyType type) { return b2Body_SetType(Handle(), (b2BodyType)type); }
 
         /// Get the maximum capacity required for retrieving all the touching contacts on a body
         [[nodiscard]] int32_t GetContactCapacity() const { return b2Body_GetContactCapacity(Handle()); }
@@ -930,10 +955,10 @@ namespace b2
         [[nodiscard]] float GetGravityScale() const { return b2Body_GetGravityScale(Handle()); }
 
         /// Get the center of mass position of the body in local space.
-        [[nodiscard]] b2Vec2 GetLocalCenterOfMass() const { return b2Body_GetLocalCenterOfMass(Handle()); }
+        [[nodiscard]] Vec2 GetLocalCenterOfMass() const { return b2Body_GetLocalCenterOfMass(Handle()); }
 
         /// Get the center of mass position of the body in world space.
-        [[nodiscard]] b2Vec2 GetWorldCenterOfMass() const { return b2Body_GetWorldCenterOfMass(Handle()); }
+        [[nodiscard]] Vec2 GetWorldCenterOfMass() const { return b2Body_GetWorldCenterOfMass(Handle()); }
 
         /// Set this body to have fixed rotation. This causes the mass to be reset.
         void SetFixedRotation(bool flag) { return b2Body_SetFixedRotation(Handle(), flag); }
@@ -950,7 +975,7 @@ namespace b2
         void ApplyAngularImpulse(float impulse, bool wake) { return b2Body_ApplyAngularImpulse(Handle(), impulse, wake); }
 
         /// Get a local vector on a body given a world vector
-        [[nodiscard]] b2Vec2 GetLocalVector(Vec2 worldVector) const { return b2Body_GetLocalVector(Handle(), worldVector); }
+        [[nodiscard]] Vec2 GetLocalVector(Vec2 worldVector) const { return b2Body_GetLocalVector(Handle(), worldVector); }
 
         /// Override the body's mass properties. Normally this is computed automatically using the
         ///	shape geometry and density. This information is lost if a shape is added or removed or if the
@@ -970,10 +995,10 @@ namespace b2
         void SetLinearVelocity(Vec2 linearVelocity) { return b2Body_SetLinearVelocity(Handle(), linearVelocity); }
 
         /// Get a local point on a body given a world point
-        [[nodiscard]] b2Vec2 GetLocalPoint(Vec2 worldPoint) const { return b2Body_GetLocalPoint(Handle(), worldPoint); }
+        [[nodiscard]] Vec2 GetLocalPoint(Vec2 worldPoint) const { return b2Body_GetLocalPoint(Handle(), worldPoint); }
 
         /// Get the mass data for a body.
-        [[nodiscard]] b2MassData GetMassData() const { return b2Body_GetMassData(Handle()); }
+        [[nodiscard]] MassData GetMassData() const { return b2Body_GetMassData(Handle()); }
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
         void SetTransform(Vec2 position, float angle) { return b2Body_SetTransform(Handle(), position, angle); }
@@ -1010,7 +1035,7 @@ namespace b2
         void SetUserData(void* userData) { return b2Body_SetUserData(Handle(), userData); }
 
         /// Get the type of a body
-        [[nodiscard]] b2BodyType GetType() const { return b2Body_GetType(Handle()); }
+        [[nodiscard]] BodyType GetType() const { return (BodyType)b2Body_GetType(Handle()); }
 
         /// @return is sleeping enabled for this body?
         [[nodiscard]] bool IsSleepEnabled() const { return b2Body_IsSleepEnabled(Handle()); }
@@ -1041,14 +1066,14 @@ namespace b2
         void ApplyTorque(float torque, bool wake) { return b2Body_ApplyTorque(Handle(), torque, wake); }
 
         /// Get the world rotation of a body as a sine/cosine pair.
-        [[nodiscard]] b2Rot GetRotation() const { return b2Body_GetRotation(Handle()); }
+        [[nodiscard]] Rot GetRotation() const { return b2Body_GetRotation(Handle()); }
 
         /// Get the current world AABB that contains all the attached shapes. Note that this may not emcompass the body origin.
         ///	If there are no shapes attached then the returned AABB is empty and centered on the body origin.
-        [[nodiscard]] b2AABB ComputeAABB() const { return b2Body_ComputeAABB(Handle()); }
+        [[nodiscard]] AABB ComputeAABB() const { return b2Body_ComputeAABB(Handle()); }
 
         /// Get the linear velocity of a body's center of mass
-        [[nodiscard]] b2Vec2 GetLinearVelocity() const { return b2Body_GetLinearVelocity(Handle()); }
+        [[nodiscard]] Vec2 GetLinearVelocity() const { return b2Body_GetLinearVelocity(Handle()); }
 
         /// Get the touching contact data for a body
         [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Body_GetContactData(Handle(), &contactData, capacity); }
@@ -1061,10 +1086,10 @@ namespace b2
         /// @param wake also wake up the body
         void ApplyForceToCenter(Vec2 force, bool wake) { return b2Body_ApplyForceToCenter(Handle(), force, wake); }
 
-        [[nodiscard]] b2ShapeId GetNextShape(ShapeId shapeId) const { return b2Body_GetNextShape(shapeId); }
+        [[nodiscard]] ShapeId GetNextShape(ShapeId shapeId) const { return b2Body_GetNextShape(shapeId); }
 
         /// Iterate over shapes on a body
-        [[nodiscard]] b2ShapeId GetFirstShape() const { return b2Body_GetFirstShape(Handle()); }
+        [[nodiscard]] ShapeId GetFirstShape() const { return b2Body_GetFirstShape(Handle()); }
 
         /// Is this body awake?
         [[nodiscard]] bool IsAwake() const { return b2Body_IsAwake(Handle()); }
@@ -1073,17 +1098,17 @@ namespace b2
         [[nodiscard]] float GetMass() const { return b2Body_GetMass(Handle()); }
 
         /// Get a world vector on a body given a local vector
-        [[nodiscard]] b2Vec2 GetWorldVector(Vec2 localVector) const { return b2Body_GetWorldVector(Handle(), localVector); }
+        [[nodiscard]] Vec2 GetWorldVector(Vec2 localVector) const { return b2Body_GetWorldVector(Handle(), localVector); }
 
         /// Set this body to be a bullet. A bullet does continuous collision detection
         /// against dynamic bodies (but not other bullets).
         void SetBullet(bool flag) { return b2Body_SetBullet(Handle(), flag); }
 
         /// Get the world position of a body. This is the location of the body origin.
-        [[nodiscard]] b2Vec2 GetPosition() const { return b2Body_GetPosition(Handle()); }
+        [[nodiscard]] Vec2 GetPosition() const { return b2Body_GetPosition(Handle()); }
 
         /// Get the world transform of a body.
-        [[nodiscard]] b2Transform GetTransform() const { return b2Body_GetTransform(Handle()); }
+        [[nodiscard]] Transform GetTransform() const { return b2Body_GetTransform(Handle()); }
 
         /// Get the current linear damping.
         [[nodiscard]] float GetLinearDamping() const { return b2Body_GetLinearDamping(Handle()); }
@@ -1118,7 +1143,7 @@ namespace b2
         [[nodiscard]] void* GetUserData() const { return b2Shape_GetUserData(Handle()); }
 
         /// Ray cast a shape directly
-        [[nodiscard]] b2CastOutput RayCast(Vec2 origin, Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
+        [[nodiscard]] CastOutput RayCast(Vec2 origin, Vec2 translation) const { return b2Shape_RayCast(Handle(), origin, translation); }
 
         /// Access the line segment geometry of a shape. Asserts the type is correct.
         [[nodiscard]] const b2Segment GetSegment() const { return b2Shape_GetSegment(Handle()); }
@@ -1153,7 +1178,7 @@ namespace b2
         [[nodiscard]] int32_t GetContactData(ContactData& contactData, int32_t capacity) const { return b2Shape_GetContactData(Handle(), &contactData, capacity); }
 
         /// Get the current world AABB
-        [[nodiscard]] b2AABB GetAABB() const { return b2Shape_GetAABB(Handle()); }
+        [[nodiscard]] AABB GetAABB() const { return b2Shape_GetAABB(Handle()); }
 
         /// Get the density on a shape.
         [[nodiscard]] float GetDensity() const { return b2Shape_GetDensity(Handle()); }
@@ -1165,7 +1190,7 @@ namespace b2
         void EnableContactEvents(bool flag) { return b2Shape_EnableContactEvents(Handle(), flag); }
 
         /// Get the current filter
-        [[nodiscard]] b2Filter GetFilter() const { return b2Shape_GetFilter(Handle()); }
+        [[nodiscard]] Filter GetFilter() const { return b2Shape_GetFilter(Handle()); }
 
         /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
         ///	and must be carefully handled due to multi-threading. Ignored for sensors.
@@ -1191,7 +1216,7 @@ namespace b2
         [[nodiscard]] bool ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(Handle()); }
 
         /// Get the body that a shape is attached to
-        [[nodiscard]] b2BodyId GetBody() const { return b2Shape_GetBody(Handle()); }
+        [[nodiscard]] BodyId GetBody() const { return b2Shape_GetBody(Handle()); }
 
         /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
         void SetFriction(float friction) { return b2Shape_SetFriction(Handle(), friction); }
@@ -1202,7 +1227,7 @@ namespace b2
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
-        [[nodiscard]] b2ChainId GetParentChain() const { return b2Shape_GetParentChain(Handle()); }
+        [[nodiscard]] ChainId GetParentChain() const { return b2Shape_GetParentChain(Handle()); }
 
         /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
         void SetRestitution(float restitution) { return b2Shape_SetRestitution(Handle(), restitution); }
@@ -1211,7 +1236,7 @@ namespace b2
         void SetUserData(void* userData) { return b2Shape_SetUserData(Handle(), userData); }
 
         /// Get the type of a shape.
-        [[nodiscard]] b2ShapeType GetType() const { return b2Shape_GetType(Handle()); }
+        [[nodiscard]] ShapeType GetType() const { return (ShapeType)b2Shape_GetType(Handle()); }
 
         /// Get the friction on a shape.
         [[nodiscard]] float GetFriction() const { return b2Shape_GetFriction(Handle()); }
@@ -1293,10 +1318,10 @@ namespace b2
         [[nodiscard]] const b2JointId &Handle() const { return id; }
 
         /// Get local anchor on bodyA
-        [[nodiscard]] b2Vec2 GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(Handle()); }
+        [[nodiscard]] Vec2 GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(Handle()); }
 
         /// Get local anchor on bodyB
-        [[nodiscard]] b2Vec2 GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(Handle()); }
+        [[nodiscard]] Vec2 GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(Handle()); }
 
         /// Wake the bodies connect to this joint
         void WakeBodies() { return b2Joint_WakeBodies(Handle()); }
@@ -1308,10 +1333,10 @@ namespace b2
         [[nodiscard]] void* GetUserData() const { return b2Joint_GetUserData(Handle()); }
 
         /// Get body A on a joint
-        [[nodiscard]] b2BodyId GetBodyA() const { return b2Joint_GetBodyA(Handle()); }
+        [[nodiscard]] BodyId GetBodyA() const { return b2Joint_GetBodyA(Handle()); }
 
         /// Get body B on a joint
-        [[nodiscard]] b2BodyId GetBodyB() const { return b2Joint_GetBodyB(Handle()); }
+        [[nodiscard]] BodyId GetBodyB() const { return b2Joint_GetBodyB(Handle()); }
 
         /// Toggle collision between connected bodies
         void SetCollideConnected(bool shouldCollide) { return b2Joint_SetCollideConnected(Handle(), shouldCollide); }
@@ -1323,7 +1348,7 @@ namespace b2
         [[nodiscard]] bool IsValid() const { return b2Joint_IsValid(Handle()); }
 
         /// Get the joint type
-        [[nodiscard]] b2JointType GetType() const { return b2Joint_GetType(Handle()); }
+        [[nodiscard]] JointType GetType() const { return (JointType)b2Joint_GetType(Handle()); }
     };
 
     /// Distance joint definition. This requires defining an anchor point on both
@@ -1395,7 +1420,7 @@ namespace b2
         MotorJoint(World &world, const std::derived_from<b2MotorJointDef> auto &params) : Joint(b2CreateMotorJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2MotorJoint`."); }
 
         /// Get the current constraint force for a motor joint
-        [[nodiscard]] b2Vec2 GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(Handle()); }
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(Handle()); }
 
         /// Get the current constraint torque for a motor joint
         [[nodiscard]] float GetConstraintTorque() const { return b2MotorJoint_GetConstraintTorque(Handle()); }
@@ -1422,7 +1447,7 @@ namespace b2
         void SetMaxTorque(float maxTorque) { return b2MotorJoint_SetMaxTorque(Handle(), maxTorque); }
 
         /// @return the linear offset target for a motor joint
-        [[nodiscard]] b2Vec2 GetLinearOffset() const { return b2MotorJoint_GetLinearOffset(Handle()); }
+        [[nodiscard]] Vec2 GetLinearOffset() const { return b2MotorJoint_GetLinearOffset(Handle()); }
 
         /// Set the angular offset target for a motor joint in radians
         void SetAngularOffset(float angularOffset) { return b2MotorJoint_SetAngularOffset(Handle(), angularOffset); }
@@ -1450,7 +1475,7 @@ namespace b2
         MouseJoint(World &world, const std::derived_from<b2MouseJointDef> auto &params) : Joint(b2CreateMouseJoint(world.Handle(), &params)) { if (!*this) throw std::runtime_error("Failed to create a `b2MouseJoint`."); }
 
         /// @return the target for a mouse joint
-        [[nodiscard]] b2Vec2 GetTarget() const { return b2MouseJoint_GetTarget(Handle()); }
+        [[nodiscard]] Vec2 GetTarget() const { return b2MouseJoint_GetTarget(Handle()); }
 
         /// Get the Hertz of a mouse joint
         [[nodiscard]] float GetHertz() const { return b2MouseJoint_GetHertz(Handle()); }
@@ -1519,7 +1544,7 @@ namespace b2
         [[nodiscard]] float GetConstraintTorque() const { return b2PrismaticJoint_GetConstraintTorque(Handle()); }
 
         /// Get the current constraint force for a prismatic joint
-        [[nodiscard]] b2Vec2 GetConstraintForce() const { return b2PrismaticJoint_GetConstraintForce(Handle()); }
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2PrismaticJoint_GetConstraintForce(Handle()); }
 
         /// Get the current motor force for a prismatic joint
         [[nodiscard]] float GetMotorForce() const { return b2PrismaticJoint_GetMotorForce(Handle()); }
@@ -1578,7 +1603,7 @@ namespace b2
         [[nodiscard]] float GetConstraintTorque() const { return b2RevoluteJoint_GetConstraintTorque(Handle()); }
 
         /// Get the current constraint force for a revolute joint
-        [[nodiscard]] b2Vec2 GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(Handle()); }
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(Handle()); }
 
         /// @return is the revolute joint motor enabled
         [[nodiscard]] bool IsMotorEnabled() const { return b2RevoluteJoint_IsMotorEnabled(Handle()); }
@@ -1660,7 +1685,7 @@ namespace b2
         void SetLimits(float lower, float upper) { return b2WheelJoint_SetLimits(Handle(), lower, upper); }
 
         /// Get the current wheel joint constraint force
-        [[nodiscard]] b2Vec2 GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(Handle()); }
+        [[nodiscard]] Vec2 GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(Handle()); }
 
         /// Enable/disable the wheel joint motor
         void EnableMotor(bool enableMotor) { return b2WheelJoint_EnableMotor(Handle(), enableMotor); }
@@ -1784,7 +1809,7 @@ namespace b2
         void Validate() const { return b2DynamicTree_Validate(&value); }
 
         /// Get the AABB of a proxy
-        [[nodiscard]] b2AABB GetAABB(int32_t proxyId) { return b2DynamicTree_GetAABB(&value, proxyId); }
+        [[nodiscard]] AABB GetAABB(int32_t proxyId) { return b2DynamicTree_GetAABB(&value, proxyId); }
 
         /// Build an optimal tree. Very expensive. For testing.
         void RebuildBottomUp() { return b2DynamicTree_RebuildBottomUp(&value); }
@@ -1827,24 +1852,5 @@ namespace b2
 
         /// Enlarge a proxy and enlarge ancestors as necessary.
         void EnlargeProxy(int32_t proxyId, AABB aabb) { return b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
-    };
-
-    class Rot : public b2Rot
-    {
-      public:
-        constexpr Rot() {}
-
-        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}
-
-        [[nodiscard]] bool IsValid() const { return b2Rot_IsValid(*this); }
-
-        /// Get the x-axis
-        [[nodiscard]] b2Vec2 GetXAxis() const { return b2Rot_GetXAxis(*this); }
-
-        /// Get the y-axis
-        [[nodiscard]] b2Vec2 GetYAxis() const { return b2Rot_GetYAxis(*this); }
-
-        /// Get the angle in radians
-        [[nodiscard]] float GetAngle() const { return b2Rot_GetAngle(*this); }
     };
 } // namespace box2d
