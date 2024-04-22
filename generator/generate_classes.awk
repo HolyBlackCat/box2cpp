@@ -2,13 +2,9 @@ BEGIN {
     print "#pragma once"
     print ""
     print "#include <box2d/box2d.h>"
-    print "#include <box2d/color.h>" # We include a bunch of semi-internal headers, because we wrap all of them, for better or worse.
-    print "#include <box2d/distance.h>"
     print "#include <box2d/dynamic_tree.h>"
-    print "#include <box2d/hull.h>"
-    print "#include <box2d/math.h>"
-    print "#include <box2d/timer.h>"
     print ""
+    print "#include <cassert>" # For `assert()`.
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
     print "#include <utility>" # For `std::exchange`.
@@ -16,10 +12,17 @@ BEGIN {
     print "namespace b2"
     print "{"
 
+    print "" >second_file
+    print "// Implementations:" >second_file
+    print "namespace b2" >second_file
+    print "{" >second_file
+
     cur_enum_name = ""
 
-    # For those types, we don't generate a class even if we otherwise would.
-    forced_non_classes["Vec2"] = 1 # Yeah no, adding one more vector type just for a single member function `b2Vec2_IsValid` is dumb.
+    # We don't want those classes.
+    forced_non_classes["Vec2"] = 1
+    forced_non_classes["Rot"] = 1
+    forced_non_classes["AABB"] = 1
 }
 
 # Collect enums.
@@ -137,7 +140,7 @@ cur_enum_name {
     match(func_name, /b2(\w+)_\w+/, elems)
     if (RLENGTH != -1)
     {
-        if (!(elems[1] in classes_set))
+        if (!(elems[1] in forced_non_classes) && !(elems[1] in classes_set))
         {
             classes_set[elems[1]] = length(classes_set) + 1
             classes[length(classes_set)] = elems[1]
@@ -170,13 +173,13 @@ cur_enum_name {
 # We use this order to sort our classes in the correct order. (Since some classes depend on others.)
 function class_order(c)
 {
-    if (c == "AABB" || c == "Rot") # Those are widely used, must be before all.
+    if (c == "Chain")
         return 10
-    else if (c == "Shape" || c == "Chain") # This is needed for the `Body`.
-        return 20
-    else if (c == "Joint") # This is needed for the `Body`.
+    else if (c == "Shape")
+        return 11
+    else if (c == "Joint")
         return 30
-    else if (c ~ /Joint/) # This is needed for the `Body`.
+    else if (c ~ /Joint/)
         return 31
     else if (c == "Body")
         return 40
@@ -196,6 +199,8 @@ function func_order(f)
         return 10
     if (f ~ /^b2Create/)
         return 11
+    if (f ~ /^b2Destroy/)
+        return 12
     else
         return 20
 }
@@ -242,11 +247,12 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         printf indent
     }
+    printf "    " >second_file
 
     # Remove class name from the func name.
     clean_func_name = func_name
     if (is_destroy_func)
-        clean_func_name = gensub("And", "With", 1, gensub("^b2Destroy" type, "Destroy", 1, clean_func_name))
+        clean_func_name = gensub("^b2Destroy" type, "Destroy", 1, clean_func_name)
     else if (type && !is_factory_func)
         clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
     else
@@ -265,7 +271,24 @@ function emit_func(func_name, type, func_variant_index, indent)
     if (!type)
         printf "inline "
 
-    printf return_type_fixed " " clean_func_name "("
+    if (type in classes_id_based)
+        printf "template <typename D, bool ForceConst> " >second_file
+    else
+        printf "inline " >second_file
+
+    printf return_type_fixed
+    printf return_type_fixed >second_file
+    if (is_factory_func && !factory_func_owning)
+    {
+        printf "Ref"
+        printf "Ref" >second_file
+    }
+    printf " " clean_func_name "("
+
+    if (type in classes_id_based)
+        printf " Basic" type "Interface<D, ForceConst>::" clean_func_name "(" >second_file
+    else
+        printf " " type "::" clean_func_name "(" >second_file
 
     # Parameters.
     first_param = 1
@@ -286,11 +309,15 @@ function emit_func(func_name, type, func_variant_index, indent)
 
             # Inject an extra ownership parameter for shape factories.
             if (is_factory_func)
-                printf "%s, ", factory_func_owning ? "TagOwning" : "TagRef"
+            {
+                printf "%s, ", factory_func_owning ? "Tags::OwningHandle" : "Tags::DestroyWithParent"
+                printf "%s, ", factory_func_owning ? "Tags::OwningHandle" : "Tags::DestroyWithParent" >second_file
+            }
         }
         else
         {
             printf ", "
+            printf ", " >second_file
         }
 
         param_type_fixed = param_type
@@ -313,23 +340,14 @@ function emit_func(func_name, type, func_variant_index, indent)
                 if (param_underlying_class_type in classes_set)
                     param_type_fixed = "const std::derived_from<b2" param_underlying_class_type "Def> auto&"
             }
-
-            # Adjust IDs to our classes.
-            if (param_type_fixed ~ /Id$/)
-            {
-                # Currently we never add `const`. Should be good enough, as it's currently only used for shape factory functions.
-                param_type_fixed = gensub(/Id$/, "", 1, param_type_fixed) "&"
-                funcs[func_name]["params"][i]["id_adjusted_to_class"] = 1
-            }
-
-            # Adjust box2d types to our typedefs.
-            param_type_fixed = gensub(/^(const )?b2/, "\\1", 1, param_type_fixed)
         }
 
         funcs[func_name]["params"][i]["type_fixed"] = param_type_fixed
         printf param_type_fixed " " funcs[func_name]["params"][i]["name"]
+        printf param_type_fixed " " funcs[func_name]["params"][i]["name"] >second_file
     }
     printf ")"
+    printf ")" >second_file
 
     # Constness.
     is_const = 0
@@ -341,7 +359,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         is_const = 0
     }
-    else if (is_id_based || is_dumb_wrapper)
+    else if (is_id_based)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
 
@@ -369,25 +387,37 @@ function emit_func(func_name, type, func_variant_index, indent)
     }
 
     if (is_const)
+    {
         printf " const"
+        printf " const" >second_file
+    }
+    else if (is_id_based)
+    {
+        printf " requires (!ForceConst)"
+        printf " requires (!ForceConst)" >second_file
+    }
 
     # Function body.
 
-    printf " { "
+    print ";"
+
+    printf " { " >second_file
 
     if (is_destroy_func)
-        printf "if (*this) { " # Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
+        printf "if (*this) { " >second_file # Intentionally not checking `IsOwner()` to allow destroying through non-owning objects.
 
-    if (return_type != "void")
-        printf "return "
+    if (return_type != "void" && !factory_func_owning)
+        printf "return " >second_file
 
-    if (is_factory_func)
-        printf "{%s, ", factory_func_owning ? "Owning" : "Ref"
+    if (factory_func_owning)
+        printf return_type_fixed " ret; ret.id = " >second_file
+    else if (is_factory_func && !factory_func_owning && return_type_fixed ~ /^\w+Joint$/)
+        printf "(" return_type_fixed "Ref)" >second_file
     # Cast return value to our enum if needed.
     if (return_type_fixed in enums)
-        printf "(" return_type_fixed ")"
+        printf "(" return_type_fixed ")" >second_file
 
-    printf func_name "("
+    printf func_name "(" >second_file
 
     first_param = 1
     for (i in funcs[func_name]["params"])
@@ -395,11 +425,9 @@ function emit_func(func_name, type, func_variant_index, indent)
         if (first_param && first_param_is_self)
         {
             if (is_by_value_raii_wrapper)
-                printf "&value"
-            else if (is_dumb_wrapper)
-                printf "*this"
+                printf "&value" >second_file
             else
-                printf "Handle()"
+                printf "static_cast<const D &>(*this).Handle()" >second_file
             first_param = 0
             continue
         }
@@ -407,38 +435,29 @@ function emit_func(func_name, type, func_variant_index, indent)
         if (first_param)
             first_param = 0
         else
-            printf ", "
+            printf ", " >second_file
 
         # Prepend `&` to take address of a reference.
         if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
-            printf "&"
+            printf "&" >second_file
 
         param_type = funcs[func_name]["params"][i]["type_fixed"]
 
         # Cast our enums to the original enums.
         if (param_type in enums) # Note, `param_type` is not "fixed" here.
-            printf "(b2" param_type ")"
+            printf "(b2" param_type ")" >second_file
 
         param_name = funcs[func_name]["params"][i]["name"]
 
-        printf "%s", param_name
-
-        # Convert class parameters to IDs (for shape factory functions).
-        if (funcs[func_name]["params"][i]["id_adjusted_to_class"])
-            printf ".Handle()"
+        printf "%s", param_name >second_file
     }
-    printf ")"
-    if (is_factory_func)
-        printf "}"
-    printf ";"
+    printf ")" >second_file
+    if (factory_func_owning)
+        printf "; return ret" >second_file
+    printf ";" >second_file
     if (is_destroy_func)
-        printf " id = b2_null" type "Id; is_owner = false; }"
-    printf " }"
-
-    if (is_destroy_func)
-        printf " // Intentionally not checking `IsOwner()` to allow destroying through non-owning objects."
-
-    print ""
+        printf " static_cast<D &>(*this).id = b2_null" type "Id; }" >second_file
+    print " }" >second_file
 
     if (is_factory_func && func_variant_index == 0)
         emit_func(func_name, type, func_variant_index + 1, indent)
@@ -461,80 +480,75 @@ END {
         funcs[func_name]["is_factory"] = func_name ~ /^b2Create/ && length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] ~ /^b2.*Id$/
 
         # Figure out the fixed return type.
-        return_type_fixed = gensub(/^b2/, "", 1, funcs[func_name]["ret"])
+        return_type_fixed = funcs[func_name]["ret"]
+
         if (funcs[func_name]["is_factory"])
         {
             factory_target_class = gensub(/^b2Create/, "", 1, func_name)
             if (factory_target_class in classes_set)
                 return_type_fixed = factory_target_class
             else
-                return_type_fixed = gensub(/Id$/, "", 1, return_type_fixed)
+                return_type_fixed = gensub(/^b2(.*)Id$/, "\\1", 1, return_type_fixed)
         }
+        else
+        {
+            # Adjust IDs to our wrappers.
+            candidate_class_name = gensub(/^b2(.*)Id$/, "\\1", 1, return_type_fixed)
+            if (candidate_class_name in classes_set)
+                return_type_fixed = candidate_class_name "Ref"
+        }
+
         funcs[func_name]["ret_fixed"] = return_type_fixed
     }
 
-    # Emit typedef structs.
-
-    for (i in typedef_structs)
+    # An extra analysis pass for classes.
+    for (i in classes)
     {
-        type = typedef_structs[i]["name"]
+        type = classes[i]
 
-        if (!(type in forced_non_classes))
-        {
-            if (type in classes_set)
-                continue; # This is a full-blown class, don't emit it.
+        # Is a class derived from `Joint`?
+        if (type ~ /.+Joint/)
+            classes_joint_kinds[type] = 1
 
-            if (gensub(/Def$/, "", 1, type) in classes_set)
-                continue; # This is a `...Def` struct, we don't need to emit it outside of the respective class.
-        }
-
-        printf "    %s", typedef_structs[i]["comment"]
-        print "using " type " = b2" type ";"
-    }
-
-    # Emit enums.
-
-    for (enum_name in enums)
-    {
-        print ""
-        printf "    %s", enums[enum_name]["comment"]
-        print "enum class " enum_name
-        print "    { "
-        for (i in enums[enum_name]["elems"])
-        {
-            elem_name = enums[enum_name]["elems"][i]
-
-            if (elem_name ~ /^[a-z]+TypeCount$/)
-                elem_name_fixed = "_count"
-            else if (enum_name == "HexColor")
-                elem_name_fixed = gensub(/^color/, "", 1, elem_name)
-            else if (enum_name == "ShapeType")
-                elem_name_fixed = gensub(/Shape$/, "", 1, elem_name)
-            else if (enum_name == "TOIState")
-                elem_name_fixed = gensub(/^toiState/, "", 1, elem_name)
-            else
-                elem_name_fixed = elem_name
-
-            # Convert first symbol to uppercase.
-            elem_name_fixed = toupper(substr(elem_name_fixed, 1, 1)) substr(elem_name_fixed, 2)
-
-            print "        " elem_name_fixed " = b2_" elem_name ", "
-        }
-        print "    };"
+        # Those store a box2d struct by value, and act as a RAII wrapper.
+        if (type == "DynamicTree")
+            classes_by_value_raii_wrappers[type] = 1
+        # Those just inherit from the original struct and add some member functions.
+        if (!(type in classes_by_value_raii_wrappers) && ("b2Destroy" type in funcs || type in classes_joint_kinds))
+            classes_id_based[type] = 1
     }
 
     # Emit our own helpers for classes.
 
+    print "    namespace Tags" # Using a namespace to stop Clangd from autocompleting the tags! >:o
+    print "    {"
+    print "        struct OwningHandle { explicit OwningHandle() = default; };"
+    print "        struct DestroyWithParent { explicit DestroyWithParent() = default; };"
     print ""
-    print "    // This can be passed to some functions to express ownership."
-    print "    struct TagOwning { explicit TagOwning() = default; };"
-    print "    inline constexpr TagOwning Owning{};"
+    print "        template <typename T>"
+    print "        concept OwnershipTag = std::same_as<T, OwningHandle> || std::same_as<T, DestroyWithParent>;"
+    print "    }"
     print ""
-    print "    // This can be passed to the constructors of our classes along with a handle to just store a reference to it, without assuming ownership."
-    print "    struct TagRef { explicit TagRef() = default; };"
-    print "    inline constexpr TagRef Ref{};"
+    print "    // Pass to `Create...()` if you want the resulting object to destroy this thing in its destructor."
+    print "    inline constexpr Tags::OwningHandle OwningHandle{};"
     print ""
-    print "    template <typename T> concept MaybeOwningTag = std::same_as<T, TagOwning> || std::same_as<T, TagRef>;"
+    print "    // Pass to `Create...()` if you want the parent object (that you're calling this on) to destroy this thing in its destructor. You'll receive a non-owning reference."
+    print "    inline constexpr Tags::DestroyWithParent DestroyWithParent{};"
+    print ""
+    print ""
+
+    # Forward-declare classes.
+    for (i in classes)
+    {
+        type = classes[i]
+
+        if (type in classes_id_based)
+        {
+            print "    template <bool IsConstRef> class MaybeConst"type"Ref;"
+            print "    using "type"Ref = MaybeConst"type"Ref<false>;"
+            print "    using "type"ConstRef = MaybeConst"type"Ref<true>;"
+        }
+    }
 
     # Emit classes.
     asort(classes, classes, "sort_classes_comparator")
@@ -542,219 +556,235 @@ END {
     {
         type = classes[i]
 
-        if (type in forced_non_classes)
-            continue
-
         print ""
 
         # Is a class derived from `Joint`?
-        is_joint_kind = type ~ /.+Joint/
+        is_joint_kind = type in classes_joint_kinds
         if (is_joint_kind)
             base_type_or_self = "Joint"
         else
             base_type_or_self = type
 
-        # Whether the destructor should check validity before destruction.
-        # Joints need the check because `b2DestroyBodyAndJoints()` can destroy our joints...
-        #destructor_needs_validation = base_type_or_self == "Joint"
-        destructor_needs_validation = 0 # Currently always false because IsValid seems to be broken, always returns false.
-
         # Those store a box2d struct by value, and act as a RAII wrapper.
-        is_by_value_raii_wrapper = type == "DynamicTree"
+        is_by_value_raii_wrapper = type in classes_by_value_raii_wrappers
         # Those just inherit from the original struct and add some member functions.
-        is_id_based = !is_by_value_raii_wrapper && ("b2Destroy" type in funcs || is_joint_kind)
-        is_dumb_wrapper = !is_by_value_raii_wrapper && !is_id_based
+        is_id_based = type in classes_id_based
 
-        # Has public constructors?
-        public_constructible = ("b2Create" type in funcs) || !is_id_based;
-        # Has a struct with parameters?
-        has_params_struct = ("b2Default" type "Def") in funcs;
-
-        # Primary class comment. Snatch it from the `...Def` struct because those have the best comments.
-        printf "    %s", typedef_structs[typedef_structs_set[type "Def"]]["comment"]
-
-        # Class head.
-        printf "class " type
-        # Base classes.
-        if (is_joint_kind)
-            printf " : public Joint"
-        else if (is_dumb_wrapper)
-            printf " : public b2" type
-        print ""
-        print "    {"
-
-        # Emit friends (for `Create...` functions).
-        split("", this_class_friends)
-        for (func_name in funcs)
+        if (!is_by_value_raii_wrapper && !is_id_based)
         {
-            if (funcs[func_name]["is_factory"] && funcs[func_name]["ret_fixed"] == type)
+            print "Unsure what to do with this class: " type >"/dev/stderr"
+            exit 1
+        }
+
+        if (is_id_based)
+        {
+            # Has public constructors?
+            public_constructible = ("b2Create" type in funcs);
+
+            # Has a struct with parameters?
+            has_params_struct = ("b2Default" type "Def") in funcs;
+
+            # The joint enum value for this joint kind.
+            if (is_joint_kind)
+                joint_enum_value = "b2_" tolower(substr(type, 1, 1)) substr(type, 2)
+
+            # Class head.
+            printf "    template <typename D, bool ForceConst>\n    class Basic"type"Interface"
+            print ""
+            # Body.
+            print "    {"
+            print "      protected:"
+            print "        Basic"type"Interface() = default;"
+            print ""
+            printf "      public:"
+
+            # ID operations.
+            if (!is_joint_kind)
             {
-                this_friend = gensub(/^b2(.*)Id$/, "\\1", 1, funcs[func_name]["params"][1]["type"])
-                if (!(this_friend in this_class_friends))
+                print ""
+                print "        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(Handle()); }"
+                print "        [[nodiscard]] const b2" type "Id &Handle() const { return static_cast<const D &>(*this).id; }"
+                print "        // Convert to a handle. Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers."
+                print "        template <std::same_as<b2"type"Id> T> [[nodiscard]] operator const T &() const { return Handle(); }"
+            }
+
+            # Expose all the functions.
+            for (i in sorted_funcs)
+            {
+                func_name = sorted_funcs[i]
+                if (func_name in funcs) # The function could've been deleted.
+                    emit_func(func_name, type, 0, "        ")
+            }
+
+            # Close the class.
+            print "    };"
+
+            # Now the implementations:
+
+            # The owning (non-reference) version.
+            print ""
+
+            # Primary class comment. Snatch it from the `...Def` struct because those have the best comments.
+            printf "    %s", typedef_structs[typedef_structs_set[type "Def"]]["comment"]
+
+            printf "class "type" : "
+            if (is_joint_kind)
+                printf "public "base_type_or_self", "
+            print "public Basic"type"Interface<"type", false>"
+            print "    {"
+            print "        template <typename, bool>"
+            print "        friend class Basic"type"Interface;"
+            # Emit extra friends (for `Create...` functions).
+            split("", this_class_friends)
+            for (func_name in funcs)
+            {
+                if (funcs[func_name]["is_factory"] && funcs[func_name]["ret_fixed"] == type)
                 {
-                    this_class_friends[this_friend] = 1
-                    print "        friend class " this_friend ";"
+                    this_friend = gensub(/^b2(.*)Id$/, "\\1", 1, funcs[func_name]["params"][1]["type"])
+                    if (!(this_friend in this_class_friends))
+                    {
+                        this_class_friends[this_friend] = 1
+                        print "        template <typename, bool>\n        friend class Basic" this_friend "Interface;"
+                    }
                 }
             }
-        }
-        if (length(this_class_friends) > 0)
+            if (length(this_class_friends) > 0)
+                print ""
             print ""
-
-        # Member variables.
-        if (is_id_based)
-        {
-            # ID.
-
-            if (is_joint_kind)
+            if (!is_joint_kind)
             {
                 print "      protected:"
-                print "        " type "(TagOwning, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Owning, id) {}"
+                print "        b2" type "Id id = b2_null" type "Id;"
                 print ""
+            }
+            print "      public:"
+            print "        static constexpr bool IsOwning = true;"
+            print ""
+            print "        // Constructs a null (invalid) object."
+            print "        constexpr "type"() noexcept {}"
+            # Params struct.
+            if (has_params_struct)
+            {
+                print ""
+                print "        // The constructor accepts either this or directly `b2" type "Def`."
+                print "        struct Params : b2" type "Def"
+                print "        {"
+                print "            Params() : b2" type "Def(b2Default" type "Def()) {}"
+                print "        };"
+
+                delete funcs["b2Default" type "Def"]
+            }
+            # The parametrized constructor.
+            has_parametrized_ctor = 0
+            if (has_params_struct && type == "World") # Only the `World` class can self-construct, others are constructed by other classes.
+            {
+                has_parametrized_ctor = 1
+
+                print ""
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
+                print type "(const std::derived_from<b2" type "Def> auto &params) { id = b2Create" type "(&params); }"
+
+                delete funcs["b2Create" type]
+            }
+
+            if (!is_joint_kind)
+            {
+                # Copy/move ctors.
+                print ""
+                print "        " type "(" type "&& other) noexcept { id = std::exchange(other.id, b2_null" type "Id); }"
+                print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); return *this; }"
+
+                # Destructor.
+                print ""
+                print "        ~" type "() { if (*this) Destroy(); }"
+            }
+
+            print "    };"
+
+            # The reference version.
+            print ""
+            print "    template <bool IsConstRef>"
+            printf "    class MaybeConst"type"Ref : "
+            if (is_joint_kind)
+                printf "public "base_type_or_self"Ref, "
+            print "public Basic"type"Interface<"type"Ref, IsConstRef>"
+            print "    {"
+            print "        template <typename, bool>"
+            print "        friend class Basic"type"Interface;"
+            print ""
+            if (!is_joint_kind)
+            {
+                print "      protected:"
+                print "        b2" type "Id id = b2_null" type "Id;"
+                print ""
+            }
+            print "      public:"
+            print "        static constexpr bool IsOwning = false;"
+            print "        static constexpr bool IsConst = IsConstRef;"
+            print ""
+            print "        // Constructs a null (invalid) object."
+            print "        constexpr MaybeConst"type"Ref() noexcept {}"
+            print ""
+            # Constructor from handle.
+            print "        // Point to an existing handle."
+            print "        // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers."
+            if (is_joint_kind)
+            {
+                print "        // Triggers an assertion if this isn't the right joint kind."
+                print "        explicit constexpr MaybeConst"type"Ref(std::same_as<b2JointId> auto id) noexcept"
+                print "        {"
+                print "            if (b2Joint_GetType(id) == "joint_enum_value")"
+                print "                this->id = id;"
+                print "            else"
+                print "                assert(false && \"This joint is not a `"type"`.\");"
+                print "        }"
             }
             else
             {
-                print "        b2" type "Id id = b2_null" type "Id;"
-                print "        bool is_owner = false;"
-                print ""
-                print "      protected:"
-                print "        " type "(TagOwning, b2" type "Id id) noexcept : id(id), is_owner(true) {}"
-                print ""
+                print "        constexpr MaybeConst"type"Ref(std::same_as<b2" type "Id> auto id) noexcept { this->id = id; }"
             }
+            print ""
+            # Create from a non-reference.
+            print "        // Create from a non-reference."
+            print "        constexpr MaybeConst"type"Ref(const "type"& other) noexcept : MaybeConst"type"Ref(other.Handle()) {}"
+            print ""
+            # Convert non-const reference to const.
+            print "        // Const a non-const reference to a const reference."
+            print "        constexpr MaybeConst"type"Ref(const MaybeConst"type"Ref<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConst"type"Ref(other.Handle()) {}"
+            print "    };"
         }
         else if (is_by_value_raii_wrapper)
         {
-            # By value.
+            # Primary class comment.
+            printf "    %s", typedef_structs[typedef_structs_set[type]]["comment"]
+
+            # Class head.
+            printf "class " type
+            # Base classes.
+            if (is_joint_kind)
+                printf " : public Joint"
+            print ""
+            print "    {"
+
+            # Member variables.
             print "        b2" type " value{};"
             print ""
-        }
-        else
-        {
-            # Nothing.
-        }
 
-        # Public members...
-        print "      public:"
+            # Public members...
+            print "      public:"
 
-        # Default ctor.
-        print "        // Consturcts a null (invalid) object."
-        print "        constexpr " type "() {}"
-        print ""
-
-        # Params struct.
-        if (has_params_struct)
-        {
-            print "        // The constructor accepts either this or directly `b2" type "Def`."
-            print "        struct Params : b2" type "Def"
-            print "        {"
-            print "            Params() : b2" type "Def(b2Default" type "Def()) {}"
-            print "        };"
+            # Default ctor.
+            print "        // Consturcts a null (invalid) object."
+            print "        constexpr " type "() {}"
             print ""
 
-            delete funcs["b2Default" type "Def"]
-        }
-
-        # The parametrized constructor.
-        has_parametrized_ctor = 0
-        if (has_params_struct && type == "World") # Only the `World` class can self-construct, others are constructed by other classes.
-        {
-            has_parametrized_ctor = 1
-
-            if (type == "Body" || is_joint_kind)
-            {
-                extra_param_decl = "World &world, "
-                extra_param_use = "world.Handle(), "
-                extra_param_name = "world, "
-            }
-            else if (type == "Chain")
-            {
-                extra_param_decl = "Body &body, "
-                extra_param_use = "body.Handle(), "
-                extra_param_name = "body, "
-            }
-            else
-            {
-                extra_param_decl = ""
-                extra_param_use = ""
-                extra_param_body = ""
-            }
-
-            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
-            print type "(" extra_param_decl "const std::derived_from<b2" type "Def> auto &params) : " type "(Owning, b2Create" type "(" extra_param_use "&params)) {}"
-
-            delete funcs["b2Create" type]
-        }
-        else if (is_by_value_raii_wrapper)
-        {
-            has_parametrized_ctor = 1
-
+            # Parametrized ctor.
             printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
             print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
-
             delete funcs["b2" type "_Create"]
-        }
-        else if (is_dumb_wrapper)
-        {
-            has_parametrized_ctor = 1
 
-            # A member-wise constructor, manually written.
-            if (type == "Rot")
-            {
-                # Why, why isn't the consine argument first? D:
-                print "        constexpr Rot(float s, float c) : b2Rot{.s = s, .c = c} {}"
-            }
-            else if (type == "AABB")
-            {
-                print "        constexpr AABB(b2Vec2 lowerBound, b2Vec2 upperBound) : b2AABB{.lowerBound = lowerBound, .upperBound = upperBound} {}"
-            }
-            else if (type == "Vec2")
-            {
-                print "        constexpr Vec2(float x, float y) : b2Vec2{.x = x, .y = y} {}"
-            }
-            else
-            {
-                print "How do I generate a parametrized constructor for this type?" >"/dev/stderr"
-                exit 1
-            }
-
-            # Functions to construct from the parent class.
-            print ""
-            print "        constexpr " type "(const b2" type "& raw_value) noexcept : b2" type "(raw_value) {}"
-            print "        constexpr " type "& operator=(const b2" type "& raw_value) noexcept { b2" type "::operator=(raw_value); return *this; }"
-        }
-
-        # Non-owning constructor.
-        if (is_id_based)
-        {
-            if (is_joint_kind)
-            {
-                if (has_parametrized_ctor)
-                    print ""
-                print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
-                print "        " type "(TagRef, b2" base_type_or_self "Id id) noexcept : " base_type_or_self "(Ref, id) {}"
-            }
-            else
-            {
-                if (has_parametrized_ctor)
-                    print ""
-                print "        // Will act as a reference to this handle, but will not destroy it in the destructor."
-                print "        " type "(TagRef, b2" type "Id id) noexcept : id(id), is_owner(false) {}"
-            }
-        }
-
-        if (!is_joint_kind)
-        {
             # Copy/move ctors.
-            if (is_dumb_wrapper)
-            {
-                # Nothing.
-            }
-            else if (is_id_based)
-            {
-                print ""
-                print "        " type "(" type "&& other) noexcept : id(std::exchange(other.id, b2_null" type "Id)), is_owner(std::exchange(other.is_owner, false)) {}"
-                print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); std::swap(is_owner, other.is_owner); return *this; }"
-            }
-            else if (type == "DynamicTree")
+            if (type == "DynamicTree")
             {
                 print ""
                 print "        " type "(const " type "& other) : " type "() { *this = other; }"
@@ -789,69 +819,34 @@ END {
             }
 
             # Destructor.
-            if (is_dumb_wrapper)
-            {
-                # Nothing.
-            }
-            else if (is_by_value_raii_wrapper)
-            {
-                print ""
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Destroy"]["comment"])
-                printf "~" type "() { if (*this"
-                if (destructor_needs_validation)
-                    printf " && IsValid()"
-                print ") b2" type "_Destroy(&value); }"
+            print ""
+            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Destroy"]["comment"])
+            print "~" type "() { if (*this) b2" type "_Destroy(&value); }"
 
-                delete funcs["b2" type "_Destroy"]
-            }
-            else if (is_id_based)
-            {
-                print ""
-                if (destructor_needs_validation && type == "Joint")
-                    print "        // Destructor validates the handle because it could've been destroyed by `Body::DestroyBodyAndJoints()`."
-                printf "        ~" type "() { if (IsOwner()"
-                if (destructor_needs_validation)
-                    printf " && IsValid()"
-                print ") Destroy(); }"
-            }
+            delete funcs["b2" type "_Destroy"]
 
-            # ID operations.
-            if (is_id_based)
-            {
-                print ""
-                print "        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(id); }"
-                print "        [[nodiscard]] const b2" type "Id &Handle() const { return id; }"
-                print "        [[nodiscard]] bool IsOwner() const { return *this && is_owner; } // Whether we own this handle or just act as a reference."
-            }
-            else if (type == "DynamicTree")
+            # Some custom members.
+            if (type == "DynamicTree")
             {
                 print ""
                 print "        [[nodiscard]] explicit operator bool() const { return bool( value.nodes ); }"
                 print "        [[nodiscard]]       b2DynamicTree *RawTreePtr()       { return *this ? &value : nullptr; }"
                 print "        [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }"
             }
+
+            # Expose all the functions.
+            for (i in sorted_funcs)
+            {
+                func_name = sorted_funcs[i]
+                if (func_name in funcs) # The function could've been deleted.
+                    emit_func(func_name, type, 0, "        ")
+            }
+
+            # Close the class.
+            print "    };"
         }
-
-        # Expose all the functions.
-        for (i in sorted_funcs)
-        {
-            func_name = sorted_funcs[i]
-            if (func_name in funcs) # The function could've been deleted.
-                emit_func(func_name, type, 0, "        ")
-        }
-
-        # Close the class.
-        print "    };"
-    }
-
-    # Emit free functions.
-
-    for (i in sorted_funcs)
-    {
-        func_name = sorted_funcs[i]
-        if (func_name in funcs) # The function could've been deleted.
-            emit_func(func_name, "", 0, "    ")
     }
 
     print "} // namespace box2d"
+    print "} // namespace box2d" >second_file
 }
