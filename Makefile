@@ -1,14 +1,15 @@
-# `make generate` - generate the header.
-# `make test_all` or just `make` - generate and run tests for all compilers.
-#     set `COMPILERS=...` to only test specific compilers, or run e.g. `make 'test_g++'`.
+# `make` - generate the header.
+# To run tests:
+# * Compile but not link:
+#     make run_tests SYNTAX_ONLY=1
+# * Compile, link and run:
+#     make run_tests FLAGS=-L/path/to/box2d/lib
+#       For MSVC, use FLAGS_CL instead of FLAGS.
+#   You can set `COMPILERS=...` to only test specific compilers, or run e.g. `make 'test_g++'`.
+#
+# Windows users should run this in MSYS2 `make`. To test MSVC, run `msys2_shell.cmd` inside VS developer prompt.
 
 ifeq (OS,Windows_NT)
-TARGET_OS = windows
-else
-TARGET_OS = linux
-endif
-
-ifeq (TARGET_OS,windows)
 COMPILERS = clang++ g++ cl clang-cl
 else
 COMPILERS = clang++ g++
@@ -17,6 +18,10 @@ endif
 # Compiler flags, for GCC-like compilers and for MSVC-like respectively.
 FLAGS :=
 FLAGS_CL :=
+
+# Set to 1 to only compile the tests but don't link.
+SYNTAX_ONLY := 0
+override SYNTAX_ONLY := $(filter-out 0,$(SYNTAX_ONLY))
 
 # Clone the repo.
 box2c:
@@ -50,17 +55,18 @@ override all_test_targets =
 override define test_snippet =
 .PHONY: test_$1
 test_$1: include/box2c.hpp
-	$1 test/test.cpp $(if $(filter %cl,$1)\
-		,/EHsc /std:c++latest /W4 /WX \
-			-lbox2d $(FLAGS_CL) \
-			/link '/out:test/test_$1.exe' \
+	MSYS2_ARG_CONV_EXCL=* $1 test/test.cpp $(if $(filter %cl,$1)\
+		,/nologo /EHsc /std:c++latest /W4 /WX \
+			$(if $(SYNTAX_ONLY),/Zs,/link -lbox2d '/out:test/test_$1.exe') \
+			$(FLAGS_CL) \
 		,-std=c++20 -Wall -Wextra -pedantic-errors -Wconversion -Wextra-semi -Wdeprecated -Werror -g \
 			$(if $(filter windows,$(TARGET_OS)),-fsanitize=address -fsanitize=undefined) \
-			-lbox2d $(FLAGS) \
-			-o 'test/test_$1' \
+			$(if $(SYNTAX_ONLY),-fsyntax-only,-lbox2d -o 'test/test_$1') \
+			$(FLAGS) \
 	)
-	'test/test_$1'
+	$(if $(SYNTAX_ONLY),,'test/test_$1')
 	@echo 'Test passed on: $1'
+	@rm -f test.obj
 
 $(eval override all_test_targets += test_$1)
 endef
@@ -73,4 +79,4 @@ $(foreach c,$(COMPILERS),\
 .PHONY: run_tests
 run_tests: $(all_test_targets)
 
-.DEFAULT_GOAL := run_tests
+.DEFAULT_GOAL := generate
