@@ -3,10 +3,14 @@
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
 
-#include <cassert>
 #include <cstddef>
 #include <concepts>
 #include <utility>
+
+#ifndef BOX2CPP_ASSERT
+#include <cassert>
+#define BOX2CPP_ASSERT(...) assert(__VA_ARGS__)
+#endif
 
 namespace b2
 {
@@ -76,16 +80,16 @@ namespace b2
         template <std::same_as<b2ChainId> T> [[nodiscard]] operator const T &() const { return Handle(); }
 
         /// Destroy a chain shape
-        void Destroy() requires (!ForceConst);
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// Set the restitution (bounciness) on a chain. Normally this is specified in b2ChainDef.
-        void SetRestitution(float restitution) requires (!ForceConst);
+        void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
 
         /// Chain identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
 
         /// Set the friction of a chain. Normally this is set in b2ChainDef.
-        void SetFriction(float friction) requires (!ForceConst);
+        void SetFriction(float friction) /*non-const*/ requires (!ForceConst);
     };
 
     /// Used to create a chain of edges. This is designed to eliminate ghost collisions with some limitations.
@@ -170,7 +174,7 @@ namespace b2
         template <std::same_as<b2ShapeId> T> [[nodiscard]] operator const T &() const { return Handle(); }
 
         /// Destroy any shape type
-        void Destroy() requires (!ForceConst);
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// Get the user data for a shape. This is useful when you get a shape id
         ///	from an event or query.
@@ -186,13 +190,13 @@ namespace b2
         [[nodiscard]] bool AreContactEventsEnabled() const;
 
         /// Allows you to change a shape to be a capsule or update the current capsule.
-        void SetCapsule(const b2Capsule& capsule) requires (!ForceConst);
+        void SetCapsule(const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
         /// @return are sensor events enabled?
         [[nodiscard]] bool AreSensorEventsEnabled() const;
 
         /// Set the current filter. This is almost as expensive as recreating the shape.
-        void SetFilter(b2Filter filter) requires (!ForceConst);
+        void SetFilter(b2Filter filter) /*non-const*/ requires (!ForceConst);
 
         /// Access the circle geometry of a shape. Asserts the type is correct.
         [[nodiscard]] b2Circle GetCircle() const;
@@ -203,7 +207,7 @@ namespace b2
         /// Set the density on a shape. Normally this is specified in b2ShapeDef.
         ///	This will not update the mass properties on the parent body until you
         /// call b2Body_ResetMassData.
-        void SetDensity(float density) requires (!ForceConst);
+        void SetDensity(float density) /*non-const*/ requires (!ForceConst);
 
         /// Access the capsule geometry of a shape. Asserts the type is correct.
         [[nodiscard]] b2Capsule GetCapsule() const;
@@ -218,17 +222,17 @@ namespace b2
         [[nodiscard]] float GetDensity() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetPolygon(const b2Polygon& polygon) requires (!ForceConst);
+        void SetPolygon(const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableContactEvents(bool flag) requires (!ForceConst);
+        void EnableContactEvents(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Get the current filter
         [[nodiscard]] b2Filter GetFilter() const;
 
         /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
         ///	and must be carefully handled due to multi-threading. Ignored for sensors.
-        void EnablePreSolveEvents(bool flag) requires (!ForceConst);
+        void EnablePreSolveEvents(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Get the restitution on a shape.
         [[nodiscard]] float GetRestitution() const;
@@ -253,21 +257,21 @@ namespace b2
         [[nodiscard]] BodyRef GetBody() const;
 
         /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
-        void SetFriction(float friction) requires (!ForceConst);
+        void SetFriction(float friction) /*non-const*/ requires (!ForceConst);
 
         /// Allows you to change a shape to be a circle or update the current circle.
         /// This does not modify the mass properties.
-        void SetCircle(const b2Circle& circle) requires (!ForceConst);
+        void SetCircle(const b2Circle& circle) /*non-const*/ requires (!ForceConst);
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
         [[nodiscard]] ChainRef GetParentChain() const;
 
         /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
-        void SetRestitution(float restitution) requires (!ForceConst);
+        void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
 
         /// Set the user data for a shape.
-        void SetUserData(void* userData) requires (!ForceConst);
+        void SetUserData(void* userData) /*non-const*/ requires (!ForceConst);
 
         /// Get the type of a shape.
         [[nodiscard]] b2ShapeType GetType() const;
@@ -276,13 +280,13 @@ namespace b2
         [[nodiscard]] float GetFriction() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetSegment(const b2Segment& segment) requires (!ForceConst);
+        void SetSegment(const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
         /// Shape identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
 
         /// Enable sensor events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        void EnableSensorEvents(bool flag) requires (!ForceConst);
+        void EnableSensorEvents(bool flag) /*non-const*/ requires (!ForceConst);
     };
 
     /// Used to create a shape
@@ -355,7 +359,7 @@ namespace b2
         template <std::same_as<b2JointId> T> [[nodiscard]] operator const T &() const { return Handle(); }
 
         /// Destroy any joint type
-        void Destroy() requires (!ForceConst);
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// Get local anchor on bodyA
         [[nodiscard]] b2Vec2 GetLocalAnchorA() const;
@@ -364,10 +368,10 @@ namespace b2
         [[nodiscard]] b2Vec2 GetLocalAnchorB() const;
 
         /// Wake the bodies connect to this joint
-        void WakeBodies() requires (!ForceConst);
+        void WakeBodies() /*non-const*/ requires (!ForceConst);
 
         /// Set the user data on a joint
-        void SetUserData(void* userData) requires (!ForceConst);
+        void SetUserData(void* userData) /*non-const*/ requires (!ForceConst);
 
         /// Get the user data on a joint
         [[nodiscard]] void* GetUserData() const;
@@ -379,7 +383,7 @@ namespace b2
         [[nodiscard]] BodyRef GetBodyB() const;
 
         /// Toggle collision between connected bodies
-        void SetCollideConnected(bool shouldCollide) requires (!ForceConst);
+        void SetCollideConnected(bool shouldCollide) /*non-const*/ requires (!ForceConst);
 
         /// Is collision allowed between connected bodies?
         [[nodiscard]] bool GetCollideConnected() const;
@@ -446,7 +450,7 @@ namespace b2
 
       public:
         /// Adjust the softness parameters of a distance joint
-        void SetTuning(float hertz, float dampingRatio) requires (!ForceConst);
+        void SetTuning(float hertz, float dampingRatio) /*non-const*/ requires (!ForceConst);
 
         /// Get the current length of a distance joint
         [[nodiscard]] float GetCurrentLength() const;
@@ -458,10 +462,10 @@ namespace b2
         [[nodiscard]] float GetConstraintForce(float timeStep) const;
 
         /// Set the minimum and maximum length parameters of a distance joint
-        void SetLengthRange(float minLength, float maxLength) requires (!ForceConst);
+        void SetLengthRange(float minLength, float maxLength) /*non-const*/ requires (!ForceConst);
 
         /// Set the rest length of a distance joint
-        void SetLength(float length) requires (!ForceConst);
+        void SetLength(float length) /*non-const*/ requires (!ForceConst);
 
         /// Get the Hertz of a distance joint
         [[nodiscard]] float GetHertz() const;
@@ -522,7 +526,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_distanceJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `DistanceJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `DistanceJoint`.");
         }
 
         // Create from a non-reference.
@@ -549,28 +553,28 @@ namespace b2
         [[nodiscard]] float GetAngularOffset() const;
 
         /// Set the maximum force for a motor joint
-        void SetMaxForce(float maxForce) requires (!ForceConst);
+        void SetMaxForce(float maxForce) /*non-const*/ requires (!ForceConst);
 
         /// @return the maximum force for a motor joint
         [[nodiscard]] float GetMaxForce() const;
 
         /// Set/Get the linear offset target for a motor joint
-        void SetLinearOffset(b2Vec2 linearOffset) requires (!ForceConst);
+        void SetLinearOffset(b2Vec2 linearOffset) /*non-const*/ requires (!ForceConst);
 
         /// Set the correction factor for a motor joint
-        void SetCorrectionFactor(float correctionFactor) requires (!ForceConst);
+        void SetCorrectionFactor(float correctionFactor) /*non-const*/ requires (!ForceConst);
 
         /// @return the correction factor for a motor joint
         [[nodiscard]] float GetCorrectionFactor() const;
 
         /// Set the maximum torque for a motor joint
-        void SetMaxTorque(float maxTorque) requires (!ForceConst);
+        void SetMaxTorque(float maxTorque) /*non-const*/ requires (!ForceConst);
 
         /// @return the linear offset target for a motor joint
         [[nodiscard]] b2Vec2 GetLinearOffset() const;
 
         /// Set the angular offset target for a motor joint in radians
-        void SetAngularOffset(float angularOffset) requires (!ForceConst);
+        void SetAngularOffset(float angularOffset) /*non-const*/ requires (!ForceConst);
 
         /// @return the maximum torque for a motor joint
         [[nodiscard]] float GetMaxTorque() const;
@@ -621,7 +625,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_motorJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `MotorJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `MotorJoint`.");
         }
 
         // Create from a non-reference.
@@ -648,10 +652,10 @@ namespace b2
         [[nodiscard]] float GetDampingRatio() const;
 
         /// Set the target for a mouse joint
-        void SetTarget(b2Vec2 target) requires (!ForceConst);
+        void SetTarget(b2Vec2 target) /*non-const*/ requires (!ForceConst);
 
         /// Adjust the softness parameters of a mouse joint
-        void SetTuning(float hertz, float dampingRatio) requires (!ForceConst);
+        void SetTuning(float hertz, float dampingRatio) /*non-const*/ requires (!ForceConst);
     };
 
     /// A mouse joint is used to make a point on a body track a
@@ -699,7 +703,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_mouseJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `MouseJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `MouseJoint`.");
         }
 
         // Create from a non-reference.
@@ -723,10 +727,10 @@ namespace b2
         [[nodiscard]] bool IsLimitEnabled() const;
 
         /// Enable/disable a prismatic joint motor
-        void EnableMotor(bool enableMotor) requires (!ForceConst);
+        void EnableMotor(bool enableMotor) /*non-const*/ requires (!ForceConst);
 
         /// Enable/disable a prismatic joint limit
-        void EnableLimit(bool enableLimit) requires (!ForceConst);
+        void EnableLimit(bool enableLimit) /*non-const*/ requires (!ForceConst);
 
         /// @return the maximum force for a prismatic joint motor
         [[nodiscard]] float GetMaxMotorForce() const;
@@ -735,10 +739,10 @@ namespace b2
         [[nodiscard]] float GetUpperLimit() const;
 
         /// Set the motor speed for a prismatic joint
-        void SetMotorSpeed(float motorSpeed) requires (!ForceConst);
+        void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
 
         /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) requires (!ForceConst);
+        void SetLimits(float lower, float upper) /*non-const*/ requires (!ForceConst);
 
         /// @return the motor speed for a prismatic joint
         [[nodiscard]] float GetMotorSpeed() const;
@@ -756,7 +760,7 @@ namespace b2
         [[nodiscard]] float GetMotorForce() const;
 
         /// Set the maximum force for a prismatic joint motor
-        void SetMaxMotorForce(float force) requires (!ForceConst);
+        void SetMaxMotorForce(float force) /*non-const*/ requires (!ForceConst);
     };
 
     /// Prismatic joint definition. This requires defining a line of
@@ -806,7 +810,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_prismaticJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `PrismaticJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `PrismaticJoint`.");
         }
 
         // Create from a non-reference.
@@ -824,7 +828,7 @@ namespace b2
 
       public:
         /// Set the maximum torque for a revolute joint motor
-        void SetMaxMotorTorque(float torque) requires (!ForceConst);
+        void SetMaxMotorTorque(float torque) /*non-const*/ requires (!ForceConst);
 
         /// Get the upper joint limit in radians.
         [[nodiscard]] float GetUpperLimit() const;
@@ -833,13 +837,13 @@ namespace b2
         [[nodiscard]] float GetMotorSpeed() const;
 
         /// Set the motor speed for a revolute joint in radians per second
-        void SetMotorSpeed(float motorSpeed) requires (!ForceConst);
+        void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
 
         /// Get the lower joint limit in radians.
         [[nodiscard]] float GetLowerLimit() const;
 
         /// Set the joint limits in radians.
-        void SetLimits(float lower, float upper) requires (!ForceConst);
+        void SetLimits(float lower, float upper) /*non-const*/ requires (!ForceConst);
 
         /// Get the current motor torque for a revolute joint
         [[nodiscard]] float GetMotorTorque() const;
@@ -857,10 +861,10 @@ namespace b2
         [[nodiscard]] bool IsLimitEnabled() const;
 
         /// Enable/disable a revolute joint motor.
-        void EnableMotor(bool enableMotor) requires (!ForceConst);
+        void EnableMotor(bool enableMotor) /*non-const*/ requires (!ForceConst);
 
         /// Enable/disable a revolute joint limit.
-        void EnableLimit(bool enableLimit) requires (!ForceConst);
+        void EnableLimit(bool enableLimit) /*non-const*/ requires (!ForceConst);
 
         /// @return the maximum torque for a revolute joint motor
         [[nodiscard]] float GetMaxMotorTorque() const;
@@ -918,7 +922,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_revoluteJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `RevoluteJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `RevoluteJoint`.");
         }
 
         // Create from a non-reference.
@@ -936,7 +940,7 @@ namespace b2
 
       public:
         /// Set the wheel joint damping ratio (non-dimensional)
-        void SetSpringDampingRatio(float dampingRatio) requires (!ForceConst);
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
 
         /// Get the upper joint limit in length units (meters).
         [[nodiscard]] float GetUpperLimit() const;
@@ -945,7 +949,7 @@ namespace b2
         [[nodiscard]] float GetConstraintTorque() const;
 
         /// Set the wheel joint stiffness in Hertz
-        void SetSpringHertz(float hertz) requires (!ForceConst);
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
 
         /// @return the wheel joint motor speed in radians per second
         [[nodiscard]] float GetMotorSpeed() const;
@@ -954,13 +958,13 @@ namespace b2
         [[nodiscard]] float GetMotorTorque() const;
 
         /// Set the wheel joint motor speed in radians per second
-        void SetMotorSpeed(float motorSpeed) requires (!ForceConst);
+        void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
 
         /// Get the lower joint limit in length units (meters).
         [[nodiscard]] float GetLowerLimit() const;
 
         /// Set the wheel joint maximum motor torque
-        void SetMaxMotorTorque(float torque) requires (!ForceConst);
+        void SetMaxMotorTorque(float torque) /*non-const*/ requires (!ForceConst);
 
         /// @return is the wheel joint motor enabled
         [[nodiscard]] bool IsMotorEnabled() const;
@@ -972,16 +976,16 @@ namespace b2
         [[nodiscard]] float GetSpringDampingRatio() const;
 
         /// Enable/disable the wheel joint limit.
-        void EnableLimit(bool enableLimit) requires (!ForceConst);
+        void EnableLimit(bool enableLimit) /*non-const*/ requires (!ForceConst);
 
         /// Set the joint limits in length units (meters).
-        void SetLimits(float lower, float upper) requires (!ForceConst);
+        void SetLimits(float lower, float upper) /*non-const*/ requires (!ForceConst);
 
         /// Get the current wheel joint constraint force
         [[nodiscard]] b2Vec2 GetConstraintForce() const;
 
         /// Enable/disable the wheel joint motor
-        void EnableMotor(bool enableMotor) requires (!ForceConst);
+        void EnableMotor(bool enableMotor) /*non-const*/ requires (!ForceConst);
 
         /// @return the wheel joint stiffness in Hertz
         [[nodiscard]] float GetSpringHertz() const;
@@ -1038,7 +1042,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_wheelJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `WheelJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `WheelJoint`.");
         }
 
         // Create from a non-reference.
@@ -1056,10 +1060,10 @@ namespace b2
 
       public:
         /// Set weld joint angular stiffness in Hertz. 0 is rigid.
-        void SetAngularHertz(float hertz) requires (!ForceConst);
+        void SetAngularHertz(float hertz) /*non-const*/ requires (!ForceConst);
 
         /// Set weld joint angular damping ratio (non-dimensional)
-        void SetAngularDampingRatio(float dampingRatio) requires (!ForceConst);
+        void SetAngularDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
 
         /// @return the weld joint angular stiffness in Hertz.
         [[nodiscard]] float GetAngularHertz() const;
@@ -1074,10 +1078,10 @@ namespace b2
         [[nodiscard]] float GetLinearDampingRatio() const;
 
         /// Set weld joint linear stiffness in Hertz. 0 is rigid.
-        void SetLinearHertz(float hertz) requires (!ForceConst);
+        void SetLinearHertz(float hertz) /*non-const*/ requires (!ForceConst);
 
         /// Set weld joint linear damping ratio (non-dimensional)
-        void SetLinearDampingRatio(float dampingRatio) requires (!ForceConst);
+        void SetLinearDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
     };
 
     /// A weld joint connect to sims together rigidly. This constraint can be made soft to mimic
@@ -1125,7 +1129,7 @@ namespace b2
             if (b2Joint_GetType(id) == b2_weldJoint)
                 this->id = id;
             else
-                assert(false && "This joint is not a `WeldJoint`.");
+                BOX2CPP_ASSERT(false && "This joint is not a `WeldJoint`.");
         }
 
         // Create from a non-reference.
@@ -1150,36 +1154,36 @@ namespace b2
         /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreatePolygonShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst);
-        ShapeRef CreatePolygonShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst);
+        [[nodiscard]] Shape CreatePolygonShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreatePolygonShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
 
         /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateCircleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst);
-        ShapeRef CreateCircleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst);
+        [[nodiscard]] Shape CreateCircleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateCircleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
 
         /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateSegmentShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst);
-        ShapeRef CreateSegmentShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst);
+        [[nodiscard]] Shape CreateSegmentShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateSegmentShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
         /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateCapsuleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst);
-        ShapeRef CreateCapsuleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst);
+        [[nodiscard]] Shape CreateCapsuleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateCapsuleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
         /// Create a chain shape
         ///	@see b2ChainDef for details
-        [[nodiscard]] Chain CreateChain(Tags::OwningHandle, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst);
-        ChainRef CreateChain(Tags::DestroyWithParent, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] Chain CreateChain(Tags::OwningHandle, const std::derived_from<b2ChainDef> auto& def) /*non-const*/ requires (!ForceConst);
+        ChainRef CreateChain(Tags::DestroyWithParent, const std::derived_from<b2ChainDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Destroy a rigid body given an id. This destroys all shapes and joints attached to the body.
         ///	Do not keep references to the associated shapes and joints.
         /// @warning This function is locked during callbacks.
-        void Destroy() requires (!ForceConst);
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// Get the inertia tensor of the body. In 2D this is a single number. (kilograms * meters^2)
         [[nodiscard]] float GetInertiaTensor() const;
@@ -1192,7 +1196,7 @@ namespace b2
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) requires (!ForceConst);
+        void ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Get a world point on a body given a local point
         [[nodiscard]] b2Vec2 GetWorldPoint(b2Vec2 localPoint) const;
@@ -1201,7 +1205,7 @@ namespace b2
         [[nodiscard]] bool IsBullet() const;
 
         /// Adjust the gravity scale. Normally this is set in b2BodyDef before creation.
-        void SetGravityScale(float gravityScale) requires (!ForceConst);
+        void SetGravityScale(float gravityScale) /*non-const*/ requires (!ForceConst);
 
         /// Get the number of joints on this body
         [[nodiscard]] int GetJointCount() const;
@@ -1211,7 +1215,7 @@ namespace b2
         [[nodiscard]] int GetShapes(b2ShapeId& shapeArray, int capacity) const;
 
         /// Change the body type. This is an expensive operation.
-        void SetType(b2BodyType type) requires (!ForceConst);
+        void SetType(b2BodyType type) /*non-const*/ requires (!ForceConst);
 
         /// Get the maximum capacity required for retrieving all the touching contacts on a body
         [[nodiscard]] int GetContactCapacity() const;
@@ -1226,10 +1230,10 @@ namespace b2
         [[nodiscard]] b2Vec2 GetWorldCenterOfMass() const;
 
         /// Set this body to have fixed rotation. This causes the mass to be reset.
-        void SetFixedRotation(bool flag) requires (!ForceConst);
+        void SetFixedRotation(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Adjust the angular damping. Normally this is set in b2BodyDef before creation.
-        void SetAngularDamping(float angularDamping) requires (!ForceConst);
+        void SetAngularDamping(float angularDamping) /*non-const*/ requires (!ForceConst);
 
         /// Apply an angular impulse.
         /// This should be used for one-shot impulses. If you need a steady force,
@@ -1237,7 +1241,7 @@ namespace b2
         /// @param impulse the angular impulse in units of
         /// kg*m*m/s
         /// @param wake also wake up the body
-        void ApplyAngularImpulse(float impulse, bool wake) requires (!ForceConst);
+        void ApplyAngularImpulse(float impulse, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Get a local vector on a body given a world vector
         [[nodiscard]] b2Vec2 GetLocalVector(b2Vec2 worldVector) const;
@@ -1245,19 +1249,19 @@ namespace b2
         /// Override the body's mass properties. Normally this is computed automatically using the
         ///	shape geometry and density. This information is lost if a shape is added or removed or if the
         ///	body type changes.
-        void SetMassData(b2MassData massData) requires (!ForceConst);
+        void SetMassData(b2MassData massData) /*non-const*/ requires (!ForceConst);
 
         /// Get the number of shapes on this body
         [[nodiscard]] int GetShapeCount() const;
 
         /// Adjust the linear damping. Normally this is set in b2BodyDef before creation.
-        void SetLinearDamping(float linearDamping) requires (!ForceConst);
+        void SetLinearDamping(float linearDamping) /*non-const*/ requires (!ForceConst);
 
         /// Disable a body by removing it completely from the simulation
-        void Disable() requires (!ForceConst);
+        void Disable() /*non-const*/ requires (!ForceConst);
 
         /// Set the linear velocity of a body
-        void SetLinearVelocity(b2Vec2 linearVelocity) requires (!ForceConst);
+        void SetLinearVelocity(b2Vec2 linearVelocity) /*non-const*/ requires (!ForceConst);
 
         /// Get a local point on a body given a world point
         [[nodiscard]] b2Vec2 GetLocalPoint(b2Vec2 worldPoint) const;
@@ -1266,20 +1270,20 @@ namespace b2
         [[nodiscard]] b2MassData GetMassData() const;
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
-        void SetTransform(b2Vec2 position, float angle) requires (!ForceConst);
+        void SetTransform(b2Vec2 position, float angle) /*non-const*/ requires (!ForceConst);
 
         /// Get the body angle in radians in the range [-pi, pi]
         [[nodiscard]] float GetAngle() const;
 
         /// Set the angular velocity of a body in radians per second
-        void SetAngularVelocity(float angularVelocity) requires (!ForceConst);
+        void SetAngularVelocity(float angularVelocity) /*non-const*/ requires (!ForceConst);
 
         /// Get the joint ids for all joints on this body, up to the provided capacity
         ///	@returns the number of joint ids stored in the user array
         [[nodiscard]] int GetJoints(b2JointId& jointArray, int capacity) const;
 
         /// Enable or disable sleeping this body. If sleeping is disabled the body will wake.
-        void EnableSleep(bool enableSleep) requires (!ForceConst);
+        void EnableSleep(bool enableSleep) /*non-const*/ requires (!ForceConst);
 
         /// Apply a force at a world point. If the force is not
         /// applied at the center of mass, it will generate a torque and
@@ -1287,7 +1291,7 @@ namespace b2
         /// @param force the world force vector, usually in Newtons (N).
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
-        void ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) requires (!ForceConst);
+        void ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Get the current angular damping.
         [[nodiscard]] float GetAngularDamping() const;
@@ -1298,10 +1302,10 @@ namespace b2
         /// This resets the mass properties to the sum of the mass properties of the fixtures.
         /// This normally does not need to be called unless you called SetMassData to override
         /// the mass and you later want to reset the mass.
-        void ResetMassData() requires (!ForceConst);
+        void ResetMassData() /*non-const*/ requires (!ForceConst);
 
         /// Set the user data for a body
-        void SetUserData(void* userData) requires (!ForceConst);
+        void SetUserData(void* userData) /*non-const*/ requires (!ForceConst);
 
         /// Get the body type: static, kinematic, or dynamic
         [[nodiscard]] b2BodyType GetType() const;
@@ -1316,19 +1320,19 @@ namespace b2
         [[nodiscard]] bool IsValid() const;
 
         /// Enable a body by adding it to the simulation
-        void Enable() requires (!ForceConst);
+        void Enable() /*non-const*/ requires (!ForceConst);
 
         /// Apply an impulse to the center of mass. This immediately modifies the velocity.
         /// This should be used for one-shot impulses. If you need a steady force,
         /// use a force instead, which will work better with the sub-stepping solver.
         /// @param impulse the world impulse vector, usually in N-seconds or kg-m/s.
         /// @param wake also wake up the body
-        void ApplyLinearImpulseToCenter(b2Vec2 impulse, bool wake) requires (!ForceConst);
+        void ApplyLinearImpulseToCenter(b2Vec2 impulse, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Wake a body from sleep. This wakes the entire island the body is touching.
         ///	Putting a body to sleep will put the entire island of bodies touching this body to sleep,
         ///	which can be expensive.
-        void SetAwake(bool awake) requires (!ForceConst);
+        void SetAwake(bool awake) /*non-const*/ requires (!ForceConst);
 
         /// Get the user data stored in a body
         [[nodiscard]] void* GetUserData() const;
@@ -1337,7 +1341,7 @@ namespace b2
         /// without affecting the linear velocity of the center of mass.
         /// @param torque about the z-axis (out of the screen), usually in N-m.
         /// @param wake also wake up the body
-        void ApplyTorque(float torque, bool wake) requires (!ForceConst);
+        void ApplyTorque(float torque, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Get the world rotation of a body as a sine/cosine pair.
         [[nodiscard]] b2Rot GetRotation() const;
@@ -1358,7 +1362,7 @@ namespace b2
         /// Apply a force to the center of mass. This wakes up the body.
         /// @param force the world force vector, usually in Newtons (N).
         /// @param wake also wake up the body
-        void ApplyForceToCenter(b2Vec2 force, bool wake) requires (!ForceConst);
+        void ApplyForceToCenter(b2Vec2 force, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Is this body awake?
         [[nodiscard]] bool IsAwake() const;
@@ -1371,7 +1375,7 @@ namespace b2
 
         /// Set this body to be a bullet. A bullet does continuous collision detection
         /// against dynamic bodies (but not other bullets).
-        void SetBullet(bool flag) requires (!ForceConst);
+        void SetBullet(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Get the world position of a body. This is the location of the body origin.
         [[nodiscard]] b2Vec2 GetPosition() const;
@@ -1455,46 +1459,46 @@ namespace b2
 
         /// Create a weld joint
         ///	@see b2WeldJointDef for details
-        [[nodiscard]] WeldJoint CreateWeldJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst);
-        WeldJointRef CreateWeldJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] WeldJoint CreateWeldJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        WeldJointRef CreateWeldJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a rigid body given a definition. No reference to the definition is retained.
         /// @warning This function is locked during callbacks.
-        [[nodiscard]] Body CreateBody(Tags::OwningHandle, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst);
-        BodyRef CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] Body CreateBody(Tags::OwningHandle, const std::derived_from<b2BodyDef> auto& def) /*non-const*/ requires (!ForceConst);
+        BodyRef CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a distance joint
         ///	@see b2DistanceJointDef for details
-        [[nodiscard]] DistanceJoint CreateDistanceJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst);
-        DistanceJointRef CreateDistanceJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] DistanceJoint CreateDistanceJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        DistanceJointRef CreateDistanceJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a mouse joint
         ///	@see b2MouseJointDef for details
-        [[nodiscard]] MouseJoint CreateMouseJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst);
-        MouseJointRef CreateMouseJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] MouseJoint CreateMouseJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        MouseJointRef CreateMouseJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a wheel joint
         ///	@see b2WheelJointDef for details
-        [[nodiscard]] WheelJoint CreateWheelJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst);
-        WheelJointRef CreateWheelJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] WheelJoint CreateWheelJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        WheelJointRef CreateWheelJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a motor joint
         ///	@see b2MotorJointDef for details
-        [[nodiscard]] MotorJoint CreateMotorJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst);
-        MotorJointRef CreateMotorJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] MotorJoint CreateMotorJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        MotorJointRef CreateMotorJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a revolute (hinge) joint
         ///	@see b2RevoluteJointDef for details
-        [[nodiscard]] RevoluteJoint CreateRevoluteJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst);
-        RevoluteJointRef CreateRevoluteJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] RevoluteJoint CreateRevoluteJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        RevoluteJointRef CreateRevoluteJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a prismatic (slider) joint
         ///	@see b2PrismaticJointDef for details
-        [[nodiscard]] PrismaticJoint CreatePrismaticJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst);
-        PrismaticJointRef CreatePrismaticJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst);
+        [[nodiscard]] PrismaticJoint CreatePrismaticJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        PrismaticJointRef CreatePrismaticJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Destroy a world.
-        void Destroy() requires (!ForceConst);
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// @return the gravity vector
         [[nodiscard]] b2Vec2 GetGravity() const;
@@ -1509,13 +1513,13 @@ namespace b2
         [[nodiscard]] b2SensorEvents GetSensorEvents() const;
 
         /// Register the pre-solve callback. This is optional.
-        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) requires (!ForceConst);
+        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) /*non-const*/ requires (!ForceConst);
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId the world to simulate
         /// @param timeStep the amount of time to simulate, this should be a fixed number. Typically 1/60.
         /// @param subStepCount the number of sub-steps, increasing the sub-step count can increase accuracy. Typically 4.
-        void Step(float timeStep, int subStepCount) requires (!ForceConst);
+        void Step(float timeStep, int subStepCount) /*non-const*/ requires (!ForceConst);
 
         /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
         [[nodiscard]] b2RayResult RayCastClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const;
@@ -1524,7 +1528,7 @@ namespace b2
         void CapsuleCast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Adjust the restitution threshold. Advanced feature for testing.
-        void SetRestitutionThreshold(float value) requires (!ForceConst);
+        void SetRestitutionThreshold(float value) /*non-const*/ requires (!ForceConst);
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
         void PolygonCast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
@@ -1543,7 +1547,7 @@ namespace b2
         /// - damping ratio is the contact bounciness with 1 being critical damping (non-dimensional)
         /// - push velocity is the maximum contact constraint push out velocity (meters per second)
         ///	Advanced feature
-        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) requires (!ForceConst);
+        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) /*non-const*/ requires (!ForceConst);
 
         /// Get the current profile
         [[nodiscard]] b2Profile GetProfile() const;
@@ -1552,10 +1556,10 @@ namespace b2
         void Draw(b2DebugDraw& draw) const;
 
         /// Enable/disable continuous collision. Advanced feature for testing.
-        void EnableContinuous(bool flag) requires (!ForceConst);
+        void EnableContinuous(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Enable/disable sleep. Advanced feature for testing.
-        void EnableSleeping(bool flag) requires (!ForceConst);
+        void EnableSleeping(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// World identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
@@ -1578,10 +1582,10 @@ namespace b2
         void RayCast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Enable/disable constraint warm starting. Advanced feature for testing.
-        void EnableWarmStarting(bool flag) requires (!ForceConst);
+        void EnableWarmStarting(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Set the gravity vector for the entire world. Typically in m/s^2
-        void SetGravity(b2Vec2 gravity) requires (!ForceConst);
+        void SetGravity(b2Vec2 gravity) /*non-const*/ requires (!ForceConst);
     };
 
     /// World definition used to create a simulation world. Must be initialized using b2DefaultWorldDef.

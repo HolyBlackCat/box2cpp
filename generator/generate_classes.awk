@@ -4,10 +4,14 @@ BEGIN {
     print "#include <box2d/box2d.h>"
     print "#include <box2d/dynamic_tree.h>"
     print ""
-    print "#include <cassert>" # For `assert()`.
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
     print "#include <utility>" # For `std::exchange`.
+    print ""
+    print "#ifndef BOX2CPP_ASSERT"
+    print "#include <cassert>" # For `assert()`.
+    print "#define BOX2CPP_ASSERT(...) assert(__VA_ARGS__)"
+    print "#endif"
     print ""
     print "namespace b2"
     print "{"
@@ -393,7 +397,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     }
     else if (is_id_based)
     {
-        printf " requires (!ForceConst)"
+        printf " /*non-const*/ requires (!ForceConst)"
         printf " requires (!ForceConst)" >second_file
     }
 
@@ -736,7 +740,7 @@ END {
                 print "            if (b2Joint_GetType(id) == "joint_enum_value")"
                 print "                this->id = id;"
                 print "            else"
-                print "                assert(false && \"This joint is not a `"type"`.\");"
+                print "                BOX2CPP_ASSERT(false && \"This joint is not a `"type"`.\");"
                 print "        }"
             }
             else
