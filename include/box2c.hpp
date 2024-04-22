@@ -1672,7 +1672,7 @@ namespace b2
             else if (!other) *this = {};
             else
             {
-                if (!*this) *this = nullptr;
+                if (!*this) *this = nullptr; // Sic. The output tree must already be initialized.
                 b2DynamicTree_Clone(&value, &other.value);
             }
             return *this;

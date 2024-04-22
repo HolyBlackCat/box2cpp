@@ -65,7 +65,7 @@ int main()
     bp.type = b2_dynamicBody;
 
     b2::Body b = w.CreateBody(b2::OwningHandle, bp);
-    b2::BodyRef b2 = b;
+    [[maybe_unused]] b2::BodyRef b2 = b;
 
     b.CreateCircleShape(b2::DestroyWithParent, b2::Shape::Params{}, b2Circle{.center = b2Vec2(), .radius = 3});
 
@@ -83,7 +83,7 @@ int main()
         wp.bodyIdA = b;
         wp.bodyIdB = b2;
 
-        b2::WeldJointConstRef weld = w.CreateWeldJoint(b2::OwningHandle, wp);
+        [[maybe_unused]] b2::WeldJointConstRef weld = w.CreateWeldJoint(b2::OwningHandle, wp);
     }
 
     // w.create

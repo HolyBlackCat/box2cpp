@@ -800,7 +800,7 @@ END {
                 print "            else if (!other) *this = {};"
                 print "            else"
                 print "            {"
-                print "                if (!*this) *this = nullptr;"
+                print "                if (!*this) *this = nullptr; // Sic. The output tree must already be initialized."
                 print "                b2DynamicTree_Clone(&value, &other.value);"
                 print "            }"
                 print "            return *this;"
