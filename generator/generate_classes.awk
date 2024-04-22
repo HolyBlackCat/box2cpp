@@ -460,7 +460,7 @@ function emit_func(func_name, type, func_variant_index, indent)
         printf "; return ret" >second_file
     printf ";" >second_file
     if (is_destroy_func)
-        printf " static_cast<D &>(*this).id = b2_null" type "Id; }" >second_file
+        printf " static_cast<D &>(*this).id = {}; }" >second_file
     print " }" >second_file
 
     if (is_factory_func && func_variant_index == 0)
@@ -658,7 +658,7 @@ END {
             if (!is_joint_kind)
             {
                 print "      protected:"
-                print "        b2" type "Id id = b2_null" type "Id;"
+                print "        b2"type"Id id{};" # Not using `b2_null"type "Id` for simplicity and constexpr-ness, here and everywhere else.
                 print ""
             }
             print "      public:"
@@ -695,7 +695,7 @@ END {
             {
                 # Copy/move ctors.
                 print ""
-                print "        " type "(" type "&& other) noexcept { id = std::exchange(other.id, b2_null" type "Id); }"
+                print "        " type "(" type "&& other) noexcept { id = std::exchange(other.id, b2"type"Id{}); }"
                 print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); return *this; }"
 
                 # Destructor.
@@ -719,7 +719,7 @@ END {
             if (!is_joint_kind)
             {
                 print "      protected:"
-                print "        b2" type "Id id = b2_null" type "Id;"
+                print "        b2" type "Id id{};" # Not using `b2_null"type "Id` for simplicity and constexpr-ness, here and everywhere else.
                 print ""
             }
             print "      public:"

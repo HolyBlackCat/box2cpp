@@ -114,7 +114,7 @@ namespace b2
 
 
       protected:
-        b2ChainId id = b2_nullChainId;
+        b2ChainId id{};
 
       public:
         static constexpr bool IsOwning = true;
@@ -128,7 +128,7 @@ namespace b2
             Params() : b2ChainDef(b2DefaultChainDef()) {}
         };
 
-        Chain(Chain&& other) noexcept { id = std::exchange(other.id, b2_nullChainId); }
+        Chain(Chain&& other) noexcept { id = std::exchange(other.id, b2ChainId{}); }
         Chain& operator=(Chain other) noexcept { std::swap(id, other.id); return *this; }
 
         ~Chain() { if (*this) Destroy(); }
@@ -141,7 +141,7 @@ namespace b2
         friend class BasicChainInterface;
 
       protected:
-        b2ChainId id = b2_nullChainId;
+        b2ChainId id{};
 
       public:
         static constexpr bool IsOwning = false;
@@ -299,7 +299,7 @@ namespace b2
 
 
       protected:
-        b2ShapeId id = b2_nullShapeId;
+        b2ShapeId id{};
 
       public:
         static constexpr bool IsOwning = true;
@@ -313,7 +313,7 @@ namespace b2
             Params() : b2ShapeDef(b2DefaultShapeDef()) {}
         };
 
-        Shape(Shape&& other) noexcept { id = std::exchange(other.id, b2_nullShapeId); }
+        Shape(Shape&& other) noexcept { id = std::exchange(other.id, b2ShapeId{}); }
         Shape& operator=(Shape other) noexcept { std::swap(id, other.id); return *this; }
 
         ~Shape() { if (*this) Destroy(); }
@@ -326,7 +326,7 @@ namespace b2
         friend class BasicShapeInterface;
 
       protected:
-        b2ShapeId id = b2_nullShapeId;
+        b2ShapeId id{};
 
       public:
         static constexpr bool IsOwning = false;
@@ -401,7 +401,7 @@ namespace b2
         friend class BasicJointInterface;
 
       protected:
-        b2JointId id = b2_nullJointId;
+        b2JointId id{};
 
       public:
         static constexpr bool IsOwning = true;
@@ -409,7 +409,7 @@ namespace b2
         // Constructs a null (invalid) object.
         constexpr Joint() noexcept {}
 
-        Joint(Joint&& other) noexcept { id = std::exchange(other.id, b2_nullJointId); }
+        Joint(Joint&& other) noexcept { id = std::exchange(other.id, b2JointId{}); }
         Joint& operator=(Joint other) noexcept { std::swap(id, other.id); return *this; }
 
         ~Joint() { if (*this) Destroy(); }
@@ -422,7 +422,7 @@ namespace b2
         friend class BasicJointInterface;
 
       protected:
-        b2JointId id = b2_nullJointId;
+        b2JointId id{};
 
       public:
         static constexpr bool IsOwning = false;
@@ -1398,7 +1398,7 @@ namespace b2
 
 
       protected:
-        b2BodyId id = b2_nullBodyId;
+        b2BodyId id{};
 
       public:
         static constexpr bool IsOwning = true;
@@ -1412,7 +1412,7 @@ namespace b2
             Params() : b2BodyDef(b2DefaultBodyDef()) {}
         };
 
-        Body(Body&& other) noexcept { id = std::exchange(other.id, b2_nullBodyId); }
+        Body(Body&& other) noexcept { id = std::exchange(other.id, b2BodyId{}); }
         Body& operator=(Body other) noexcept { std::swap(id, other.id); return *this; }
 
         ~Body() { if (*this) Destroy(); }
@@ -1425,7 +1425,7 @@ namespace b2
         friend class BasicBodyInterface;
 
       protected:
-        b2BodyId id = b2_nullBodyId;
+        b2BodyId id{};
 
       public:
         static constexpr bool IsOwning = false;
@@ -1595,7 +1595,7 @@ namespace b2
         friend class BasicWorldInterface;
 
       protected:
-        b2WorldId id = b2_nullWorldId;
+        b2WorldId id{};
 
       public:
         static constexpr bool IsOwning = true;
@@ -1612,7 +1612,7 @@ namespace b2
         /// Create a world for rigid body simulation. This contains all the bodies, shapes, and constraints.
         World(const std::derived_from<b2WorldDef> auto &params) { id = b2CreateWorld(&params); }
 
-        World(World&& other) noexcept { id = std::exchange(other.id, b2_nullWorldId); }
+        World(World&& other) noexcept { id = std::exchange(other.id, b2WorldId{}); }
         World& operator=(World other) noexcept { std::swap(id, other.id); return *this; }
 
         ~World() { if (*this) Destroy(); }
@@ -1625,7 +1625,7 @@ namespace b2
         friend class BasicWorldInterface;
 
       protected:
-        b2WorldId id = b2_nullWorldId;
+        b2WorldId id{};
 
       public:
         static constexpr bool IsOwning = false;
@@ -1770,11 +1770,11 @@ namespace b2
 // Implementations:
 namespace b2
 {
-    template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyChain(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = b2_nullChainId; } }
+    template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyChain(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Chain_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> bool BasicChainInterface<D, ForceConst>::IsValid() const { return b2Chain_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Chain_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyShape(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = b2_nullShapeId; } }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyShape(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> void* BasicShapeInterface<D, ForceConst>::GetUserData() const { return b2Shape_GetUserData(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2CastOutput BasicShapeInterface<D, ForceConst>::RayCast(b2Vec2 origin, b2Vec2 translation) const { return b2Shape_RayCast(static_cast<const D &>(*this).Handle(), origin, translation); }
     template <typename D, bool ForceConst> b2Segment BasicShapeInterface<D, ForceConst>::GetSegment() const { return b2Shape_GetSegment(static_cast<const D &>(*this).Handle()); }
@@ -1810,7 +1810,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetSegment(const b2Segment& segment) requires (!ForceConst) { b2Shape_SetSegment(static_cast<const D &>(*this).Handle(), &segment); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsValid() const { return b2Shape_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableSensorEvents(bool flag) requires (!ForceConst) { b2Shape_EnableSensorEvents(static_cast<const D &>(*this).Handle(), flag); }
-    template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyJoint(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = b2_nullJointId; } }
+    template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyJoint(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> b2Vec2 BasicJointInterface<D, ForceConst>::GetLocalAnchorA() const { return b2Joint_GetLocalAnchorA(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicJointInterface<D, ForceConst>::GetLocalAnchorB() const { return b2Joint_GetLocalAnchorB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::WakeBodies() requires (!ForceConst) { b2Joint_WakeBodies(static_cast<const D &>(*this).Handle()); }
@@ -1913,7 +1913,7 @@ namespace b2
     template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateCapsuleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { return b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); }
     template <typename D, bool ForceConst> Chain BasicBodyInterface<D, ForceConst>::CreateChain(Tags::OwningHandle, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst) { Chain ret; ret.id = b2CreateChain(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> ChainRef BasicBodyInterface<D, ForceConst>::CreateChain(Tags::DestroyWithParent, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst) { return b2CreateChain(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyBody(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = b2_nullBodyId; } }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyBody(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetInertiaTensor() const { return b2Body_GetInertiaTensor(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) requires (!ForceConst) { b2Body_ApplyLinearImpulse(static_cast<const D &>(*this).Handle(), impulse, point, wake); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPoint(b2Vec2 localPoint) const { return b2Body_GetWorldPoint(static_cast<const D &>(*this).Handle(), localPoint); }
@@ -1985,7 +1985,7 @@ namespace b2
     template <typename D, bool ForceConst> RevoluteJointRef BasicWorldInterface<D, ForceConst>::CreateRevoluteJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { return (RevoluteJointRef)b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> PrismaticJoint BasicWorldInterface<D, ForceConst>::CreatePrismaticJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { PrismaticJoint ret; ret.id = b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreatePrismaticJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyWorld(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = b2_nullWorldId; } }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyWorld(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> b2Vec2 BasicWorldInterface<D, ForceConst>::GetGravity() const { return b2World_GetGravity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapCapsule(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn, context); }
     template <typename D, bool ForceConst> b2Counters BasicWorldInterface<D, ForceConst>::GetCounters() const { return b2World_GetCounters(static_cast<const D &>(*this).Handle()); }

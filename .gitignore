@@ -1,5 +1,4 @@
 /box2c
 /test/test_header.hpp
-/test/test
-/test/test.exe
+/test/test*
 /tmp.part2

@@ -65,34 +65,17 @@ int main()
     bp.type = b2_dynamicBody;
 
     b2::Body b = w.CreateBody(b2::OwningHandle, bp);
-    [[maybe_unused]] b2::BodyRef b2 = b;
 
-    b.CreateCircleShape(b2::DestroyWithParent, b2::Shape::Params{}, b2Circle{.center = b2Vec2(), .radius = 3});
-
-    std::cout << b.IsValid() << '\n';
-
-    b2::Body::Params bp2;
-    bp2.position = b2Vec2(3,0);
-    // bp2.type = b2_dynamicBody;
-
-    {
-        b2::BodyRef b2 = w.CreateBody(b2::DestroyWithParent, bp2);
-        b2.CreateCircleShape(b2::DestroyWithParent, b2::Shape::Params{}, b2Circle{.center = b2Vec2(3,0), .radius = 3});
-
-        b2::WeldJoint::Params wp;
-        wp.bodyIdA = b;
-        wp.bodyIdB = b2;
-
-        [[maybe_unused]] b2::WeldJointConstRef weld = w.CreateWeldJoint(b2::OwningHandle, wp);
-    }
-
-    // w.create
+    b.CreateCircleShape(
+        b2::DestroyWithParent,
+        b2::Shape::Params{},
+        b2Circle{.center = b2Vec2(), .radius = 3}
+    );
 
     for (int i = 0; i < 10; i++)
     {
         w.Step(1/60.f, 4);
-        std::cout << b.GetPosition().x << " " << b.GetPosition().y << " | ";
-        // std::cout << b2.GetPosition().x << " " << b2.GetPosition().y << " | ";
-        std::cout << '\n';
+        //std::cout << b.GetPosition().y << "\n";
     }
+
 }

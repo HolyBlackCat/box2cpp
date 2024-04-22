@@ -1,9 +1,22 @@
-# Set to 1 to force regenerate the header.
-FORCE := 0
+# `make generate` - generate the header.
+# `make test_all` or just `make` - generate and run tests for all compilers.
+#     set `COMPILERS=...` to only test specific compilers, or run e.g. `make 'test_g++'`.
 
-ifneq ($(filter-out 0,$(FORCE)),)
-.PHONY: include/box2c.hpp
+ifeq (OS,Windows_NT)
+TARGET_OS = windows
+else
+TARGET_OS = linux
 endif
+
+ifeq (TARGET_OS,windows)
+COMPILERS = clang++ g++ cl clang-cl
+else
+COMPILERS = clang++ g++
+endif
+
+# Compiler flags, for GCC-like compilers and for MSVC-like respectively.
+FLAGS :=
+FLAGS_CL :=
 
 # Clone the repo.
 box2c:
@@ -23,7 +36,41 @@ include/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*
 	rm tmp.part2
 	sed include/box2c.hpp -e 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' >test/test_header.hpp
 
+# Directories:
 $(strip include) test:
 	mkdir -p $@
 
-.DEFAULT_GOAL := include/box2c.hpp
+# Force regeneration.
+.PHONY: include/box2c.hpp
+
+.PHONY: generate
+generate: include/box2c.hpp
+
+override all_test_targets =
+override define test_snippet =
+.PHONY: test_$1
+test_$1: include/box2c.hpp
+	$1 test/test.cpp $(if $(filter %cl,$1)\
+		,/EHsc /std:c++latest /W4 /WX \
+			-lbox2d $(FLAGS_CL) \
+			/link '/out:test/test_$1.exe' \
+		,-std=c++20 -Wall -Wextra -pedantic-errors -Wconversion -Wextra-semi -Wdeprecated -Werror -g \
+			$(if $(filter windows,$(TARGET_OS)),-fsanitize=address -fsanitize=undefined) \
+			-lbox2d $(FLAGS) \
+			-o 'test/test_$1' \
+	)
+	'test/test_$1'
+	@echo 'Test passed on: $1'
+
+$(eval override all_test_targets += test_$1)
+endef
+
+$(foreach c,$(COMPILERS),\
+	$(call,$(shell which $c >/dev/null 2>/dev/null))\
+	$(if $(filter 0,$(.SHELLSTATUS)),$(eval $(call test_snippet,$c)))\
+)
+
+.PHONY: run_tests
+run_tests: $(all_test_targets)
+
+.DEFAULT_GOAL := run_tests
