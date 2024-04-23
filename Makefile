@@ -60,7 +60,7 @@ test_$1: include/box2c.hpp
 			$(if $(SYNTAX_ONLY),/Zs,/link -lbox2d '/out:test/test_$1.exe') \
 			$(FLAGS_CL) \
 		,-std=c++20 -Wall -Wextra -pedantic-errors -Wconversion -Wextra-semi -Wdeprecated -Werror -g \
-			$(if $(filter windows,$(TARGET_OS)),-fsanitize=address -fsanitize=undefined) \
+			$(if $(filter windows,$(TARGET_OS)),,-fsanitize=address -fsanitize=undefined) \
 			$(if $(SYNTAX_ONLY),-fsyntax-only,-lbox2d -o 'test/test_$1') \
 			$(FLAGS) \
 	)

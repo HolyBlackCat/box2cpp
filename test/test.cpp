@@ -77,5 +77,4 @@ int main()
         w.Step(1/60.f, 4);
         //std::cout << b.GetPosition().y << "\n";
     }
-
 }
