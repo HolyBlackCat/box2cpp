@@ -5,7 +5,7 @@
 # * Compile, link and run:
 #     make run_tests FLAGS=-L/path/to/box2d/lib
 #       For MSVC, use FLAGS_CL instead of FLAGS.
-#   You can set `COMPILERS=...` to only test specific compilers, or run e.g. `make 'test_g++'`.
+#   You can set `COMPILERS=...` to only test specific compilers.
 #
 # Windows users should run this in MSYS2 `make`. To test MSVC, run `msys2_shell.cmd` inside VS developer prompt.
 
