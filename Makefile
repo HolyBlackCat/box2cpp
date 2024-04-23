@@ -26,8 +26,7 @@ override SYNTAX_ONLY := $(filter-out 0,$(SYNTAX_ONLY))
 # Clone the repo.
 box2c:
 	rm -rf box2c
-	mkdir $@
-	#git clone https://github.com/erincatto/box2c
+	git clone https://github.com/erincatto/box2c
 
 # Generate the file.
 include/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*.h) | include test
