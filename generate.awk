@@ -1,5 +1,16 @@
 BEGIN {
+    own_version = "1.0"
+
     print "#pragma once"
+    print ""
+    print "// box2cpp, C++ bindings for box2d 3.x"
+    printf "// Generated from box2d commit: "
+
+    "git log -1 --format=\"%h %(describe) %cs\"" | getline box2d_ver_desc
+    box2d_ver_desc = gensub(/^\s+/, "", 1, gensub(/\s+$/, "", 1, gensub(/\s{2,}/, " ", "g", box2d_ver_desc)))
+    print box2d_ver_desc
+    print "// Generator version: " own_version
+
     print ""
     print "#include <box2d/box2d.h>"
     print "#include <box2d/dynamic_tree.h>"

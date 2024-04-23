@@ -1,5 +1,9 @@
 #pragma once
 
+// box2cpp, C++ bindings for box2d 3.x
+// Generated from box2d commit: 6129025 2024-04-22
+// Generator version: 1.0
+
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
 

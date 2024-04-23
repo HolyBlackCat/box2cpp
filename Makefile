@@ -36,10 +36,10 @@ include/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*
 	$(call, ### Yes, `cat` will mangle first/last lines, but it doesn't matter.)
 	cat box2c/include/box2d/* \
 		| perl -pe 's/(\([^)]*)\n/$$1/' \
-		| gawk -f generator/generate_classes.awk >include/box2c.hpp -vsecond_file=tmp.part2
+		| gawk -f generate.awk >include/box2c.hpp -vsecond_file=tmp.part2
 	cat tmp.part2 >>include/box2c.hpp
 	rm tmp.part2
-	sed include/box2c.hpp -e 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' >test/test_header.hpp
+	sed 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' include/box2c.hpp >test/test_header.hpp
 
 # Directories:
 $(strip include) test:
