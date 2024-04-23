@@ -52,7 +52,7 @@ Must use C++20 or newer.
 
 Install [box2d 3.0](https://github.com/erincatto/box2c) as usual, our header includes their.
 
-Clone and add `include/` to the header search path. Include `<box2c.hpp>`.
+Clone and add `include/` to the header search path. Include `<box2c.hpp>`. The library is header-only.
 
 **Regenerating the header**
 
