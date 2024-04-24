@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 41e47c6 2024-04-21
-// Generator version: 0.2
+// Generator version: 0.3
 
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
@@ -1508,7 +1508,7 @@ namespace b2
         [[nodiscard]] b2Vec2 GetGravity() const;
 
         /// Overlap test for all shapes that overlap the provided capsule.
-        void OverlapCapsule(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
+        void Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
 
         /// Get counters and sizes
         [[nodiscard]] b2Counters GetCounters() const;
@@ -1526,25 +1526,25 @@ namespace b2
         void Step(float timeStep, int subStepCount) /*non-const*/ requires (!ForceConst);
 
         /// Ray-cast closest hit. Convenience function. This is less general than b2World_RayCast and does not allow for custom filtering.
-        [[nodiscard]] b2RayResult RayCastClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const;
+        [[nodiscard]] b2RayResult Cast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const;
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a capsule is cast instead of a point.
-        void CapsuleCast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
+        void Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Adjust the restitution threshold. Advanced feature for testing.
         void SetRestitutionThreshold(float value) /*non-const*/ requires (!ForceConst);
 
         /// Cast a capsule through the world. Similar to a ray-cast except that a polygon is cast instead of a point.
-        void PolygonCast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
+        void Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Overlap test for all shapes that overlap the provided polygon.
-        void OverlapPolygon(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
+        void Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
 
         /// Cast a circle through the world. Similar to a ray-cast except that a circle is cast instead of a point.
-        void CircleCast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
+        void Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Overlap test for for all shapes that overlap the provided circle.
-        void OverlapCircle(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
+        void Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
 
         /// Adjust contact tuning parameters:
         /// - hertz is the contact stiffness (cycles per second)
@@ -1569,7 +1569,7 @@ namespace b2
         [[nodiscard]] bool IsValid() const;
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB.
-        void OverlapAABB(b2AABB aabb, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
+        void Overlap(b2AABB aabb, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const;
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2ContactEvents GetContactEvents() const;
@@ -1583,7 +1583,7 @@ namespace b2
         /// @param callback a user implemented callback class.
         /// @param point1 the ray starting point
         /// @param point2 the ray ending point
-        void RayCast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
+        void Cast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const;
 
         /// Enable/disable constraint warm starting. Advanced feature for testing.
         void EnableWarmStarting(bool flag) /*non-const*/ requires (!ForceConst);
@@ -1991,28 +1991,28 @@ namespace b2
     template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyWorld(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> b2Vec2 BasicWorldInterface<D, ForceConst>::GetGravity() const { return b2World_GetGravity(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapCapsule(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn, context); }
     template <typename D, bool ForceConst> b2Counters BasicWorldInterface<D, ForceConst>::GetCounters() const { return b2World_GetCounters(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2SensorEvents BasicWorldInterface<D, ForceConst>::GetSensorEvents() const { return b2World_GetSensorEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) requires (!ForceConst) { b2World_SetPreSolveCallback(static_cast<const D &>(*this).Handle(), fcn, context); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Step(float timeStep, int subStepCount) requires (!ForceConst) { b2World_Step(static_cast<const D &>(*this).Handle(), timeStep, subStepCount); }
-    template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::RayCastClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_RayCastClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CapsuleCast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CapsuleCast(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn, context); }
+    template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::Cast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_RayCastClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CapsuleCast(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn, context); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionThreshold(float value) requires (!ForceConst) { b2World_SetRestitutionThreshold(static_cast<const D &>(*this).Handle(), value); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::PolygonCast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_PolygonCast(static_cast<const D &>(*this).Handle(), &polygon, originTransform, translation, filter, fcn, context); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapPolygon(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapPolygon(static_cast<const D &>(*this).Handle(), &polygon, transform, filter, fcn, context); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CircleCast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CircleCast(static_cast<const D &>(*this).Handle(), &circle, originTransform, translation, filter, fcn, context); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapCircle(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCircle(static_cast<const D &>(*this).Handle(), &circle, transform, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_PolygonCast(static_cast<const D &>(*this).Handle(), &polygon, originTransform, translation, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapPolygon(static_cast<const D &>(*this).Handle(), &polygon, transform, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_CircleCast(static_cast<const D &>(*this).Handle(), &circle, originTransform, translation, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCircle(static_cast<const D &>(*this).Handle(), &circle, transform, filter, fcn, context); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactTuning(float hertz, float dampingRatio, float pushVelocity) requires (!ForceConst) { b2World_SetContactTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio, pushVelocity); }
     template <typename D, bool ForceConst> b2Profile BasicWorldInterface<D, ForceConst>::GetProfile() const { return b2World_GetProfile(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Draw(b2DebugDraw& draw) const { b2World_Draw(static_cast<const D &>(*this).Handle(), &draw); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableContinuous(bool flag) requires (!ForceConst) { b2World_EnableContinuous(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSleeping(bool flag) requires (!ForceConst) { b2World_EnableSleeping(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsValid() const { return b2World_IsValid(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapAABB(b2AABB aabb, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn, context); }
     template <typename D, bool ForceConst> b2ContactEvents BasicWorldInterface<D, ForceConst>::GetContactEvents() const { return b2World_GetContactEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2BodyEvents BasicWorldInterface<D, ForceConst>::GetBodyEvents() const { return b2World_GetBodyEvents(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::RayCast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_RayCast(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Cast(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, b2CastResultFcn* fcn, void* context) const { b2World_RayCast(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn, context); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableWarmStarting(bool flag) requires (!ForceConst) { b2World_EnableWarmStarting(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetGravity(b2Vec2 gravity) requires (!ForceConst) { b2World_SetGravity(static_cast<const D &>(*this).Handle(), gravity); }
     inline float DynamicTree::GetAreaRatio() const { return b2DynamicTree_GetAreaRatio(&value); }

@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.2"
+    own_version = "0.3"
 
     print "#pragma once"
     print ""
@@ -280,6 +280,10 @@ function emit_func(func_name, type, func_variant_index, indent)
         clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
     else if (type == "Shape" && clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
         clean_func_name = "Set"
+    else if (type == "World" && clean_func_name ~ /Overlap.*/)
+        clean_func_name = "Overlap"
+    else if (type == "World" && clean_func_name ~ /Cast.*/)
+        clean_func_name = "Cast"
 
     # Nodiscard?
     if (return_type == "void")
