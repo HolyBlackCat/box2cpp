@@ -1,4 +1,5 @@
 #include "test_header.hpp"
+#include "../box2c/include/box2d/math_functions.h"
 
 #include <iostream>
 
@@ -130,7 +131,7 @@ int main()
     b.CreateShape(
         b2::DestroyWithParent,
         b2::Shape::Params{},
-        b2Circle{.center = b2Vec2(), .radius = 3}
+        b2Circle{.center{}, .radius = 3}
     );
 
     for (int i = 0; i < 10; i++)
@@ -138,4 +139,19 @@ int main()
         w.Step(1/60.f, 4);
         //std::cout << b.GetPosition().y << "\n";
     }
+
+    // Overlap query.
+    // Notice that we pass a lambda directly, without the `void* context` madness.
+    std::string str = "Foo!";
+    w.Overlap(
+        b2Circle{.center{}, .radius = 1},
+        b2Transform_identity,
+        b2DefaultQueryFilter(),
+        [&](b2::ShapeRef shape)
+        {
+            (void)shape;
+            std::cout << str << '\n'; // Lambdas can capture values.
+            return true;
+        }
+    );
 }

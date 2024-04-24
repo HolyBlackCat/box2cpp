@@ -4,9 +4,11 @@
 
 * Provides classes for all box2d entities: `World`, `Body`, `Shape`, `Chain`, all joint kinds, `DynamicTree`.
 
-  * With RAII - they automatically destroy box2d objects in destructors
+  * [With RAII](#ownership) - they automatically destroy box2d objects in destructors
 
   * All related functions as methods (with const correctness).
+
+  * [Callbacks accept arbitrary lambdas](#using-callbacks) (no need to mess with `void *` and function pointers).
 
 * Automatically generated, so no missing methods.
 
@@ -94,7 +96,7 @@ All classes are default-constructible, and are null by default. They are convert
 
 Joint classes are a bit special, as they inherit from a common base (e.g. `b2::WeldJoint` inherits from `b2::Joint`). You can store them using either the specific derived classes or using the base class.
 
-### Parameters struct
+### Parameters structs
 
 We have `b2::Body::Params` instead of `b2BodyDef` (and similarly for all other classes).
 
@@ -111,3 +113,47 @@ auto params = ADJUST(b2::Body::Params{}, _.type = ..., _.position = ...);
 ```
 
 All our functions accept both `Params` and the original `...Def` structs if you must use them.
+
+### Using callbacks
+
+Functions accepting callbacks are enhanced to accept lambdas (including capturing lambdas), rather than only function pointers.
+
+The `void* context` parameter is removed, it's no longer needed when you can use capturing lambdas directly.
+
+When the callback receives a `b2ShapeId`, you can (and should) instead use `b2::ShapeRef` or `b2::ShapeConstRef` instead. (This is const-correct: if called on a const `b2::World`, `b2::ShapeConstRef` works and `b2::ShapeRef` doesn't).
+
+```cpp
+std::string str = "Foo!";
+world.Overlap(
+    b2Circle{.center{}, .radius = 1},
+    b2Transform_identity,
+    b2DefaultQueryFilter(),
+    [&](b2::ShapeRef shape)
+    {
+        (void)shape;
+        std::cout << str << '\n'; // Lambdas can capture variables.
+        return true;
+    }
+);
+```
+Compare with the original C API:
+```cpp
+std::string str = "Foo!";
+b2Circle circle{.center{}, .radius = 1};
+b2World_OverlapCircle(
+    world,
+    &circle,
+    b2Transform_identity,
+    b2DefaultQueryFilter(),
+    [](b2ShapeId shape, void *context)
+    {
+        (void)shape;
+        // Must pass information through a `void *`.
+        std::cout << static_cast<std::string *>(context) << '\n';
+        return true;
+    },
+    &str
+);
+```
+
+Those callback improvements are not yet implemented for `b2::World::SetPreSolveCallback()`, and for functions in `b2::DynamicTree`.
