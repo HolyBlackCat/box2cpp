@@ -74,17 +74,17 @@ You might have noticed from the example that all `.Create...(...)` functions acc
 
   `b2::Body` is movable but not copyable. You can destroy it manually without waiting for the destructor using `= {};` or `.Destroy()`.
 
-  It's an error to destroy `b2::Body` after `b2::World` it was created in (box2d should raise an assertion in debug mode).
+  It's an error to destroy `b2::Body` after destroying `b2::World` it was created in (box2d should raise an assertion in debug mode).
 
 * `w.CreateBody(b2::DestroyWithParent)` returns `b2::BodyRef` that **doesn't** destroy the body automatically. Box2d will destroy it with the world. (And shapes and joints created with this mode will be destroyed with the bodies they're attached to.)
 
-  This behavior is not very useful for bodies, but can be useful for shapes and joins that you don't want to touch after creation.
+  This behavior is useful for entities that you don't want to touch after creation, such as shapes and joints, and perhaps static level geometry.
 
   You can safely ignore the return value.
 
   `b2::BodyRef` is copyable and cheap to copy, pass it around by value. Use it instead of references to `b2::Body`. Use `b2::BodyConstRef` instead of const references. (Using references to `b2::Body` as function parameters is not recommended, because you will be unable to pass `b2::BodyRef` you get from `b2::DestroyWithParent`.)
 
-  You can still destroy the object manually by calling `.Destroy()`. Note that `= {};` for `b2::BodyRef` just zeroes the reference without destroying the body.
+  You can still destroy the object manually by calling `.Destroy()` on a `b2::BodyRef`. Note that `= {};` for `b2::BodyRef` just zeroes the reference without destroying the body. It is an error to call `.Destroy()` on a `b2::BodyRef` if `b2::Body` exists for the same object (can only happen if you got it via `b2::OwningHandle` and then made a `b2::BodyRef` from it).
 
 All our classes behave similarly. (E.g. there is `b2::Shape` and `b2::ShapeRef` for shapes, etc.)
 
