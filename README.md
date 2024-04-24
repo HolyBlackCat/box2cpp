@@ -28,7 +28,7 @@ int main()
 
     b2::Body b = w.CreateBody(b2::OwningHandle, bp);
 
-    b.CreateCircleShape(
+    b.CreateShape(
         b2::DestroyWithParent,
         b2::Shape::Params{},
         b2Circle{.center = b2Vec2(), .radius = 3}
