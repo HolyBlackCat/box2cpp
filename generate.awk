@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "1.0"
+    own_version = "0.2"
 
     print "#pragma once"
     print ""
@@ -272,6 +272,14 @@ function emit_func(func_name, type, func_variant_index, indent)
         clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
     else
         clean_func_name = gensub("^b2", "", 1, clean_func_name)
+
+    # Overload factory funcs and setters to the same name.
+    if (clean_func_name ~ /^Create.*Joint$/)
+        clean_func_name = gensub("^Create.+Joint$", "CreateJoint", 1, clean_func_name)
+    else if (clean_func_name ~ /^Create.*Shape$/)
+        clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
+    else if (type == "Shape" && clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
+        clean_func_name = "Set"
 
     # Nodiscard?
     if (return_type == "void")

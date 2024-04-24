@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 41e47c6 2024-04-21
-// Generator version: 1.0
+// Generator version: 0.2
 
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
@@ -194,7 +194,7 @@ namespace b2
         [[nodiscard]] bool AreContactEventsEnabled() const;
 
         /// Allows you to change a shape to be a capsule or update the current capsule.
-        void SetCapsule(const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
+        void Set(const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
         /// @return are sensor events enabled?
         [[nodiscard]] bool AreSensorEventsEnabled() const;
@@ -226,7 +226,7 @@ namespace b2
         [[nodiscard]] float GetDensity() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetPolygon(const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
+        void Set(const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
         void EnableContactEvents(bool flag) /*non-const*/ requires (!ForceConst);
@@ -265,7 +265,7 @@ namespace b2
 
         /// Allows you to change a shape to be a circle or update the current circle.
         /// This does not modify the mass properties.
-        void SetCircle(const b2Circle& circle) /*non-const*/ requires (!ForceConst);
+        void Set(const b2Circle& circle) /*non-const*/ requires (!ForceConst);
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
@@ -284,7 +284,7 @@ namespace b2
         [[nodiscard]] float GetFriction() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
-        void SetSegment(const b2Segment& segment) /*non-const*/ requires (!ForceConst);
+        void Set(const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
         /// Shape identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
@@ -1158,26 +1158,26 @@ namespace b2
         /// Create a polygon shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreatePolygonShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
-        ShapeRef CreatePolygonShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
 
         /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateCircleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
-        ShapeRef CreateCircleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) /*non-const*/ requires (!ForceConst);
 
         /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateSegmentShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
-        ShapeRef CreateSegmentShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
         /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         ///	@return the shape id for accessing the shape
-        [[nodiscard]] Shape CreateCapsuleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
-        ShapeRef CreateCapsuleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
         /// Create a chain shape
         ///	@see b2ChainDef for details
@@ -1463,8 +1463,8 @@ namespace b2
 
         /// Create a weld joint
         ///	@see b2WeldJointDef for details
-        [[nodiscard]] WeldJoint CreateWeldJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        WeldJointRef CreateWeldJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] WeldJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        WeldJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a rigid body given a definition. No reference to the definition is retained.
         /// @warning This function is locked during callbacks.
@@ -1473,33 +1473,33 @@ namespace b2
 
         /// Create a distance joint
         ///	@see b2DistanceJointDef for details
-        [[nodiscard]] DistanceJoint CreateDistanceJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        DistanceJointRef CreateDistanceJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] DistanceJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        DistanceJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a mouse joint
         ///	@see b2MouseJointDef for details
-        [[nodiscard]] MouseJoint CreateMouseJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        MouseJointRef CreateMouseJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] MouseJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        MouseJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a wheel joint
         ///	@see b2WheelJointDef for details
-        [[nodiscard]] WheelJoint CreateWheelJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        WheelJointRef CreateWheelJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] WheelJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        WheelJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a motor joint
         ///	@see b2MotorJointDef for details
-        [[nodiscard]] MotorJoint CreateMotorJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        MotorJointRef CreateMotorJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] MotorJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        MotorJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a revolute (hinge) joint
         ///	@see b2RevoluteJointDef for details
-        [[nodiscard]] RevoluteJoint CreateRevoluteJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        RevoluteJointRef CreateRevoluteJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] RevoluteJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        RevoluteJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a prismatic (slider) joint
         ///	@see b2PrismaticJointDef for details
-        [[nodiscard]] PrismaticJoint CreatePrismaticJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-        PrismaticJointRef CreatePrismaticJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] PrismaticJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        PrismaticJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
         /// Destroy a world.
         void Destroy() /*non-const*/ requires (!ForceConst);
@@ -1783,7 +1783,7 @@ namespace b2
     template <typename D, bool ForceConst> b2CastOutput BasicShapeInterface<D, ForceConst>::RayCast(b2Vec2 origin, b2Vec2 translation) const { return b2Shape_RayCast(static_cast<const D &>(*this).Handle(), origin, translation); }
     template <typename D, bool ForceConst> b2Segment BasicShapeInterface<D, ForceConst>::GetSegment() const { return b2Shape_GetSegment(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetCapsule(const b2Capsule& capsule) requires (!ForceConst) { b2Shape_SetCapsule(static_cast<const D &>(*this).Handle(), &capsule); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Capsule& capsule) requires (!ForceConst) { b2Shape_SetCapsule(static_cast<const D &>(*this).Handle(), &capsule); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetFilter(b2Filter filter) requires (!ForceConst) { b2Shape_SetFilter(static_cast<const D &>(*this).Handle(), filter); }
     template <typename D, bool ForceConst> b2Circle BasicShapeInterface<D, ForceConst>::GetCircle() const { return b2Shape_GetCircle(static_cast<const D &>(*this).Handle()); }
@@ -1793,7 +1793,7 @@ namespace b2
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactData(b2ContactData& contactData, int capacity) const { return b2Shape_GetContactData(static_cast<const D &>(*this).Handle(), &contactData, capacity); }
     template <typename D, bool ForceConst> b2AABB BasicShapeInterface<D, ForceConst>::GetAABB() const { return b2Shape_GetAABB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetDensity() const { return b2Shape_GetDensity(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetPolygon(const b2Polygon& polygon) requires (!ForceConst) { b2Shape_SetPolygon(static_cast<const D &>(*this).Handle(), &polygon); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Polygon& polygon) requires (!ForceConst) { b2Shape_SetPolygon(static_cast<const D &>(*this).Handle(), &polygon); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableContactEvents(bool flag) requires (!ForceConst) { b2Shape_EnableContactEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> b2Filter BasicShapeInterface<D, ForceConst>::GetFilter() const { return b2Shape_GetFilter(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnablePreSolveEvents(bool flag) requires (!ForceConst) { b2Shape_EnablePreSolveEvents(static_cast<const D &>(*this).Handle(), flag); }
@@ -1805,13 +1805,13 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> BodyRef BasicShapeInterface<D, ForceConst>::GetBody() const { return b2Shape_GetBody(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Shape_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetCircle(const b2Circle& circle) requires (!ForceConst) { b2Shape_SetCircle(static_cast<const D &>(*this).Handle(), &circle); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Circle& circle) requires (!ForceConst) { b2Shape_SetCircle(static_cast<const D &>(*this).Handle(), &circle); }
     template <typename D, bool ForceConst> ChainRef BasicShapeInterface<D, ForceConst>::GetParentChain() const { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Shape_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Shape_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> b2ShapeType BasicShapeInterface<D, ForceConst>::GetType() const { return b2Shape_GetType(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetFriction() const { return b2Shape_GetFriction(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetSegment(const b2Segment& segment) requires (!ForceConst) { b2Shape_SetSegment(static_cast<const D &>(*this).Handle(), &segment); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Segment& segment) requires (!ForceConst) { b2Shape_SetSegment(static_cast<const D &>(*this).Handle(), &segment); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsValid() const { return b2Shape_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableSensorEvents(bool flag) requires (!ForceConst) { b2Shape_EnableSensorEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyJoint(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
@@ -1907,14 +1907,14 @@ namespace b2
     template <typename D, bool ForceConst> float BasicWeldJointInterface<D, ForceConst>::GetLinearDampingRatio() const { return b2WeldJoint_GetLinearDampingRatio(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWeldJointInterface<D, ForceConst>::SetLinearHertz(float hertz) requires (!ForceConst) { b2WeldJoint_SetLinearHertz(static_cast<const D &>(*this).Handle(), hertz); }
     template <typename D, bool ForceConst> void BasicWeldJointInterface<D, ForceConst>::SetLinearDampingRatio(float dampingRatio) requires (!ForceConst) { b2WeldJoint_SetLinearDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
-    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreatePolygonShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst) { Shape ret; ret.id = b2CreatePolygonShape(static_cast<const D &>(*this).Handle(), &def, &polygon); return ret; }
-    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreatePolygonShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst) { return b2CreatePolygonShape(static_cast<const D &>(*this).Handle(), &def, &polygon); }
-    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateCircleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { Shape ret; ret.id = b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); return ret; }
-    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateCircleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { return b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); }
-    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateSegmentShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst) { Shape ret; ret.id = b2CreateSegmentShape(static_cast<const D &>(*this).Handle(), &def, &segment); return ret; }
-    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateSegmentShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst) { return b2CreateSegmentShape(static_cast<const D &>(*this).Handle(), &def, &segment); }
-    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateCapsuleShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { Shape ret; ret.id = b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); return ret; }
-    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateCapsuleShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { return b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); }
+    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst) { Shape ret; ret.id = b2CreatePolygonShape(static_cast<const D &>(*this).Handle(), &def, &polygon); return ret; }
+    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst) { return b2CreatePolygonShape(static_cast<const D &>(*this).Handle(), &def, &polygon); }
+    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { Shape ret; ret.id = b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); return ret; }
+    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { return b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); }
+    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst) { Shape ret; ret.id = b2CreateSegmentShape(static_cast<const D &>(*this).Handle(), &def, &segment); return ret; }
+    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) requires (!ForceConst) { return b2CreateSegmentShape(static_cast<const D &>(*this).Handle(), &def, &segment); }
+    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { Shape ret; ret.id = b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); return ret; }
+    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { return b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); }
     template <typename D, bool ForceConst> Chain BasicBodyInterface<D, ForceConst>::CreateChain(Tags::OwningHandle, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst) { Chain ret; ret.id = b2CreateChain(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> ChainRef BasicBodyInterface<D, ForceConst>::CreateChain(Tags::DestroyWithParent, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst) { return b2CreateChain(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyBody(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
@@ -1973,22 +1973,22 @@ namespace b2
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetPosition() const { return b2Body_GetPosition(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Transform BasicBodyInterface<D, ForceConst>::GetTransform() const { return b2Body_GetTransform(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetLinearDamping() const { return b2Body_GetLinearDamping(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> WeldJoint BasicWorldInterface<D, ForceConst>::CreateWeldJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst) { WeldJoint ret; ret.id = b2CreateWeldJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> WeldJointRef BasicWorldInterface<D, ForceConst>::CreateWeldJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst) { return (WeldJointRef)b2CreateWeldJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> WeldJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst) { WeldJoint ret; ret.id = b2CreateWeldJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> WeldJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2WeldJointDef> auto& def) requires (!ForceConst) { return (WeldJointRef)b2CreateWeldJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> Body BasicWorldInterface<D, ForceConst>::CreateBody(Tags::OwningHandle, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { Body ret; ret.id = b2CreateBody(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> BodyRef BasicWorldInterface<D, ForceConst>::CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { return b2CreateBody(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> DistanceJoint BasicWorldInterface<D, ForceConst>::CreateDistanceJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { DistanceJoint ret; ret.id = b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> DistanceJointRef BasicWorldInterface<D, ForceConst>::CreateDistanceJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { return (DistanceJointRef)b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> MouseJoint BasicWorldInterface<D, ForceConst>::CreateMouseJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { MouseJoint ret; ret.id = b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> MouseJointRef BasicWorldInterface<D, ForceConst>::CreateMouseJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { return (MouseJointRef)b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> WheelJoint BasicWorldInterface<D, ForceConst>::CreateWheelJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst) { WheelJoint ret; ret.id = b2CreateWheelJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> WheelJointRef BasicWorldInterface<D, ForceConst>::CreateWheelJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst) { return (WheelJointRef)b2CreateWheelJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> MotorJoint BasicWorldInterface<D, ForceConst>::CreateMotorJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { MotorJoint ret; ret.id = b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> MotorJointRef BasicWorldInterface<D, ForceConst>::CreateMotorJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { return (MotorJointRef)b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> RevoluteJoint BasicWorldInterface<D, ForceConst>::CreateRevoluteJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { RevoluteJoint ret; ret.id = b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> RevoluteJointRef BasicWorldInterface<D, ForceConst>::CreateRevoluteJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { return (RevoluteJointRef)b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> PrismaticJoint BasicWorldInterface<D, ForceConst>::CreatePrismaticJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { PrismaticJoint ret; ret.id = b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreatePrismaticJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> DistanceJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { DistanceJoint ret; ret.id = b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> DistanceJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { return (DistanceJointRef)b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> MouseJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { MouseJoint ret; ret.id = b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> MouseJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { return (MouseJointRef)b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> WheelJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst) { WheelJoint ret; ret.id = b2CreateWheelJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> WheelJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst) { return (WheelJointRef)b2CreateWheelJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> MotorJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { MotorJoint ret; ret.id = b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> MotorJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { return (MotorJointRef)b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> RevoluteJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { RevoluteJoint ret; ret.id = b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> RevoluteJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { return (RevoluteJointRef)b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> PrismaticJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { PrismaticJoint ret; ret.id = b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyWorld(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> b2Vec2 BasicWorldInterface<D, ForceConst>::GetGravity() const { return b2World_GetGravity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::OverlapCapsule(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, b2OverlapResultFcn* fcn, void* context) const { b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn, context); }
