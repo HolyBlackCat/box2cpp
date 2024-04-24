@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.3"
+    own_version = "0.4"
 
     print "#pragma once"
     print ""
@@ -15,8 +15,10 @@ BEGIN {
     print "#include <box2d/box2d.h>"
     print "#include <box2d/dynamic_tree.h>"
     print ""
-    print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <concepts>" # For `std::derived_from`.
+    print "#include <cstddef>" # For `std::nullptr_t`.
+    print "#include <functional>" # For `std::invoke`.
+    print "#include <type_traits>" # For our callback helpers, and `std::invoke_result_t`.
     print "#include <utility>" # For `std::exchange`.
     print ""
     print "#ifndef BOX2CPP_ASSERT"
@@ -253,7 +255,7 @@ function emit_func(func_name, type, func_variant_index, indent)
 
 
     # The comment of this function.
-    if (!is_factory_func || factory_func_owning)
+    if (func_variant_index == 0)
     {
         print ""
         printf indent "%s", gensub(/\n/, "\n" indent, "g", funcs[func_name]["comment"])
@@ -280,9 +282,9 @@ function emit_func(func_name, type, func_variant_index, indent)
         clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
     else if (type == "Shape" && clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
         clean_func_name = "Set"
-    else if (type == "World" && clean_func_name ~ /Overlap.*/)
+    else if (type == "World" && clean_func_name ~ /^Overlap.*/)
         clean_func_name = "Overlap"
-    else if (type == "World" && clean_func_name ~ /Cast.*/)
+    else if (type == "World" && clean_func_name ~ /Cast$/ && !(clean_func_name ~ /RayCast/))
         clean_func_name = "Cast"
 
     # Nodiscard?
@@ -322,6 +324,9 @@ function emit_func(func_name, type, func_variant_index, indent)
     first_param_is_self = 0
     for (i in funcs[func_name]["params"])
     {
+        if (funcs[func_name]["params"][i]["is_callback_context"])
+            continue # Skip `void* context` parameter for callbacks.
+
         param_type = funcs[func_name]["params"][i]["type"]
 
         if (type && first_param && !first_param_is_self && (is_id_based ? param_type == "b2" base_type_or_self "Id" : param_type ~ "(const )?" type "*"))
@@ -349,12 +354,15 @@ function emit_func(func_name, type, func_variant_index, indent)
 
         param_type_fixed = param_type
 
-        param_is_func = param_type ~ /Fcn\*$/
-
-        if (!param_is_func)
+        if (funcs[func_name]["params"][i]["is_callback"])
+        {
+            # Adjust callback parameters.
+            param_type_fixed = "detail::FuncRef<" gensub(/\*$/, "", 1, param_type) "," (func_variant_index ? "true" : "false") ">"
+        }
+        else
         {
             # Adjust pointer parameters to references (except for `void *`).
-            if (param_type_fixed != "void*" && param_type_fixed ~ /\*$/)
+            if (param_type_fixed != "void*" && param_type_fixed ~ /\*$/ && !(param_type_fixed ~ /Fcn\*$/))
             {
                 param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
                 funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
@@ -378,7 +386,11 @@ function emit_func(func_name, type, func_variant_index, indent)
 
     # Constness.
     is_const = 0
-    if (!type)
+    if (funcs[func_name]["accepts_const_nonconst_callback"])
+    {
+        is_const = func_variant_index # Accepting const and non-const callbacks.
+    }
+    else if (!type)
     {
         is_const = 0 # Not a member function.
     }
@@ -390,7 +402,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
 
-        if (clean_func_name ~ /^(Get|Overlap|Is|Compute|Are|Test|Extents|Contains|Union|Center)($|[A-Z])/ || clean_func_name ~ /Cast(Closest)?$/ || clean_func_name == "Draw")
+        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
         else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
@@ -459,22 +471,31 @@ function emit_func(func_name, type, func_variant_index, indent)
             continue
         }
 
+        if (funcs[func_name]["params"][i]["is_callback_context"])
+            continue # Skip passing `void *` to callbacks.
+
         if (first_param)
             first_param = 0
         else
             printf ", " >second_file
 
+        param_type_fixed = funcs[func_name]["params"][i]["type_fixed"]
+        param_name = funcs[func_name]["params"][i]["name"]
+
+        if (funcs[func_name]["params"][i]["is_callback"])
+        {
+            printf "%s.GetFunc(), %s.GetContext()", param_name, param_name >second_file
+            continue
+        }
+
         # Prepend `&` to take address of a reference.
         if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
             printf "&" >second_file
 
-        param_type = funcs[func_name]["params"][i]["type_fixed"]
 
         # Cast our enums to the original enums.
-        if (param_type in enums) # Note, `param_type` is not "fixed" here.
-            printf "(b2" param_type ")" >second_file
-
-        param_name = funcs[func_name]["params"][i]["name"]
+        if (param_type_fixed in enums)
+            printf "(b2" param_type_fixed ")" >second_file
 
         printf "%s", param_name >second_file
     }
@@ -486,7 +507,7 @@ function emit_func(func_name, type, func_variant_index, indent)
         printf " static_cast<D &>(*this).id = {}; }" >second_file
     print " }" >second_file
 
-    if (is_factory_func && func_variant_index == 0)
+    if (func_variant_index == 0 && (is_factory_func || funcs[func_name]["accepts_const_nonconst_callback"]))
         emit_func(func_name, type, func_variant_index + 1, indent)
 
     # Destroy the function we just generated.
@@ -526,6 +547,23 @@ END {
         }
 
         funcs[func_name]["ret_fixed"] = return_type_fixed
+
+        # Callback handling.
+        funcs[func_name]["accepts_const_nonconst_callback"] = 0 # Whether this function must be duplicated for const and nonconst callback argument.
+        skip_context_param = 0
+        for (i in funcs[func_name]["params"])
+        {
+            param_type = funcs[func_name]["params"][i]["type"]
+            funcs[func_name]["params"][i]["is_callback"] = 0
+            funcs[func_name]["params"][i]["is_callback_context"] = skip_context_param
+            skip_context_param = 0
+            if (param_type ~ /^(b2CastResultFcn|b2OverlapResultFcn)\*$/)
+            {
+                funcs[func_name]["params"][i]["is_callback"] = 1
+                funcs[func_name]["accepts_const_nonconst_callback"] = 1
+                skip_context_param = 1
+            }
+        }
     }
 
     # An extra analysis pass for classes.
@@ -576,6 +614,27 @@ END {
             print "    using "type"ConstRef = MaybeConst"type"Ref<true>;"
         }
     }
+
+    print ""
+
+    # The `detail` namespace with various helpers.
+
+    print "    namespace detail"
+    print "    {"
+    print "        // Map box2d IDs to our reference types. Specific joint types aren't there, since they don't have their own ID types."
+    print "        template <typename T, bool IsConst> struct Box2dIdToRef { static constexpr bool IsIdType = false; };"
+    for (i in classes)
+    {
+        type = classes[i]
+
+        if (type in classes_id_based && !(type in classes_joint_kinds))
+            print "        template <bool IsConst> struct Box2dIdToRef<b2"type"Id, IsConst> { static constexpr bool IsIdType = true; using type = MaybeConst"type"Ref<IsConst>; };"
+    }
+    print ""
+    system("cat generator/detail.cpp")
+    print "    }"
+
+    print ""
 
     # Emit classes.
     asort(classes, classes, "sort_classes_comparator")
@@ -632,7 +691,10 @@ END {
                 print "        [[nodiscard]] explicit operator bool() const { return B2_IS_NON_NULL(Handle()); }"
                 print "        [[nodiscard]] const b2" type "Id &Handle() const { return static_cast<const D &>(*this).id; }"
                 print "        // Convert to a handle. Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers."
-                print "        template <std::same_as<b2"type"Id> T> [[nodiscard]] operator const T &() const { return Handle(); }"
+
+                print "        // I want this to return a const reference, but GCC 13 and earlier choke on that (fixed in 14). GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61663"
+                print "        template <std::same_as<b2"type"Id> T> [[nodiscard]] operator T() const { return Handle(); }"
+                #print "        template <std::same_as<b2"type"Id> T> [[nodiscard]] operator const T &() const { return Handle(); }"
             }
 
             # Expose all the functions.

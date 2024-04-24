@@ -35,7 +35,7 @@ include/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*
 	$(call, ### Yes, `cat` will mangle first/last lines, but it doesn't matter.)
 	cat box2c/include/box2d/* \
 		| perl -pe 's/(\([^)]*)\n/$$1/' \
-		| gawk -f generate.awk >include/box2c.hpp -vsecond_file=tmp.part2
+		| gawk -f generator/generate.awk >include/box2c.hpp -vsecond_file=tmp.part2
 	cat tmp.part2 >>include/box2c.hpp
 	rm tmp.part2
 	sed 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' include/box2c.hpp >test/test_header.hpp
@@ -54,7 +54,7 @@ override all_test_targets =
 override define test_snippet =
 .PHONY: test_$1
 test_$1: include/box2c.hpp
-	MSYS2_ARG_CONV_EXCL=* $1 test/test.cpp $(if $(filter %cl,$1)\
+	MSYS2_ARG_CONV_EXCL=* LANG= $1 test/test.cpp $(if $(filter %cl,$1)\
 		,/nologo /EHsc /std:c++latest /W4 /WX \
 			$(if $(SYNTAX_ONLY),/Zs,/link -lbox2d '/out:test/test_$1.exe') \
 			$(FLAGS_CL) \
