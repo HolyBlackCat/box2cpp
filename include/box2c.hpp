@@ -1,8 +1,8 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 41e47c6 2024-04-21
-// Generator version: 0.4
+// Generated from box2d commit: 1fb2988 2024-04-23
+// Generator version: 0.5
 
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
@@ -265,6 +265,7 @@ namespace b2
         [[nodiscard]] bool AreContactEventsEnabled() const;
 
         /// Allows you to change a shape to be a capsule or update the current capsule.
+        /// This does not modify the mass properties.
         void Set(const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
         /// @return are sensor events enabled?
@@ -297,6 +298,7 @@ namespace b2
         [[nodiscard]] float GetDensity() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
+        /// This does not modify the mass properties.
         void Set(const b2Polygon& polygon) /*non-const*/ requires (!ForceConst);
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
@@ -329,7 +331,8 @@ namespace b2
         [[nodiscard]] bool ArePreSolveEventsEnabled() const;
 
         /// Get the body that a shape is attached to
-        [[nodiscard]] BodyRef GetBody() const;
+        [[nodiscard]] BodyRef GetBody() /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] BodyConstRef GetBody() const;
 
         /// Set the friction on a shape. Normally this is specified in b2ShapeDef.
         void SetFriction(float friction) /*non-const*/ requires (!ForceConst);
@@ -340,7 +343,8 @@ namespace b2
 
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
-        [[nodiscard]] ChainRef GetParentChain() const;
+        [[nodiscard]] ChainRef GetParentChain() /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] ChainConstRef GetParentChain() const;
 
         /// Set the restitution (bounciness) on a shape. Normally this is specified in b2ShapeDef.
         void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
@@ -355,6 +359,7 @@ namespace b2
         [[nodiscard]] float GetFriction() const;
 
         /// Allows you to change a shape to be a segment or update the current segment.
+        /// This does not modify the mass properties.
         void Set(const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
         /// Shape identifier validation. Provides validation for up to 64K allocations.
@@ -453,10 +458,12 @@ namespace b2
         [[nodiscard]] void* GetUserData() const;
 
         /// Get body A on a joint
-        [[nodiscard]] BodyRef GetBodyA() const;
+        [[nodiscard]] BodyRef GetBodyA() /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] BodyConstRef GetBodyA() const;
 
         /// Get body B on a joint
-        [[nodiscard]] BodyRef GetBodyB() const;
+        [[nodiscard]] BodyRef GetBodyB() /*non-const*/ requires (!ForceConst);
+        [[nodiscard]] BodyConstRef GetBodyB() const;
 
         /// Toggle collision between connected bodies
         void SetCollideConnected(bool shouldCollide) /*non-const*/ requires (!ForceConst);
@@ -1885,10 +1892,12 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsSensor() const { return b2Shape_IsSensor(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2SmoothSegment BasicShapeInterface<D, ForceConst>::GetSmoothSegment() const { return b2Shape_GetSmoothSegment(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> BodyRef BasicShapeInterface<D, ForceConst>::GetBody() const { return b2Shape_GetBody(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyRef BasicShapeInterface<D, ForceConst>::GetBody() requires (!ForceConst) { return b2Shape_GetBody(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyConstRef BasicShapeInterface<D, ForceConst>::GetBody() const { return b2Shape_GetBody(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Shape_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Circle& circle) requires (!ForceConst) { b2Shape_SetCircle(static_cast<const D &>(*this).Handle(), &circle); }
-    template <typename D, bool ForceConst> ChainRef BasicShapeInterface<D, ForceConst>::GetParentChain() const { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> ChainRef BasicShapeInterface<D, ForceConst>::GetParentChain() requires (!ForceConst) { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> ChainConstRef BasicShapeInterface<D, ForceConst>::GetParentChain() const { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Shape_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Shape_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> b2ShapeType BasicShapeInterface<D, ForceConst>::GetType() const { return b2Shape_GetType(static_cast<const D &>(*this).Handle()); }
@@ -1902,8 +1911,10 @@ namespace b2
     template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::WakeBodies() requires (!ForceConst) { b2Joint_WakeBodies(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Joint_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> void* BasicJointInterface<D, ForceConst>::GetUserData() const { return b2Joint_GetUserData(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> BodyRef BasicJointInterface<D, ForceConst>::GetBodyA() const { return b2Joint_GetBodyA(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> BodyRef BasicJointInterface<D, ForceConst>::GetBodyB() const { return b2Joint_GetBodyB(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyRef BasicJointInterface<D, ForceConst>::GetBodyA() requires (!ForceConst) { return b2Joint_GetBodyA(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyConstRef BasicJointInterface<D, ForceConst>::GetBodyA() const { return b2Joint_GetBodyA(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyRef BasicJointInterface<D, ForceConst>::GetBodyB() requires (!ForceConst) { return b2Joint_GetBodyB(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> BodyConstRef BasicJointInterface<D, ForceConst>::GetBodyB() const { return b2Joint_GetBodyB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::SetCollideConnected(bool shouldCollide) requires (!ForceConst) { b2Joint_SetCollideConnected(static_cast<const D &>(*this).Handle(), shouldCollide); }
     template <typename D, bool ForceConst> bool BasicJointInterface<D, ForceConst>::GetCollideConnected() const { return b2Joint_GetCollideConnected(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicJointInterface<D, ForceConst>::IsValid() const { return b2Joint_IsValid(static_cast<const D &>(*this).Handle()); }

@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.4"
+    own_version = "0.5"
 
     print "#pragma once"
     print ""
@@ -253,6 +253,12 @@ function emit_func(func_name, type, func_variant_index, indent)
     return_type = funcs[func_name]["ret"]
     return_type_fixed = funcs[func_name]["ret_fixed"]
 
+    # Whether this is a getter that should be duplicated to have const and non-const versions.
+    is_const_nonconst_getter = return_type_fixed ~ /Ref$/
+
+    variant_return_type = return_type_fixed
+    if (is_const_nonconst_getter && func_variant_index == 1)
+        variant_return_type = gensub(/Ref$/, "ConstRef", 1, variant_return_type)
 
     # The comment of this function.
     if (func_variant_index == 0)
@@ -305,8 +311,8 @@ function emit_func(func_name, type, func_variant_index, indent)
     else
         printf "inline " >second_file
 
-    printf return_type_fixed
-    printf return_type_fixed >second_file
+    printf variant_return_type
+    printf variant_return_type >second_file
     if (is_factory_func && !factory_func_owning)
     {
         printf "Ref"
@@ -386,7 +392,11 @@ function emit_func(func_name, type, func_variant_index, indent)
 
     # Constness.
     is_const = 0
-    if (funcs[func_name]["accepts_const_nonconst_callback"])
+    if (is_const_nonconst_getter)
+    {
+        is_const = func_variant_index # A const version of a getter.
+    }
+    else if (funcs[func_name]["accepts_const_nonconst_callback"])
     {
         is_const = func_variant_index # Accepting const and non-const callbacks.
     }
@@ -507,7 +517,7 @@ function emit_func(func_name, type, func_variant_index, indent)
         printf " static_cast<D &>(*this).id = {}; }" >second_file
     print " }" >second_file
 
-    if (func_variant_index == 0 && (is_factory_func || funcs[func_name]["accepts_const_nonconst_callback"]))
+    if (func_variant_index == 0 && (is_factory_func || is_const_nonconst_getter || funcs[func_name]["accepts_const_nonconst_callback"]))
         emit_func(func_name, type, func_variant_index + 1, indent)
 
     # Destroy the function we just generated.
