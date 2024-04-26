@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 1fb2988 2024-04-23
-// Generator version: 0.5
+// Generator version: 0.6
 
 #include <box2d/box2d.h>
 #include <box2d/dynamic_tree.h>
@@ -186,7 +186,6 @@ namespace b2
         template <typename, bool>
         friend class BasicBodyInterface;
 
-
       protected:
         b2ChainId id{};
 
@@ -231,7 +230,7 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstChainRef(const Chain& other) noexcept : MaybeConstChainRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstChainRef(const MaybeConstChainRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstChainRef(other.Handle()) {}
     };
 
@@ -377,7 +376,6 @@ namespace b2
         template <typename, bool>
         friend class BasicBodyInterface;
 
-
       protected:
         b2ShapeId id{};
 
@@ -422,7 +420,7 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstShapeRef(const Shape& other) noexcept : MaybeConstShapeRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstShapeRef(const MaybeConstShapeRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstShapeRef(other.Handle()) {}
     };
 
@@ -482,6 +480,13 @@ namespace b2
     {
         template <typename, bool>
         friend class BasicJointInterface;
+        friend class WeldJoint;
+        friend class WheelJoint;
+        friend class RevoluteJoint;
+        friend class DistanceJoint;
+        friend class MouseJoint;
+        friend class MotorJoint;
+        friend class PrismaticJoint;
 
       protected:
         b2JointId id{};
@@ -521,7 +526,7 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstJointRef(const Joint& other) noexcept : MaybeConstJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstJointRef(const MaybeConstJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstJointRef(other.Handle()) {}
     };
 
@@ -574,7 +579,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -586,10 +590,20 @@ namespace b2
         {
             Params() : b2DistanceJointDef(b2DefaultDistanceJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit DistanceJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_distanceJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `DistanceJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstDistanceJointRef : public JointRef, public BasicDistanceJointInterface<DistanceJointRef, IsConstRef>
+    class MaybeConstDistanceJointRef : public MaybeConstJointRef<IsConstRef>, public BasicDistanceJointInterface<DistanceJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicDistanceJointInterface;
@@ -603,6 +617,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstDistanceJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -615,7 +630,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstDistanceJointRef(const DistanceJoint& other) noexcept : MaybeConstDistanceJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstDistanceJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstDistanceJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstDistanceJointRef(const MaybeConstDistanceJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstDistanceJointRef(other.Handle()) {}
     };
 
@@ -673,7 +690,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -685,10 +701,20 @@ namespace b2
         {
             Params() : b2MotorJointDef(b2DefaultMotorJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit MotorJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_motorJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `MotorJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstMotorJointRef : public JointRef, public BasicMotorJointInterface<MotorJointRef, IsConstRef>
+    class MaybeConstMotorJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMotorJointInterface<MotorJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicMotorJointInterface;
@@ -702,6 +728,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstMotorJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -714,7 +741,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstMotorJointRef(const MotorJoint& other) noexcept : MaybeConstMotorJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstMotorJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstMotorJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstMotorJointRef(const MaybeConstMotorJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstMotorJointRef(other.Handle()) {}
     };
 
@@ -751,7 +780,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -763,10 +791,20 @@ namespace b2
         {
             Params() : b2MouseJointDef(b2DefaultMouseJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit MouseJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_mouseJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `MouseJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstMouseJointRef : public JointRef, public BasicMouseJointInterface<MouseJointRef, IsConstRef>
+    class MaybeConstMouseJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMouseJointInterface<MouseJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicMouseJointInterface;
@@ -780,6 +818,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstMouseJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -792,7 +831,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstMouseJointRef(const MouseJoint& other) noexcept : MaybeConstMouseJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstMouseJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstMouseJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstMouseJointRef(const MaybeConstMouseJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstMouseJointRef(other.Handle()) {}
     };
 
@@ -858,7 +899,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -870,10 +910,20 @@ namespace b2
         {
             Params() : b2PrismaticJointDef(b2DefaultPrismaticJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit PrismaticJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_prismaticJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `PrismaticJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstPrismaticJointRef : public JointRef, public BasicPrismaticJointInterface<PrismaticJointRef, IsConstRef>
+    class MaybeConstPrismaticJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPrismaticJointInterface<PrismaticJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicPrismaticJointInterface;
@@ -887,6 +937,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstPrismaticJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -899,7 +950,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstPrismaticJointRef(const PrismaticJoint& other) noexcept : MaybeConstPrismaticJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstPrismaticJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstPrismaticJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstPrismaticJointRef(const MaybeConstPrismaticJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstPrismaticJointRef(other.Handle()) {}
     };
 
@@ -970,7 +1023,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -982,10 +1034,20 @@ namespace b2
         {
             Params() : b2RevoluteJointDef(b2DefaultRevoluteJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit RevoluteJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_revoluteJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `RevoluteJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstRevoluteJointRef : public JointRef, public BasicRevoluteJointInterface<RevoluteJointRef, IsConstRef>
+    class MaybeConstRevoluteJointRef : public MaybeConstJointRef<IsConstRef>, public BasicRevoluteJointInterface<RevoluteJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicRevoluteJointInterface;
@@ -999,6 +1061,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstRevoluteJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -1011,7 +1074,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstRevoluteJointRef(const RevoluteJoint& other) noexcept : MaybeConstRevoluteJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstRevoluteJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstRevoluteJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstRevoluteJointRef(const MaybeConstRevoluteJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstRevoluteJointRef(other.Handle()) {}
     };
 
@@ -1090,7 +1155,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -1102,10 +1166,20 @@ namespace b2
         {
             Params() : b2WheelJointDef(b2DefaultWheelJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit WheelJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_wheelJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `WheelJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstWheelJointRef : public JointRef, public BasicWheelJointInterface<WheelJointRef, IsConstRef>
+    class MaybeConstWheelJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWheelJointInterface<WheelJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWheelJointInterface;
@@ -1119,6 +1193,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstWheelJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -1131,7 +1206,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstWheelJointRef(const WheelJoint& other) noexcept : MaybeConstWheelJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstWheelJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstWheelJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstWheelJointRef(const MaybeConstWheelJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstWheelJointRef(other.Handle()) {}
     };
 
@@ -1177,7 +1254,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       public:
         static constexpr bool IsOwning = true;
 
@@ -1189,10 +1265,20 @@ namespace b2
         {
             Params() : b2WeldJointDef(b2DefaultWeldJointDef()) {}
         };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit WeldJoint(Joint&& other) noexcept
+        {
+            if (other.GetType() == b2_weldJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `WeldJoint`.");
+        }
     };
 
     template <bool IsConstRef>
-    class MaybeConstWeldJointRef : public JointRef, public BasicWeldJointInterface<WeldJointRef, IsConstRef>
+    class MaybeConstWeldJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWeldJointInterface<WeldJointRef, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWeldJointInterface;
@@ -1206,6 +1292,7 @@ namespace b2
 
         // Point to an existing handle.
         // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstWeldJointRef(std::same_as<b2JointId> auto id) noexcept
         {
@@ -1218,7 +1305,9 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstWeldJointRef(const WeldJoint& other) noexcept : MaybeConstWeldJointRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstWeldJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstWeldJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstWeldJointRef(const MaybeConstWeldJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstWeldJointRef(other.Handle()) {}
     };
 
@@ -1480,7 +1569,6 @@ namespace b2
         template <typename, bool>
         friend class BasicWorldInterface;
 
-
       protected:
         b2BodyId id{};
 
@@ -1525,7 +1613,7 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstBodyRef(const Body& other) noexcept : MaybeConstBodyRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstBodyRef(const MaybeConstBodyRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstBodyRef(other.Handle()) {}
     };
 
@@ -1734,7 +1822,7 @@ namespace b2
         // Create from a non-reference.
         constexpr MaybeConstWorldRef(const World& other) noexcept : MaybeConstWorldRef(other.Handle()) {}
 
-        // Const a non-const reference to a const reference.
+        // Convert a non-const reference to a const reference.
         constexpr MaybeConstWorldRef(const MaybeConstWorldRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstWorldRef(other.Handle()) {}
     };
 

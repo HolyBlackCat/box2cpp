@@ -85,6 +85,40 @@ static_assert(!std::convertible_to<b2::Joint, b2::WeldJointConstRef>);
 static_assert(!std::convertible_to<b2::WeldJointRef, b2::Joint>);
 static_assert(!std::convertible_to<b2::WeldJointConstRef, b2::Joint>);
 
+// upcast:
+// - upcast owning object
+static_assert(std::convertible_to<b2::WeldJoint, b2::Joint>);
+static_assert(std::convertible_to<b2::WeldJoint, b2::JointRef>);
+static_assert(std::convertible_to<b2::WeldJoint, b2::JointConstRef>);
+// - upcast ref
+static_assert(!std::constructible_from<b2::Joint, b2::WeldJointRef>); // Drops constness = illegal.
+static_assert(std::convertible_to<b2::WeldJointRef, b2::JointRef>);
+static_assert(std::convertible_to<b2::WeldJointRef, b2::JointConstRef>);
+// - upcast const ref
+static_assert(!std::constructible_from<b2::Joint, b2::WeldJointConstRef>); // Drops constness = illegal.
+static_assert(!std::constructible_from<b2::JointRef, b2::WeldJointConstRef>); // Drops constness = illegal.
+static_assert(std::convertible_to<b2::WeldJointConstRef, b2::JointConstRef>);
+
+// downcast
+// - downcast owning
+static_assert(!std::convertible_to<b2::Joint, b2::WeldJoint>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJoint, b2::Joint>); // explicit = yes
+static_assert(!std::convertible_to<b2::Joint, b2::WeldJointRef>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJointRef, b2::Joint>); // explicit = yes
+static_assert(!std::convertible_to<b2::Joint, b2::WeldJointConstRef>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJointConstRef, b2::Joint>); // explicit = yes
+// - downcast ref
+static_assert(!std::constructible_from<b2::WeldJoint, b2::JointRef>); // Drops reference = illegal.
+static_assert(!std::convertible_to<b2::JointRef, b2::WeldJointRef>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJointRef, b2::JointRef>); // explicit = yes
+static_assert(!std::convertible_to<b2::JointRef, b2::WeldJointConstRef>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJointConstRef, b2::JointRef>); // explicit = yes
+// - downcast const ref
+static_assert(!std::constructible_from<b2::WeldJoint, b2::JointConstRef>); // Drops reference = illegal.
+static_assert(!std::constructible_from<b2::WeldJointRef, b2::JointConstRef>); // Drops constness = illegal.
+static_assert(!std::convertible_to<b2::JointConstRef, b2::WeldJointConstRef>); // implicit = no
+static_assert(std::constructible_from<b2::WeldJointConstRef, b2::JointConstRef>); // explicit = yes
+
 
 // ------ Callbacks:
 
@@ -154,4 +188,18 @@ int main()
             return true;
         }
     );
+
+    // Joints.
+    bp.position.x += 2;
+    b2::Body b2 = w.CreateBody(b2::OwningHandle, bp);
+
+    b2::WeldJoint::Params wjp;
+    wjp.bodyIdA = b;
+    wjp.bodyIdB = b2;
+    b2::WeldJoint wj = w.CreateJoint(b2::OwningHandle, wjp);
+    assert(wj);
+    b2::Joint bj = std::move(wj);
+    assert(bj && !wj);
+    wj = b2::WeldJoint(std::move(bj));
+    assert(wj && !bj);
 }

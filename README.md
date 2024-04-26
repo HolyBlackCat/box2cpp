@@ -4,9 +4,9 @@
 
 * Provides classes for all box2d entities: `World`, `Body`, `Shape`, `Chain`, all joint kinds, `DynamicTree`.
 
-  * [With RAII](#ownership) - they automatically destroy box2d objects in destructors
+  * [With RAII](#ownership) - automatically destroy box2d objects in destructors
 
-  * All related functions as methods (with const correctness).
+  * All related functions as methods (with const-correctness).
 
   * [Callbacks accept arbitrary lambdas](#using-callbacks) (no need to mess with `void *` and function pointers).
 
@@ -14,7 +14,7 @@
 
 * Minimal - we don't wrap enums, most structs (including as `b2Vec2` and `b2AABB`), functions that are not related to a specific class.
 
-<sup>Note: box2d 3.0 is experimental (but seems to work well already), and so are those bindings. They may change as box2d API changes, or when I find better ways of doing things.</sup>
+<sup>Note: box2d 3.0 is experimental (but seems to work well already), and so are those bindings. They may change as box2d API changes, or when I find new better ways of doing things.</sup>
 
 ## Hello world
 
@@ -62,7 +62,7 @@ If the header is outdated, you can regenerate it yourself. (See comment at the b
 
 Prerequisites: `git`, GNU `make`, `sed`, `perl`, `gawk` (GNU awk). On Windows, install that from MSYS2 and run inside MSYS2 terminal (or use WSL).
 
-Run `make`. It will clone box2c to `./box2c` (or do nothing if already exists; make sure to advance it to the latest comment if needed), and will regenerate `include/box2c.hpp`. The comments at the beginning of `Makefile` have instructions for running tests, if you want to.
+Run `make`. It will clone box2c to `./box2c` (or do nothing if already exists; make sure to advance it to the latest commit manually if needed), and will regenerate `include/box2c.hpp`. The comments at the beginning of `Makefile` have instructions for running tests, if you want to.
 
 ## How it works
 
@@ -78,7 +78,7 @@ You might have noticed from the example that all `.Create...(...)` functions acc
 
   It's an error to destroy `b2::Body` after destroying `b2::World` it was created in (box2d should raise an assertion in debug mode).
 
-* `w.CreateBody(b2::DestroyWithParent)` returns `b2::BodyRef` that **doesn't** destroy the body automatically. Box2d will destroy it with the world. (And shapes and joints created with this mode will be destroyed with the bodies they're attached to.)
+* `w.CreateBody(b2::DestroyWithParent, ...)` returns `b2::BodyRef` that **doesn't** destroy the body automatically. Box2d will destroy it with the world. (And shapes and joints created in this mode will be destroyed with the bodies they're attached to.)
 
   This behavior is useful for entities that you don't want to touch after creation, such as shapes and joints, and perhaps static level geometry.
 
@@ -94,7 +94,7 @@ All classes are default-constructible, and are null by default. They are convert
 
 `b2::Body` is convertible to `b2::BodyRef` and `b2::BodyConstRef`. `b2::BodyRef` is convertible to `b2::BodyConstRef`. (And so on.)
 
-Joint classes are a bit special, as they inherit from a common base (e.g. `b2::WeldJoint` inherits from `b2::Joint`). You can store them using either the specific derived classes or using the base class.
+Joint classes are a bit special, as they inherit from a common base (e.g. `b2::WeldJoint` inherits from `b2::Joint`). You can store them using either the specific derived classes or using the base class. Specific joint types are implicitly convertible to the generic joint, but the inverse (downcast) requires an `explicit` constructor call that raises an assertion if the actual joint type is wrong.
 
 ### Parameters structs
 

@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.5"
+    own_version = "0.6"
 
     print "#pragma once"
     print ""
@@ -733,6 +733,14 @@ END {
             print "    {"
             print "        template <typename, bool>"
             print "        friend class Basic"type"Interface;"
+            # Joint needs to friend all the derived joints for downcasts.
+            if (type == "Joint")
+            {
+                for (other_type in classes_joint_kinds)
+                {
+                    print "        friend class "other_type";"
+                }
+            }
             # Emit extra friends (for `Create...` functions).
             split("", this_class_friends)
             for (func_name in funcs)
@@ -747,8 +755,6 @@ END {
                     }
                 }
             }
-            if (length(this_class_friends) > 0)
-                print ""
             print ""
             if (!is_joint_kind)
             {
@@ -786,6 +792,21 @@ END {
                 delete funcs["b2Create" type]
             }
 
+            # Downcast.
+            if (is_joint_kind)
+            {
+                print ""
+                print "        // Downcast from a generic joint."
+                print "        // Triggers an assertion if this isn't the right joint kind."
+                print "        explicit "type"(Joint&& other) noexcept"
+                print "        {"
+                print "            if (other.GetType() == "joint_enum_value")"
+                print "                this->id = std::exchange(other.id, {});"
+                print "            else"
+                print "                BOX2CPP_ASSERT(false && \"This joint is not a `"type"`.\");"
+                print "        }"
+            }
+
             if (!is_joint_kind)
             {
                 # Copy/move ctors.
@@ -805,7 +826,7 @@ END {
             print "    template <bool IsConstRef>"
             printf "    class MaybeConst"type"Ref : "
             if (is_joint_kind)
-                printf "public "base_type_or_self"Ref, "
+                printf "public MaybeConst"base_type_or_self"Ref<IsConstRef>, "
             print "public Basic"type"Interface<"type"Ref, IsConstRef>"
             print "    {"
             print "        template <typename, bool>"
@@ -829,6 +850,7 @@ END {
             print "        // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers."
             if (is_joint_kind)
             {
+                print "        // Downcast from a generic joint reference (or owning joint)."
                 print "        // Triggers an assertion if this isn't the right joint kind."
                 print "        explicit constexpr MaybeConst"type"Ref(std::same_as<b2JointId> auto id) noexcept"
                 print "        {"
@@ -847,8 +869,14 @@ END {
             print "        // Create from a non-reference."
             print "        constexpr MaybeConst"type"Ref(const "type"& other) noexcept : MaybeConst"type"Ref(other.Handle()) {}"
             print ""
+            if (is_joint_kind)
+            {
+                # Downcast from a reference or an owning object.
+                print "        // Triggers an assertion if this isn't the right joint kind."
+                print "        explicit constexpr MaybeConst"type"Ref(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConst"type"Ref(other.Handle()) {}"
+            }
             # Convert non-const reference to const.
-            print "        // Const a non-const reference to a const reference."
+            print "        // Convert a non-const reference to a const reference."
             print "        constexpr MaybeConst"type"Ref(const MaybeConst"type"Ref<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConst"type"Ref(other.Handle()) {}"
             print "    };"
         }
