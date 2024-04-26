@@ -29,31 +29,31 @@ box2c:
 	git clone https://github.com/erincatto/box2c
 
 # Generate the file.
-include/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*.h) | include test
+include/box2cpp/box2c.hpp test/test_header.hpp &: box2c $(wildcard box2c/include/box2d/*.h) | include test
 	$(call, ### Strip the newlines inside parentheses, then give the result to awk.)
 	$(call, ### `box2d.h` is the primary header. `types.h` and `joint_types.h` are needed for `b2Default...Def` functions.)
 	$(call, ### Yes, `cat` will mangle first/last lines, but it doesn't matter.)
 	cat box2c/include/box2d/* \
 		| perl -pe 's/(\([^)]*)\n/$$1/' \
-		| gawk -f generator/generate.awk >include/box2c.hpp -vsecond_file=tmp.part2
-	cat tmp.part2 >>include/box2c.hpp
+		| gawk -f generator/generate.awk >include/box2cpp/box2c.hpp -vsecond_file=tmp.part2
+	cat tmp.part2 >>include/box2cpp/box2c.hpp
 	rm tmp.part2
-	sed 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' include/box2c.hpp >test/test_header.hpp
+	sed 's|<box2d/\(.*\)>|"../box2c/include/box2d/\1"|' include/box2cpp/box2c.hpp >test/test_header.hpp
 
 # Directories:
 $(strip include) test:
 	mkdir -p $@
 
 # Force regeneration.
-.PHONY: include/box2c.hpp
+.PHONY: include/box2cpp/box2c.hpp
 
 .PHONY: generate
-generate: include/box2c.hpp
+generate: include/box2cpp/box2c.hpp
 
 override all_test_targets =
 override define test_snippet =
 .PHONY: test_$1
-test_$1: include/box2c.hpp
+test_$1: include/box2cpp/box2c.hpp
 	MSYS2_ARG_CONV_EXCL=* LANG= $1 test/test.cpp $(if $(filter %cl,$1)\
 		,/nologo /EHsc /std:c++latest /W4 /WX \
 			$(if $(SYNTAX_ONLY),/Zs,/link -lbox2d '/out:test/test_$1.exe') \

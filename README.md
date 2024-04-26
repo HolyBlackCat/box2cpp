@@ -14,12 +14,17 @@
 
 * Minimal - we don't wrap enums, most structs (including as `b2Vec2` and `b2AABB`), functions that are not related to a specific class.
 
+And some extras:
+
+* A [debug ImGui renderer](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.hpp). It can be used on its own (for simple demos) or to draw an overlay on top of your existing graphics (to show hitboxes).
+
+
 <sup>Note: box2d 3.0 is experimental (but seems to work well already), and so are those bindings. They may change as box2d API changes, or when I find new better ways of doing things.</sup>
 
 ## Hello world
 
 ```cpp
-#include <box2c.hpp>
+#include <box2cpp/box2c.hpp>
 
 int main()
 {
