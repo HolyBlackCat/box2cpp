@@ -16,7 +16,7 @@
 
 And some extras:
 
-* A [debug ImGui renderer](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.hpp). It can be used on its own (for simple demos) or to draw an overlay on top of your existing graphics (to show hitboxes).
+* A [debug renderer](#debug-imgui-renderer) using ImGui.
 
 
 <sup>Note: box2d 3.0 is experimental (but seems to work well already), and so are those bindings. They may change as box2d API changes, or when I find new better ways of doing things.</sup>
@@ -162,3 +162,34 @@ b2World_OverlapCircle(
 ```
 
 Those callback improvements are not yet implemented for `b2::World::SetPreSolveCallback()`, and for functions in `b2::DynamicTree`.
+
+## Debug ImGui renderer
+
+We have an optional debug renderer using ImGui.
+
+See comments in [`<box2cpp/debug_imgui_renderer.hpp>`](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.hpp) for usage details.
+
+Simple example: (this assumes you already know how to use ImGui)
+```cpp
+
+#include <box2cpp/box2c.hpp>
+#include <box2cpp/debug_imgui_renderer.hpp>
+
+int main()
+{
+    // Initialize ImGui...
+
+    b2::World w(b2::World::Params{});
+    b2::DebugImguiRenderer debug_renderer;
+
+    while (true)
+    {
+        // ImGui main loop...
+
+        debug_renderer.DrawShapes(world); // Draw Box2D shapes.
+        debug_renderer.MouseDrag(world); // Allow dragging bodies with mouse.
+        debug_renderer.DrawModeToggles(); // Checkboxes for adjusting visualization.
+    }
+}
+
+```
