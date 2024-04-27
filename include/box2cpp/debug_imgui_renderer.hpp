@@ -29,7 +29,7 @@ namespace b2
 
         // Camera rotation. The vector `(c,s)` is the box2d direction that maps to the +X screen direction.
         // Can grab this from a body you want to follow, via `.GetRotation()`.
-        b2Rot camera_rot = b2Rot{.s = 0, .c = 1};
+        b2Rot camera_rot = b2Rot{.c = 1, .s = 0};
         // If true, the Y axis is inverted and points upwards instead of downwards.
         float y_axis_is_upwards = false;
 
