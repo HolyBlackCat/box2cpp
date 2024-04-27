@@ -68,41 +68,41 @@ namespace b2
             callbacks.context = this;
 
             callbacks.drawShapes = true;
-        	callbacks.drawJoints = true;
-        	callbacks.drawJointExtras = false;
-        	callbacks.drawAABBs = false;
-        	callbacks.drawMass = true;
-        	callbacks.drawContacts = false;
-        	callbacks.drawGraphColors = false;
-        	callbacks.drawContactNormals = false;
-        	callbacks.drawContactImpulses = false;
-        	callbacks.drawFrictionImpulses = false;
+            callbacks.drawJoints = true;
+            callbacks.drawJointExtras = false;
+            callbacks.drawAABBs = false;
+            callbacks.drawMass = true;
+            callbacks.drawContacts = false;
+            callbacks.drawGraphColors = false;
+            callbacks.drawContactNormals = false;
+            callbacks.drawContactImpulses = false;
+            callbacks.drawFrictionImpulses = false;
 
-        	callbacks.DrawPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
+            callbacks.DrawPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawPolygon(vertices, vertexCount, color, 0);
             };
 
-        	callbacks.DrawSolidPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
+            callbacks.DrawSolidPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawPolygonFilled(vertices, vertexCount, color, 0);
             };
 
-        	callbacks.DrawRoundedPolygon = [](const b2Vec2* vertices, int vertexCount, float radius, b2Color color, void* context)
+            callbacks.DrawRoundedPolygon = [](const b2Vec2* vertices, int vertexCount, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawPolygonFilled(vertices, vertexCount, color, radius);
             };
 
-        	callbacks.DrawCircle = [](b2Vec2 center, float radius, b2Color color, void* context)
+            callbacks.DrawCircle = [](b2Vec2 center, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawList().AddCircle(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, false), 0, self.line_thickness);
             };
 
-        	callbacks.DrawSolidCircle = [](b2Vec2 center, float radius, b2Vec2 axis, b2Color color, void* context)
+            callbacks.DrawSolidCircle = [](b2Vec2 center, float radius, b2Vec2 axis, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawList().AddCircleFilled(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, true));
@@ -111,25 +111,25 @@ namespace b2
                 self.DrawLine(center, b2Vec2(center.x + axis.x, center.y + axis.y), color);
             };
 
-        	callbacks.DrawCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
+            callbacks.DrawCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsule(p1, p2, radius, color);
             };
 
-        	callbacks.DrawSolidCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
+            callbacks.DrawSolidCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsuleFilled(p1, p2, radius, color);
             };
 
-        	callbacks.DrawSegment = [](b2Vec2 p1, b2Vec2 p2, b2Color color, void* context)
+            callbacks.DrawSegment = [](b2Vec2 p1, b2Vec2 p2, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawLine(p1, p2, color);
             };
 
-        	callbacks.DrawTransform = [](b2Transform xf, void* context)
+            callbacks.DrawTransform = [](b2Transform xf, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 ImVec2 p = self.Box2dToImguiPoint(xf.p);
@@ -144,16 +144,16 @@ namespace b2
                 self.DrawList().AddLine(ImVec2(p.x - 0.5f, p.y - 0.5f), ImVec2(p.x + d.x - 0.5f, p.y + d.y - 0.5f), ImGui::ColorConvertFloat4ToU32(self.transform_color_x), self.line_thickness);
             };
 
-        	/// Draw a point.
-        	callbacks.DrawPoint = [](b2Vec2 p, float size, b2Color color, void* context)
+            /// Draw a point.
+            callbacks.DrawPoint = [](b2Vec2 p, float size, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 // Using `size` as is, it seems to be in pixels.
                 self.DrawList().AddCircleFilled(self.Box2dToImguiPoint(p), size * self.line_thickness, self.ShapeColorToImguiColor(color, true/*sic, looks better*/));
             };
 
-        	/// Draw a string.
-        	callbacks.DrawString = [](b2Vec2 p, const char* s, void* context)
+            /// Draw a string.
+            callbacks.DrawString = [](b2Vec2 p, const char* s, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
 
@@ -198,15 +198,15 @@ namespace b2
             ImGui::Begin("box2d debug render");
 
             ImGui::Checkbox("Shapes", &callbacks.drawShapes);
-        	ImGui::Checkbox("Joints", &callbacks.drawJoints);
-        	ImGui::Checkbox("Joint extras", &callbacks.drawJointExtras);
-        	ImGui::Checkbox("AABBs", &callbacks.drawAABBs);
-        	ImGui::Checkbox("Mass", &callbacks.drawMass);
-        	ImGui::Checkbox("Contacts", &callbacks.drawContacts);
-        	ImGui::Checkbox("Graph colors", &callbacks.drawGraphColors);
-        	ImGui::Checkbox("Contact normals", &callbacks.drawContactNormals);
-        	ImGui::Checkbox("Contact impulses", &callbacks.drawContactImpulses);
-        	ImGui::Checkbox("Friction impulses", &callbacks.drawFrictionImpulses);
+            ImGui::Checkbox("Joints", &callbacks.drawJoints);
+            ImGui::Checkbox("Joint extras", &callbacks.drawJointExtras);
+            ImGui::Checkbox("AABBs", &callbacks.drawAABBs);
+            ImGui::Checkbox("Mass", &callbacks.drawMass);
+            ImGui::Checkbox("Contacts", &callbacks.drawContacts);
+            ImGui::Checkbox("Graph colors", &callbacks.drawGraphColors);
+            ImGui::Checkbox("Contact normals", &callbacks.drawContactNormals);
+            ImGui::Checkbox("Contact impulses", &callbacks.drawContactImpulses);
+            ImGui::Checkbox("Friction impulses", &callbacks.drawFrictionImpulses);
             ImGui::Separator(); // In case we draw multiple windows.
 
             ImGui::End();
