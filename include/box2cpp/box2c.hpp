@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 1fb2988 2024-04-23
+// Generated from box2d commit: b7722b0 2024-04-25
 // Generator version: 0.6
 
 #include <box2d/box2d.h>
@@ -992,6 +992,9 @@ namespace b2
 
         /// @return is the revolute joint motor enabled
         [[nodiscard]] bool IsMotorEnabled() const;
+
+        /// Get the current joint angle in radians relative to the reference angle
+        [[nodiscard]] float GetAngle() const;
 
         /// @return is the revolute joint limit enabled
         [[nodiscard]] bool IsLimitEnabled() const;
@@ -2058,6 +2061,7 @@ namespace b2
     template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetConstraintTorque() const { return b2RevoluteJoint_GetConstraintTorque(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicRevoluteJointInterface<D, ForceConst>::GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicRevoluteJointInterface<D, ForceConst>::IsMotorEnabled() const { return b2RevoluteJoint_IsMotorEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetAngle() const { return b2RevoluteJoint_GetAngle(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicRevoluteJointInterface<D, ForceConst>::IsLimitEnabled() const { return b2RevoluteJoint_IsLimitEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::EnableMotor(bool enableMotor) requires (!ForceConst) { b2RevoluteJoint_EnableMotor(static_cast<const D &>(*this).Handle(), enableMotor); }
     template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::EnableLimit(bool enableLimit) requires (!ForceConst) { b2RevoluteJoint_EnableLimit(static_cast<const D &>(*this).Handle(), enableLimit); }

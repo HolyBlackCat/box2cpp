@@ -69,6 +69,7 @@ namespace b2
 
             callbacks.drawShapes = true;
         	callbacks.drawJoints = true;
+        	callbacks.drawJointExtras = false;
         	callbacks.drawAABBs = false;
         	callbacks.drawMass = true;
         	callbacks.drawContacts = false;
@@ -77,39 +78,30 @@ namespace b2
         	callbacks.drawContactImpulses = false;
         	callbacks.drawFrictionImpulses = false;
 
-            /// Draw a closed polygon provided in CCW order.
         	callbacks.DrawPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawPolygon(vertices, vertexCount, color, 0);
             };
 
-        	/// Draw a solid closed polygon provided in CCW order.
         	callbacks.DrawSolidPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawPolygonFilled(vertices, vertexCount, color, 0);
             };
 
-        	/// Draw a rounded polygon provided in CCW order.
-        	callbacks.DrawRoundedPolygon = [](const b2Vec2* vertices, int vertexCount, float radius, b2Color lineColor, b2Color fillColor, void* context)
+        	callbacks.DrawRoundedPolygon = [](const b2Vec2* vertices, int vertexCount, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
-                (void)lineColor; // https://github.com/erincatto/box2c/issues/147
-                if (fillColor.a > 0)
-                    self.DrawPolygonFilled(vertices, vertexCount, fillColor, radius);
-                else
-                    self.DrawPolygon(vertices, vertexCount, fillColor, 0);
+                self.DrawPolygonFilled(vertices, vertexCount, color, radius);
             };
 
-        	/// Draw a circle.
         	callbacks.DrawCircle = [](b2Vec2 center, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawList().AddCircle(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, false), 0, self.line_thickness);
             };
 
-        	/// Draw a solid circle.
         	callbacks.DrawSolidCircle = [](b2Vec2 center, float radius, b2Vec2 axis, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
@@ -119,29 +111,24 @@ namespace b2
                 self.DrawLine(center, b2Vec2(center.x + axis.x, center.y + axis.y), color);
             };
 
-        	/// Draw a capsule.
         	callbacks.DrawCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsule(p1, p2, radius, color);
             };
 
-        	/// Draw a solid capsule.
         	callbacks.DrawSolidCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsuleFilled(p1, p2, radius, color);
             };
 
-        	/// Draw a line segment.
         	callbacks.DrawSegment = [](b2Vec2 p1, b2Vec2 p2, b2Color color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawLine(p1, p2, color);
             };
 
-        	/// Draw a transform. Choose your own length scale.
-        	/// @param xf a transform.
         	callbacks.DrawTransform = [](b2Transform xf, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
@@ -212,6 +199,7 @@ namespace b2
 
             ImGui::Checkbox("Shapes", &callbacks.drawShapes);
         	ImGui::Checkbox("Joints", &callbacks.drawJoints);
+        	ImGui::Checkbox("Joint extras", &callbacks.drawJointExtras);
         	ImGui::Checkbox("AABBs", &callbacks.drawAABBs);
         	ImGui::Checkbox("Mass", &callbacks.drawMass);
         	ImGui::Checkbox("Contacts", &callbacks.drawContacts);
