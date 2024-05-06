@@ -2,6 +2,7 @@
 
 #include <box2cpp/box2c.hpp>
 #include <box2d/debug_draw.h>
+#include <box2d/math_functions.h>
 #include <imgui.h>
 
 namespace b2
@@ -78,52 +79,46 @@ namespace b2
             callbacks.drawContactImpulses = false;
             callbacks.drawFrictionImpulses = false;
 
-            callbacks.DrawPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
+            callbacks.DrawPolygon = [](const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
-                self.DrawPolygon(vertices, vertexCount, color, 0);
+                self.DrawPolygon(vertices, vertexCount, color, 0, nullptr);
             };
 
-            callbacks.DrawSolidPolygon = [](const b2Vec2* vertices, int vertexCount, b2Color color, void* context)
+            callbacks.DrawSolidPolygon = [](b2Transform xf, const b2Vec2* vertices, int vertexCount, float radius, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
-                self.DrawPolygonFilled(vertices, vertexCount, color, 0);
+                self.DrawPolygonFilled(vertices, vertexCount, color, radius, &xf);
             };
 
-            callbacks.DrawRoundedPolygon = [](const b2Vec2* vertices, int vertexCount, float radius, b2Color color, void* context)
-            {
-                auto &self = *static_cast<DebugImguiRenderer *>(context);
-                self.DrawPolygonFilled(vertices, vertexCount, color, radius);
-            };
-
-            callbacks.DrawCircle = [](b2Vec2 center, float radius, b2Color color, void* context)
+            callbacks.DrawCircle = [](b2Vec2 center, float radius, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawList().AddCircle(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, false), 0, self.line_thickness);
             };
 
-            callbacks.DrawSolidCircle = [](b2Vec2 center, float radius, b2Vec2 axis, b2Color color, void* context)
+            callbacks.DrawSolidCircle = [](b2Transform xf, float radius, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
-                self.DrawList().AddCircleFilled(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, true));
-                self.DrawList().AddCircle(self.Box2dToImguiPoint(center), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, false), 0, self.line_thickness);
+                self.DrawList().AddCircleFilled(self.Box2dToImguiPoint(xf.p), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, true));
+                self.DrawList().AddCircle(self.Box2dToImguiPoint(xf.p), self.Box2dToImguiLength(radius), self.ShapeColorToImguiColor(color, false), 0, self.line_thickness);
 
-                self.DrawLine(center, b2Vec2(center.x + axis.x, center.y + axis.y), color);
+                self.DrawLine(xf.p, b2Vec2(xf.p.x + xf.q.c * radius, xf.p.y + xf.q.s * radius), color);
             };
 
-            callbacks.DrawCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
+            callbacks.DrawCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsule(p1, p2, radius, color);
             };
 
-            callbacks.DrawSolidCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2Color color, void* context)
+            callbacks.DrawSolidCapsule = [](b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawCapsuleFilled(p1, p2, radius, color);
             };
 
-            callbacks.DrawSegment = [](b2Vec2 p1, b2Vec2 p2, b2Color color, void* context)
+            callbacks.DrawSegment = [](b2Vec2 p1, b2Vec2 p2, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 self.DrawLine(p1, p2, color);
@@ -145,7 +140,7 @@ namespace b2
             };
 
             /// Draw a point.
-            callbacks.DrawPoint = [](b2Vec2 p, float size, b2Color color, void* context)
+            callbacks.DrawPoint = [](b2Vec2 p, float size, b2HexColor color, void* context)
             {
                 auto &self = *static_cast<DebugImguiRenderer *>(context);
                 // Using `size` as is, it seems to be in pixels.
@@ -306,36 +301,40 @@ namespace b2
             return *ImGui::GetBackgroundDrawList();
         }
 
-        ImU32 ShapeColorToImguiColor(const b2Color &c, bool fill) const
+        ImU32 ShapeColorToImguiColor(const b2HexColor &color, bool fill) const
         {
+            b2Color c = b2MakeColor(color);
             return ImGui::ColorConvertFloat4ToU32(ImVec4(c.r, c.g, c.b, c.a * (fill ? shape_fill_alpha_factor : 1) * shape_alpha));
         }
 
         // Get i-th point in a list, but possibly backwards to allow flipping the coordinate system.
-        b2Vec2 GetPolygonVertex(const b2Vec2 *data, int size, int i) const
+        b2Vec2 GetPolygonVertex(const b2Vec2 *data, int size, int i, const b2Transform* xf) const
         {
-            (void)size;
+            b2Vec2 ret;
             if (y_axis_is_upwards)
-                return data[size - 1 - i];
+                ret = data[size - 1 - i];
             else
-                return data[i];
+                ret = data[i];
+            if (xf)
+                ret = b2TransformPoint(*xf, ret);
+            return ret;
         }
 
         // Drawing helpers.
 
-        void DrawLine(b2Vec2 p1, b2Vec2 p2, b2Color color) const
+        void DrawLine(b2Vec2 p1, b2Vec2 p2, b2HexColor color) const
         {
             ImVec2 a = Box2dToImguiPoint(p1); a.x -= 0.5f; a.y -= 0.5f; // Counteract the coordinate adjustment in `AddLine()`.
             ImVec2 b = Box2dToImguiPoint(p2); b.x -= 0.5f; b.y -= 0.5f;
             DrawList().AddLine(a, b, ShapeColorToImguiColor(color, false), line_thickness);
         }
 
-        void PushPolygonPoints(const b2Vec2* vertices, int vertexCount, float radius) const
+        void PushPolygonPoints(const b2Vec2* vertices, int vertexCount, float radius, const b2Transform* xf) const
         {
             if (radius <= 0)
             {
                 for (int i = 0; i < vertexCount; i++)
-                    DrawList().PathLineTo(Box2dToImguiPoint(GetPolygonVertex(vertices, vertexCount, i)));
+                    DrawList().PathLineTo(Box2dToImguiPoint(GetPolygonVertex(vertices, vertexCount, i, xf)));
             }
             else
             {
@@ -343,7 +342,7 @@ namespace b2
                 float prev_angle = 0;
                 for (int i = 0; i < vertexCount + 2; i++)
                 {
-                    ImVec2 point = Box2dToImguiPoint(GetPolygonVertex(vertices, vertexCount, i % vertexCount));
+                    ImVec2 point = Box2dToImguiPoint(GetPolygonVertex(vertices, vertexCount, i % vertexCount, xf));
 
                     if (i != 0)
                     {
@@ -361,30 +360,30 @@ namespace b2
                 }
             }
         }
-        void DrawPolygon(const b2Vec2* vertices, int vertexCount, b2Color color, float radius) const
+        void DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor color, float radius, const b2Transform* xf) const
         {
-            PushPolygonPoints(vertices, vertexCount, radius);
+            PushPolygonPoints(vertices, vertexCount, radius, xf);
             DrawList().PathStroke(ShapeColorToImguiColor(color, false), ImDrawFlags_Closed, line_thickness);
         }
-        void DrawPolygonFilled(const b2Vec2* vertices, int vertexCount, b2Color color, float radius) const
+        void DrawPolygonFilled(const b2Vec2* vertices, int vertexCount, b2HexColor color, float radius, const b2Transform* xf) const
         {
-            PushPolygonPoints(vertices, vertexCount, radius);
+            PushPolygonPoints(vertices, vertexCount, radius, xf);
             DrawList().PathFillConvex(ShapeColorToImguiColor(color, true));
-            DrawPolygon(vertices, vertexCount, color, radius);
+            DrawPolygon(vertices, vertexCount, color, radius, xf);
         }
 
         void PushCapsulePoints(b2Vec2 p1, b2Vec2 p2, float radius) const
         {
             b2Vec2 points[] = {p1, p2};
-            PushPolygonPoints(points, 2, radius);
+            PushPolygonPoints(points, 2, radius, nullptr);
         }
-        void DrawCapsule(b2Vec2 p1, b2Vec2 p2, float radius, b2Color color) const
+        void DrawCapsule(b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color) const
         {
             PushCapsulePoints(p1, p2, radius);
             DrawList().PathStroke(ShapeColorToImguiColor(color, false), ImDrawFlags_Closed, line_thickness);
             DrawLine(p1, p2, color);
         }
-        void DrawCapsuleFilled(b2Vec2 p1, b2Vec2 p2, float radius, b2Color color) const
+        void DrawCapsuleFilled(b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color) const
         {
             PushCapsulePoints(p1, p2, radius);
             DrawList().PathFillConvex(ShapeColorToImguiColor(color, true));
