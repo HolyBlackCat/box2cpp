@@ -153,6 +153,7 @@ static_assert(CheckCallbacks<const b2::World, b2::ShapeConstRef, true>);
 int main()
 {
     b2::World w(b2::World::Params{});
+    (void)w.Handle();
 
     // Just check that raycast compiles.
     (void)w.RayCastClosest(b2Vec2{}, b2Vec2{}, b2DefaultQueryFilter());
@@ -161,6 +162,7 @@ int main()
     bp.type = b2_dynamicBody;
 
     b2::Body b = w.CreateBody(b2::OwningHandle, bp);
+    (void)b.Handle();
 
     b.CreateShape(
         b2::DestroyWithParent,

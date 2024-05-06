@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.6"
+    own_version = "0.7"
 
     print "#pragma once"
     print ""
@@ -212,19 +212,51 @@ function sort_classes_comparator(ai, av, bi, bv)
 # We use this order to sort our functions, to make them look better.
 function func_order(f)
 {
-    if (f ~ /^b2Create.*Shape/)
-        return 10
     if (f ~ /^b2Create/)
-        return 11
+        return 10
     if (f ~ /^b2Destroy/)
-        return 12
-    else
+        return 11
+    if (f ~ /_IsValid$/)
         return 20
+
+    return 30
 }
 
-function sort_funcs_comparator(ai, av, bi, bv)
+function func_order_2(f)
 {
-    return func_order(av) - func_order(bv)
+    if (f ~ /^Set/ || f ~ /^Enable/)
+        return 10
+
+    return 20
+}
+
+function simplify_func_name_for_sorting(f)
+{
+    return gensub(/^(Get|Set|Is|Enable)/, "", 1, gensub(/^(Are|Is)(.*)Enabled$/, "\\2", 1, f))
+}
+
+function sort_funcs_comparator(ai, av, bi, bv,      na, nb, oa, ob)
+{
+    na = simplify_func_name_for_sorting(funcs[av]["clean_name"])
+    nb = simplify_func_name_for_sorting(funcs[bv]["clean_name"])
+
+    oa = func_order(av)
+    ob = func_order(bv)
+    if (oa != ob)
+        return oa - ob
+
+    if (na != nb)
+        return na < nb ? -1 : 1
+
+    oa = func_order_2(funcs[av]["clean_name"])
+    ob = func_order_2(funcs[bv]["clean_name"])
+    if (oa != ob)
+        return oa - ob
+
+    if (av != bv)
+        return av < bv ? -1 : 1
+
+    return 0
 }
 
 # Emits a single function `func_name`.
@@ -253,6 +285,9 @@ function emit_func(func_name, type, func_variant_index, indent)
     return_type = funcs[func_name]["ret"]
     return_type_fixed = funcs[func_name]["ret_fixed"]
 
+    # The cleaned up name
+    clean_func_name = funcs[func_name]["clean_name"]
+
     # Whether this is a getter that should be duplicated to have const and non-const versions.
     is_const_nonconst_getter = return_type_fixed ~ /Ref$/
 
@@ -271,27 +306,6 @@ function emit_func(func_name, type, func_variant_index, indent)
         printf indent
     }
     printf "    " >second_file
-
-    # Remove class name from the func name.
-    clean_func_name = func_name
-    if (is_destroy_func)
-        clean_func_name = gensub("^b2Destroy" type, "Destroy", 1, clean_func_name)
-    else if (type && !is_factory_func)
-        clean_func_name = gensub("^b2" type "_", "", 1, clean_func_name)
-    else
-        clean_func_name = gensub("^b2", "", 1, clean_func_name)
-
-    # Overload factory funcs and setters to the same name.
-    if (clean_func_name ~ /^Create.*Joint$/)
-        clean_func_name = gensub("^Create.+Joint$", "CreateJoint", 1, clean_func_name)
-    else if (clean_func_name ~ /^Create.*Shape$/)
-        clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
-    else if (type == "Shape" && clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
-        clean_func_name = "Set"
-    else if (type == "World" && clean_func_name ~ /^Overlap.*/)
-        clean_func_name = "Overlap"
-    else if (type == "World" && clean_func_name ~ /Cast$/ && !(clean_func_name ~ /RayCast/))
-        clean_func_name = "Cast"
 
     # Nodiscard?
     if (return_type == "void")
@@ -414,7 +428,7 @@ function emit_func(func_name, type, func_variant_index, indent)
 
         if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
-        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge)($|[A-Z])/ || clean_func_name == "Step")
+        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
         else
         {
@@ -525,12 +539,6 @@ function emit_func(func_name, type, func_variant_index, indent)
 }
 
 END {
-    # Make a sorted list of functions.
-    split("", sorted_funcs);
-    for (func_name in funcs)
-        sorted_funcs[length(sorted_funcs)+1] = func_name
-    asort(sorted_funcs, sorted_funcs, "sort_funcs_comparator")
-
     # An extra analysis pass for functions.
     for (func_name in funcs)
     {
@@ -558,6 +566,31 @@ END {
 
         funcs[func_name]["ret_fixed"] = return_type_fixed
 
+        # Figure out the fixed name.
+
+        # Remove class name from the func name.
+        clean_func_name = func_name
+        if (func_name ~ /^b2Destroy/)
+            clean_func_name = "Destroy"
+        else if (func_name ~ /_/ && !funcs[func_name]["is_factory"])
+            clean_func_name = gensub("^b2.*_", "", 1, clean_func_name)
+        else
+            clean_func_name = gensub("^b2", "", 1, clean_func_name)
+
+        # Overload factory funcs and setters to the same name.
+        if (clean_func_name ~ /^Create.*Joint$/)
+            clean_func_name = gensub("^Create.+Joint$", "CreateJoint", 1, clean_func_name)
+        else if (clean_func_name ~ /^Create.*Shape$/)
+            clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
+        else if (clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
+            clean_func_name = "Set"
+        else if (clean_func_name ~ /^Overlap.*/)
+            clean_func_name = "Overlap"
+        else if (clean_func_name ~ /Cast$/ && !(clean_func_name ~ /RayCast/))
+            clean_func_name = "Cast"
+
+        funcs[func_name]["clean_name"] = clean_func_name
+
         # Callback handling.
         funcs[func_name]["accepts_const_nonconst_callback"] = 0 # Whether this function must be duplicated for const and nonconst callback argument.
         skip_context_param = 0
@@ -575,6 +608,12 @@ END {
             }
         }
     }
+
+    # Make a sorted list of functions.
+    split("", sorted_funcs);
+    for (func_name in funcs)
+        sorted_funcs[length(sorted_funcs)+1] = func_name
+    asort(sorted_funcs, sorted_funcs, "sort_funcs_comparator")
 
     # An extra analysis pass for classes.
     for (i in classes)
