@@ -184,6 +184,30 @@ namespace b2
         // Draw all the shapes using ImGui.
         void DrawShapes(b2::WorldRef world)
         {
+            // Set up the rendering AABB.
+            // We disable it on return, just in case.
+
+            callbacks.useDrawingBounds = true;
+            struct Guard
+            {
+                DebugImguiRenderer &self;
+                ~Guard()
+                {
+                    self.callbacks.useDrawingBounds = false;
+                }
+            };
+            Guard guard{*this};
+
+            b2Vec2 half_size(ImGui::GetIO().DisplaySize.x / 2 / camera_scale, ImGui::GetIO().DisplaySize.y / 2 / camera_scale);
+
+            // Extend the box to account for the camera rotation. I hope this is correct.
+            half_size = b2Vec2(
+                std::abs(camera_rot.c) * half_size.x + std::abs(camera_rot.s) * half_size.y,
+                std::abs(camera_rot.c) * half_size.y + std::abs(camera_rot.s) * half_size.x
+            );
+            callbacks.drawingBounds.lowerBound = b2Vec2(camera_pos.x - half_size.x, camera_pos.y - half_size.y);
+            callbacks.drawingBounds.upperBound = b2Vec2(camera_pos.x + half_size.x, camera_pos.y + half_size.y);
+
             world.Draw(callbacks);
         }
 
