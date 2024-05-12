@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: cc015ca 2024-05-04
+// Generated from box2d commit: 2088c28 2024-05-11
 // Generator version: 0.7
 
 #include <box2d/box2d.h>
@@ -317,6 +317,13 @@ namespace b2
         /// Get the friction on a shape.
         [[nodiscard]] float GetFriction() const;
 
+        /// Enable contact hit events for this shape. Ignored for sensors.
+        ///	@see b2WorldDef.hitEventThreshold
+        void EnableHitEvents(bool flag) /*non-const*/ requires (!ForceConst);
+
+        /// @return are hit events enabled?
+        [[nodiscard]] bool AreHitEventsEnabled() const;
+
         /// If the type is b2_smoothSegmentShape then you can get the parent chain id.
         /// If the shape is not a smooth segment then this will return b2_nullChainId.
         [[nodiscard]] ChainRef GetParentChain() /*non-const*/ requires (!ForceConst);
@@ -546,10 +553,10 @@ namespace b2
         /// Get the current length of a distance joint
         [[nodiscard]] float GetCurrentLength() const;
 
-        /// Get the damping ratio of a distance joint
+        /// @return the spring damping ratio
         [[nodiscard]] float GetDampingRatio() const;
 
-        /// Get the Hertz of a distance joint
+        /// @return the spring Hertz
         [[nodiscard]] float GetHertz() const;
 
         /// Set the rest length of a distance joint
@@ -561,14 +568,42 @@ namespace b2
         /// Set the minimum and maximum length parameters of a distance joint
         void SetLengthRange(float minLength, float maxLength) /*non-const*/ requires (!ForceConst);
 
+        /// Enable joint limit. The limit only works if the joint spring is enabled. Otherwise the joint is rigid
+        ///	and the limit has no effect.
+        void EnableLimit(bool enableLimit) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] bool IsLimitEnabled() const;
+
         /// Get the maximum distance joint length
         [[nodiscard]] float GetMaxLength() const;
+
+        void SetMaxMotorForce(float force) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] float GetMaxMotorForce() const;
 
         /// Get the minimum distance joint length
         [[nodiscard]] float GetMinLength() const;
 
-        /// Adjust the softness parameters of a distance joint
-        void SetTuning(float hertz, float dampingRatio) /*non-const*/ requires (!ForceConst);
+        void EnableMotor(bool enableMotor) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] bool IsMotorEnabled() const;
+
+        [[nodiscard]] float GetMotorForce() const;
+
+        void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] float GetMotorSpeed() const;
+
+        /// Enable/disable the distance joint spring. When disabled the distance joint is rigid.
+        void EnableSpring(bool enableSpring) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] bool IsSpringEnabled() const;
+
+        /// Set the spring damping ratio, non-dimensional
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
+
+        /// Set the spring stiffness in Hertz
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
     };
 
     /// Distance joint definition. This requires defining an anchor point on both
@@ -763,14 +798,17 @@ namespace b2
         /// Get the Hertz of a mouse joint
         [[nodiscard]] float GetHertz() const;
 
+        /// Set the spring damping ratio (non-dimensional)
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
+
+        /// Set the spring stiffness in Hertz
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
+
         /// Set the target for a mouse joint
         void SetTarget(b2Vec2 target) /*non-const*/ requires (!ForceConst);
 
         /// @return the target for a mouse joint
         [[nodiscard]] b2Vec2 GetTarget() const;
-
-        /// Adjust the softness parameters of a mouse joint
-        void SetTuning(float hertz, float dampingRatio) /*non-const*/ requires (!ForceConst);
     };
 
     /// A mouse joint is used to make a point on a body track a
@@ -885,6 +923,23 @@ namespace b2
 
         /// @return the motor speed for a prismatic joint
         [[nodiscard]] float GetMotorSpeed() const;
+
+        /// Enable/disable the joint spring.
+        void EnableSpring(bool enableSpring) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] bool IsSpringEnabled() const;
+
+        /// Set the joint damping ratio (non-dimensional)
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
+
+        /// @return the joint damping ratio (non-dimensional)
+        [[nodiscard]] float GetSpringDampingRatio() const;
+
+        /// Set the joint stiffness in Hertz
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
+
+        /// @return the joint stiffness in Hertz
+        [[nodiscard]] float GetSpringHertz() const;
 
         /// Get the upper joint limit in length units (meters).
         [[nodiscard]] float GetUpperLimit() const;
@@ -1007,6 +1062,21 @@ namespace b2
 
         /// Get the current motor torque for a revolute joint
         [[nodiscard]] float GetMotorTorque() const;
+
+        /// Enable/disable the joint spring.
+        void EnableSpring(bool enableSpring) /*non-const*/ requires (!ForceConst);
+
+        /// Set the joint damping ratio (non-dimensional)
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
+
+        /// @return the  joint damping ratio (non-dimensional)
+        [[nodiscard]] float GetSpringDampingRatio() const;
+
+        /// Set the joint stiffness in Hertz
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
+
+        /// @return the joint stiffness in Hertz
+        [[nodiscard]] float GetSpringHertz() const;
 
         /// Get the upper joint limit in radians.
         [[nodiscard]] float GetUpperLimit() const;
@@ -1131,6 +1201,10 @@ namespace b2
 
         /// Get the wheel joint current motor torque
         [[nodiscard]] float GetMotorTorque() const;
+
+        void EnableSpring(bool enableSpring) /*non-const*/ requires (!ForceConst);
+
+        [[nodiscard]] bool IsSpringEnabled() const;
 
         /// Set the wheel joint damping ratio (non-dimensional)
         void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
@@ -1485,6 +1559,9 @@ namespace b2
         /// Get the current gravity scale.
         [[nodiscard]] float GetGravityScale() const;
 
+        /// Enable/disable hit events on all shapes.
+        void EnableHitEvents(bool enableHitEvents) /*non-const*/ requires (!ForceConst);
+
         /// Get the inertia tensor of the body. In 2D this is a single number. (kilograms * meters^2)
         [[nodiscard]] float GetInertiaTensor() const;
 
@@ -1742,6 +1819,9 @@ namespace b2
 
         /// @return the gravity vector
         [[nodiscard]] b2Vec2 GetGravity() const;
+
+        /// Adjust the hit event threshold. Advanced feature for testing.
+        void SetHitEventThreshold(float value) /*non-const*/ requires (!ForceConst);
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB.
         void Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
@@ -2008,6 +2088,8 @@ namespace b2
     template <typename D, bool ForceConst> b2Filter BasicShapeInterface<D, ForceConst>::GetFilter() const { return b2Shape_GetFilter(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Shape_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetFriction() const { return b2Shape_GetFriction(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableHitEvents(bool flag) requires (!ForceConst) { b2Shape_EnableHitEvents(static_cast<const D &>(*this).Handle(), flag); }
+    template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreHitEventsEnabled() const { return b2Shape_AreHitEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> ChainRef BasicShapeInterface<D, ForceConst>::GetParentChain() requires (!ForceConst) { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> ChainConstRef BasicShapeInterface<D, ForceConst>::GetParentChain() const { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Polygon BasicShapeInterface<D, ForceConst>::GetPolygon() const { return b2Shape_GetPolygon(static_cast<const D &>(*this).Handle()); }
@@ -2046,9 +2128,21 @@ namespace b2
     template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetLength(float length) requires (!ForceConst) { b2DistanceJoint_SetLength(static_cast<const D &>(*this).Handle(), length); }
     template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetLength() const { return b2DistanceJoint_GetLength(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetLengthRange(float minLength, float maxLength) requires (!ForceConst) { b2DistanceJoint_SetLengthRange(static_cast<const D &>(*this).Handle(), minLength, maxLength); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::EnableLimit(bool enableLimit) requires (!ForceConst) { b2DistanceJoint_EnableLimit(static_cast<const D &>(*this).Handle(), enableLimit); }
+    template <typename D, bool ForceConst> bool BasicDistanceJointInterface<D, ForceConst>::IsLimitEnabled() const { return b2DistanceJoint_IsLimitEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetMaxLength() const { return b2DistanceJoint_GetMaxLength(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetMaxMotorForce(float force) requires (!ForceConst) { b2DistanceJoint_SetMaxMotorForce(static_cast<const D &>(*this).Handle(), force); }
+    template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetMaxMotorForce() const { return b2DistanceJoint_GetMaxMotorForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetMinLength() const { return b2DistanceJoint_GetMinLength(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetTuning(float hertz, float dampingRatio) requires (!ForceConst) { b2DistanceJoint_SetTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::EnableMotor(bool enableMotor) requires (!ForceConst) { b2DistanceJoint_EnableMotor(static_cast<const D &>(*this).Handle(), enableMotor); }
+    template <typename D, bool ForceConst> bool BasicDistanceJointInterface<D, ForceConst>::IsMotorEnabled() const { return b2DistanceJoint_IsMotorEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetMotorForce() const { return b2DistanceJoint_GetMotorForce(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetMotorSpeed(float motorSpeed) requires (!ForceConst) { b2DistanceJoint_SetMotorSpeed(static_cast<const D &>(*this).Handle(), motorSpeed); }
+    template <typename D, bool ForceConst> float BasicDistanceJointInterface<D, ForceConst>::GetMotorSpeed() const { return b2DistanceJoint_GetMotorSpeed(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::EnableSpring(bool enableSpring) requires (!ForceConst) { b2DistanceJoint_EnableSpring(static_cast<const D &>(*this).Handle(), enableSpring); }
+    template <typename D, bool ForceConst> bool BasicDistanceJointInterface<D, ForceConst>::IsSpringEnabled() const { return b2DistanceJoint_IsSpringEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2DistanceJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
+    template <typename D, bool ForceConst> void BasicDistanceJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2DistanceJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
     template <typename D, bool ForceConst> void BasicMotorJointInterface<D, ForceConst>::SetAngularOffset(float angularOffset) requires (!ForceConst) { b2MotorJoint_SetAngularOffset(static_cast<const D &>(*this).Handle(), angularOffset); }
     template <typename D, bool ForceConst> float BasicMotorJointInterface<D, ForceConst>::GetAngularOffset() const { return b2MotorJoint_GetAngularOffset(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicMotorJointInterface<D, ForceConst>::GetConstraintForce() const { return b2MotorJoint_GetConstraintForce(static_cast<const D &>(*this).Handle()); }
@@ -2063,9 +2157,10 @@ namespace b2
     template <typename D, bool ForceConst> float BasicMotorJointInterface<D, ForceConst>::GetMaxTorque() const { return b2MotorJoint_GetMaxTorque(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicMouseJointInterface<D, ForceConst>::GetDampingRatio() const { return b2MouseJoint_GetDampingRatio(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicMouseJointInterface<D, ForceConst>::GetHertz() const { return b2MouseJoint_GetHertz(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicMouseJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2MouseJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
+    template <typename D, bool ForceConst> void BasicMouseJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2MouseJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
     template <typename D, bool ForceConst> void BasicMouseJointInterface<D, ForceConst>::SetTarget(b2Vec2 target) requires (!ForceConst) { b2MouseJoint_SetTarget(static_cast<const D &>(*this).Handle(), target); }
     template <typename D, bool ForceConst> b2Vec2 BasicMouseJointInterface<D, ForceConst>::GetTarget() const { return b2MouseJoint_GetTarget(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicMouseJointInterface<D, ForceConst>::SetTuning(float hertz, float dampingRatio) requires (!ForceConst) { b2MouseJoint_SetTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio); }
     template <typename D, bool ForceConst> b2Vec2 BasicPrismaticJointInterface<D, ForceConst>::GetConstraintForce() const { return b2PrismaticJoint_GetConstraintForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetConstraintTorque() const { return b2PrismaticJoint_GetConstraintTorque(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::EnableLimit(bool enableLimit) requires (!ForceConst) { b2PrismaticJoint_EnableLimit(static_cast<const D &>(*this).Handle(), enableLimit); }
@@ -2079,6 +2174,12 @@ namespace b2
     template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetMotorForce() const { return b2PrismaticJoint_GetMotorForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::SetMotorSpeed(float motorSpeed) requires (!ForceConst) { b2PrismaticJoint_SetMotorSpeed(static_cast<const D &>(*this).Handle(), motorSpeed); }
     template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetMotorSpeed() const { return b2PrismaticJoint_GetMotorSpeed(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::EnableSpring(bool enableSpring) requires (!ForceConst) { b2PrismaticJoint_EnableSpring(static_cast<const D &>(*this).Handle(), enableSpring); }
+    template <typename D, bool ForceConst> bool BasicPrismaticJointInterface<D, ForceConst>::IsSpringEnabled() const { return b2PrismaticJoint_IsSpringEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2PrismaticJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
+    template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetSpringDampingRatio() const { return b2PrismaticJoint_GetSpringDampingRatio(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2PrismaticJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
+    template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetSpringHertz() const { return b2PrismaticJoint_GetSpringHertz(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicPrismaticJointInterface<D, ForceConst>::GetUpperLimit() const { return b2PrismaticJoint_GetUpperLimit(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetAngle() const { return b2RevoluteJoint_GetAngle(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicRevoluteJointInterface<D, ForceConst>::GetConstraintForce() const { return b2RevoluteJoint_GetConstraintForce(static_cast<const D &>(*this).Handle()); }
@@ -2094,6 +2195,11 @@ namespace b2
     template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::SetMotorSpeed(float motorSpeed) requires (!ForceConst) { b2RevoluteJoint_SetMotorSpeed(static_cast<const D &>(*this).Handle(), motorSpeed); }
     template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetMotorSpeed() const { return b2RevoluteJoint_GetMotorSpeed(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetMotorTorque() const { return b2RevoluteJoint_GetMotorTorque(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::EnableSpring(bool enableSpring) requires (!ForceConst) { b2RevoluteJoint_EnableSpring(static_cast<const D &>(*this).Handle(), enableSpring); }
+    template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2RevoluteJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
+    template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetSpringDampingRatio() const { return b2RevoluteJoint_GetSpringDampingRatio(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicRevoluteJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2RevoluteJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
+    template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetSpringHertz() const { return b2RevoluteJoint_GetSpringHertz(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicRevoluteJointInterface<D, ForceConst>::GetUpperLimit() const { return b2RevoluteJoint_GetUpperLimit(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicWheelJointInterface<D, ForceConst>::GetConstraintForce() const { return b2WheelJoint_GetConstraintForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicWheelJointInterface<D, ForceConst>::GetConstraintTorque() const { return b2WheelJoint_GetConstraintTorque(static_cast<const D &>(*this).Handle()); }
@@ -2108,6 +2214,8 @@ namespace b2
     template <typename D, bool ForceConst> void BasicWheelJointInterface<D, ForceConst>::SetMotorSpeed(float motorSpeed) requires (!ForceConst) { b2WheelJoint_SetMotorSpeed(static_cast<const D &>(*this).Handle(), motorSpeed); }
     template <typename D, bool ForceConst> float BasicWheelJointInterface<D, ForceConst>::GetMotorSpeed() const { return b2WheelJoint_GetMotorSpeed(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicWheelJointInterface<D, ForceConst>::GetMotorTorque() const { return b2WheelJoint_GetMotorTorque(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWheelJointInterface<D, ForceConst>::EnableSpring(bool enableSpring) requires (!ForceConst) { b2WheelJoint_EnableSpring(static_cast<const D &>(*this).Handle(), enableSpring); }
+    template <typename D, bool ForceConst> bool BasicWheelJointInterface<D, ForceConst>::IsSpringEnabled() const { return b2WheelJoint_IsSpringEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWheelJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2WheelJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
     template <typename D, bool ForceConst> float BasicWheelJointInterface<D, ForceConst>::GetSpringDampingRatio() const { return b2WheelJoint_GetSpringDampingRatio(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWheelJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2WheelJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
@@ -2161,6 +2269,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsFixedRotation() const { return b2Body_IsFixedRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetGravityScale(float gravityScale) requires (!ForceConst) { b2Body_SetGravityScale(static_cast<const D &>(*this).Handle(), gravityScale); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetGravityScale() const { return b2Body_GetGravityScale(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableHitEvents(bool enableHitEvents) requires (!ForceConst) { b2Body_EnableHitEvents(static_cast<const D &>(*this).Handle(), enableHitEvents); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetInertiaTensor() const { return b2Body_GetInertiaTensor(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJointCount() const { return b2Body_GetJointCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJoints(b2JointId& jointArray, int capacity) const { return b2Body_GetJoints(static_cast<const D &>(*this).Handle(), &jointArray, capacity); }
@@ -2225,6 +2334,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Explode(b2Vec2 position, float radius, float impulse) requires (!ForceConst) { b2World_Explode(static_cast<const D &>(*this).Handle(), position, radius, impulse); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetGravity(b2Vec2 gravity) requires (!ForceConst) { b2World_SetGravity(static_cast<const D &>(*this).Handle(), gravity); }
     template <typename D, bool ForceConst> b2Vec2 BasicWorldInterface<D, ForceConst>::GetGravity() const { return b2World_GetGravity(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetHitEventThreshold(float value) requires (!ForceConst) { b2World_SetHitEventThreshold(static_cast<const D &>(*this).Handle(), value); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn.GetFunc(), fcn.GetContext()); }
