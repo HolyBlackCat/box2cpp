@@ -56,9 +56,11 @@ override define test_snippet =
 test_$1: include/box2cpp/box2c.hpp
 	MSYS2_ARG_CONV_EXCL=* LANG= $1 test/test.cpp $(if $(filter %cl,$1)\
 		,/nologo /EHsc /std:c++latest /W4 /WX \
+			/Ibox2c/include \
 			$(if $(SYNTAX_ONLY),/Zs,/link -lbox2d '/out:test/test_$1.exe') \
 			$(FLAGS_CL) \
 		,-std=c++20 -Wall -Wextra -pedantic-errors -Wconversion -Wextra-semi -Wdeprecated -Werror -g \
+			-Ibox2c/include \
 			$(if $(filter windows,$(TARGET_OS)),,-fsanitize=address -fsanitize=undefined) \
 			$(if $(SYNTAX_ONLY),-fsyntax-only,-lbox2d -o 'test/test_$1') \
 			$(FLAGS) \

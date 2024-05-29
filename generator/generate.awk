@@ -13,7 +13,6 @@ BEGIN {
 
     print ""
     print "#include <box2d/box2d.h>"
-    print "#include <box2d/dynamic_tree.h>"
     print ""
     print "#include <concepts>" # For `std::derived_from`.
     print "#include <cstddef>" # For `std::nullptr_t`.
@@ -53,15 +52,18 @@ cur_enum_name && /\}/ {
 cur_enum_name && /\{/ {next}
 
 cur_enum_name {
-    # Extract name and value.
-    match($0, /^\s*b2_(\w+)(\s*=\s*(\w+))?,?$/, elems)
-    if (RLENGTH == -1)
+    if ($0 !~ /^\s*$/ && $0 !~ /^\s*\/\//)
     {
-        print "Unable to parse enum element `" $0 "` in `" cur_enum_name "`." >"/dev/stderr"
-        exit 1
-    }
+        # Extract name and value.
+        match($0, /^\s*b2_(\w+)(\s*=\s*(\w+))?,?$/, elems)
+        if (RLENGTH == -1)
+        {
+            print "Unable to parse enum element `" $0 "` in `" cur_enum_name "`." >"/dev/stderr"
+            exit 1
+        }
 
-    enums[cur_enum_name]["elems"][length(enums[cur_enum_name]["elems"])+1] = elems[1]
+        enums[cur_enum_name]["elems"][length(enums[cur_enum_name]["elems"])+1] = elems[1]
+    }
     next
 }
 
@@ -586,7 +588,7 @@ END {
             clean_func_name = "Set"
         else if (clean_func_name ~ /^Overlap.*/)
             clean_func_name = "Overlap"
-        else if (clean_func_name ~ /Cast$/ && !(clean_func_name ~ /RayCast/))
+        else if (clean_func_name ~ /^Cast/ && !(clean_func_name ~ /CastRay/))
             clean_func_name = "Cast"
 
         funcs[func_name]["clean_name"] = clean_func_name
@@ -953,20 +955,7 @@ END {
             if (type == "DynamicTree")
             {
                 print ""
-                print "        " type "(const " type "& other) : " type "() { *this = other; }"
                 print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = {}; }"
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2DynamicTree_Clone"]["comment"])
-                print type "& operator=(const " type "& other)"
-                print "        {"
-                print "            if (this == &other) {}"
-                print "            else if (!other) *this = {};"
-                print "            else"
-                print "            {"
-                print "                if (!*this) *this = nullptr; // Sic. The output tree must already be initialized."
-                print "                b2DynamicTree_Clone(&value, &other.value);"
-                print "            }"
-                print "            return *this;"
-                print "        }"
                 print "        " type "& operator=(" type "&& other) noexcept"
                 print "        {"
                 print "            if (this == &other) return *this;"
