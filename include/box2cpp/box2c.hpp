@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 25f40d8 2024-05-28
+// Generated from box2d commit: 1d7d1cf 2024-05-30
 // Generator version: 0.7
 
 #include <box2d/box2d.h>
