@@ -1,7 +1,6 @@
 #pragma once
 
 #include <box2cpp/box2c.hpp>
-#include <box2d/debug_draw.h>
 #include <box2d/math_functions.h>
 #include <imgui.h>
 
@@ -327,8 +326,7 @@ namespace b2
 
         ImU32 ShapeColorToImguiColor(const b2HexColor &color, bool fill) const
         {
-            b2Color c = b2MakeColor(color);
-            return ImGui::ColorConvertFloat4ToU32(ImVec4(c.r, c.g, c.b, c.a * (fill ? shape_fill_alpha_factor : 1) * shape_alpha));
+            return IM_COL32(color >> 16, (color >> 8) & 0xff, color & 0xff, std::clamp(0xff * shape_alpha * (fill ? shape_fill_alpha_factor : 1.f), 0.f, 255.f));
         }
 
         // Get i-th point in a list, but possibly backwards to allow flipping the coordinate system.
