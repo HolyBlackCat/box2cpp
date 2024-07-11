@@ -261,6 +261,7 @@ namespace b2
                     joint_params.bodyIdA = mouse_joint_body;
                     joint_params.bodyIdB = target.GetBody();
                     joint_params.target = point;
+                    joint_params.maxForce = 1000.0f * target.GetBody().GetMass();
                     mouse_joint = world.CreateJoint(b2::DestroyWithParent, joint_params);
                 }
             }
