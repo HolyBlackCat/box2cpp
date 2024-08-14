@@ -18,9 +18,6 @@ And some extras:
 
 * A [debug renderer](#debug-imgui-renderer) using ImGui.
 
-
-<sup>Note: box2d 3.0 is experimental (but seems to work well already), and so are those bindings. They may change as box2d API changes, or when I find new better ways of doing things.</sup>
-
 ## Hello world
 
 ```cpp
