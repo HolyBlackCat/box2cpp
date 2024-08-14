@@ -1,5 +1,4 @@
-#include "test_header.hpp"
-#include "../box2c/include/box2d/math_functions.h"
+#include "test_header.h"
 
 #include <iostream>
 

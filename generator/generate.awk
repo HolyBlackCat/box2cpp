@@ -6,7 +6,7 @@ BEGIN {
     print "// box2cpp, C++ bindings for box2d 3.x"
     printf "// Generated from box2d commit: "
 
-    "cd box2c && git log -1 --format=\"%h %(describe) %cs\"" | getline box2d_ver_desc
+    "cd box2d && git log -1 --format=\"%h %(describe) %cs\"" | getline box2d_ver_desc
     box2d_ver_desc = gensub(/^\s+/, "", 1, gensub(/\s+$/, "", 1, gensub(/\s{2,}/, " ", "g", box2d_ver_desc)))
     print box2d_ver_desc
     print "// Generator version: " own_version
@@ -127,7 +127,7 @@ cur_enum_name {
     funcs[func_name]["ret"] = gensub(/\s+$/, "", 1, gensub(/\s*\*\s*/, "* ", "g", elems[1]))
 
     # Extract individual parameters.
-    if (func_param_string != "void")
+    if (func_param_string !~ /^\s*void\s*$/)
     {
         patsplit(func_param_string, elems, /[^ ,][^,]*[^ ,]/)
         for (i in elems)
@@ -434,7 +434,7 @@ function emit_func(func_name, type, func_variant_index, indent)
             is_const = 0
         else
         {
-            print "Can't guess from this function name if it's const or not." >"/dev/stderr"
+            print "Can't guess from this function name if it's const or not: " clean_func_name >"/dev/stderr"
             exit 1
         }
     }
@@ -447,7 +447,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     }
     else
     {
-        print "Not sure if this func is const or not." >"/dev/stderr"
+        print "Not sure if this func is const or not: " func_name >"/dev/stderr"
         exit 1
     }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 1d7d1cf 2024-05-30
+// Generated from box2d commit: 8e7a17c 2024-08-11
 // Generator version: 0.7
 
 #include <box2d/box2d.h>
@@ -1477,9 +1477,6 @@ namespace b2
         /// Returns true if this body is enabled
         [[nodiscard]] bool IsEnabled() const;
 
-        /// Get the body angle in radians in the range [-pi, pi]
-        [[nodiscard]] float GetAngle() const;
-
         /// Adjust the angular damping. Normally this is set in b2BodyDef before creation.
         void SetAngularDamping(float angularDamping) /*non-const*/ requires (!ForceConst);
 
@@ -1674,7 +1671,7 @@ namespace b2
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
         /// @note Generally you should create a body with then intended transform.
         ///	@see b2BodyDef::position and b2BodyDef::angle
-        void SetTransform(b2Vec2 position, float angle) /*non-const*/ requires (!ForceConst);
+        void SetTransform(b2Vec2 position, b2Rot rotation) /*non-const*/ requires (!ForceConst);
 
         /// Get the world transform of a body.
         [[nodiscard]] b2Transform GetTransform() const;
@@ -2304,7 +2301,6 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsValid() const { return b2Body_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Enable() requires (!ForceConst) { b2Body_Enable(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsEnabled() const { return b2Body_IsEnabled(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetAngle() const { return b2Body_GetAngle(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetAngularDamping(float angularDamping) requires (!ForceConst) { b2Body_SetAngularDamping(static_cast<const D &>(*this).Handle(), angularDamping); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetAngularDamping() const { return b2Body_GetAngularDamping(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetAngularVelocity(float angularVelocity) requires (!ForceConst) { b2Body_SetAngularVelocity(static_cast<const D &>(*this).Handle(), angularVelocity); }
@@ -2352,7 +2348,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsSleepEnabled() const { return b2Body_IsSleepEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetSleepThreshold(float sleepVelocity) requires (!ForceConst) { b2Body_SetSleepThreshold(static_cast<const D &>(*this).Handle(), sleepVelocity); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetSleepThreshold() const { return b2Body_GetSleepThreshold(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTransform(b2Vec2 position, float angle) requires (!ForceConst) { b2Body_SetTransform(static_cast<const D &>(*this).Handle(), position, angle); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTransform(b2Vec2 position, b2Rot rotation) requires (!ForceConst) { b2Body_SetTransform(static_cast<const D &>(*this).Handle(), position, rotation); }
     template <typename D, bool ForceConst> b2Transform BasicBodyInterface<D, ForceConst>::GetTransform() const { return b2Body_GetTransform(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetType(b2BodyType type) requires (!ForceConst) { b2Body_SetType(static_cast<const D &>(*this).Handle(), type); }
     template <typename D, bool ForceConst> b2BodyType BasicBodyInterface<D, ForceConst>::GetType() const { return b2Body_GetType(static_cast<const D &>(*this).Handle()); }

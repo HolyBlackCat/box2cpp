@@ -1,6 +1,6 @@
 #pragma once
 
-#include <box2cpp/box2c.hpp>
+#include <box2cpp/box2cpp.h>
 #include <box2d/math_functions.h>
 #include <imgui.h>
 

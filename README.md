@@ -1,6 +1,6 @@
 # 📦 box2cpp
 
-**C++ bindings for [box2d 3.x](https://github.com/erincatto/box2c) physics engine (aka box2c)**
+**C++ bindings for [box2d 3.x](https://github.com/erincatto/box2d) physics engine (aka box2c)**
 
 * Provides classes for all box2d entities: `World`, `Body`, `Shape`, `Chain`, all joint kinds, `DynamicTree`.
 
@@ -24,7 +24,7 @@ And some extras:
 ## Hello world
 
 ```cpp
-#include <box2cpp/box2c.hpp>
+#include <box2cpp/box2cpp.h>
 
 int main()
 {
@@ -57,9 +57,9 @@ int main()
 
 Must use C++20 or newer.
 
-Install [box2d 3.0](https://github.com/erincatto/box2c) as usual, our header includes their.
+Install [box2d 3.0](https://github.com/erincatto/box2d) as usual, our header includes their.
 
-Clone and add `include/` to the header search path. Include `<box2c.hpp>`. The library is header-only.
+Clone and add `include/` to the header search path. Include `<box2cpp.h>`. The library is header-only.
 
 **Regenerating the header**
 
@@ -67,7 +67,7 @@ If the header is outdated, you can regenerate it yourself. (See comment at the b
 
 Prerequisites: `git`, GNU `make`, `sed`, `perl`, `gawk` (GNU awk). On Windows, install that from MSYS2 and run inside MSYS2 terminal (or use WSL).
 
-Run `make`. It will clone box2c to `./box2c` (or do nothing if already exists; make sure to advance it to the latest commit manually if needed), and will regenerate `include/box2c.hpp`. The comments at the beginning of `Makefile` have instructions for running tests, if you want to.
+Run `make`. It will clone box2d to `./box2d` (or do nothing if already exists; make sure to advance it to the latest commit manually if needed), and will regenerate `include/box2cpp.h`. The comments at the beginning of `Makefile` have instructions for running tests, if you want to.
 
 ## How it works
 
@@ -167,13 +167,13 @@ Those callback improvements are not yet implemented for `b2::World::SetPreSolveC
 
 We have an optional debug renderer using ImGui.
 
-See comments in [`<box2cpp/debug_imgui_renderer.hpp>`](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.hpp) for usage details.
+See comments in [`<box2cpp/debug_imgui_renderer.h>`](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.h) for usage details.
 
 Simple example: (this assumes you already know how to use ImGui)
 ```cpp
 
-#include <box2cpp/box2c.hpp>
-#include <box2cpp/debug_imgui_renderer.hpp>
+#include <box2cpp/box2cpp.h>
+#include <box2cpp/debug_imgui_renderer.h>
 
 int main()
 {
