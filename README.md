@@ -54,17 +54,23 @@ int main()
 
 Must use C++20 or newer.
 
-Install [box2d 3.0](https://github.com/erincatto/box2d) as usual, our header includes their.
+Install [box2d 3.x](https://github.com/erincatto/box2d) as usual, our header includes their.
 
 Clone and add `include/` to the header search path. Include `<box2cpp.h>`. The library is header-only.
 
-**Regenerating the header**
+**Note on branches:**<br/>
+Box2cpp's `master` branch corresponds to box2d's `main` branch (open an issue if it gets outdated).<br/>
+If you instead use box2d's release (e.g. `v3.0.0`), use the respective box2cpp's branch (e.g. `box2d-3.0.0`).
+
+<details><summary>Regenerating the header</summary>
 
 If the header is outdated, you can regenerate it yourself. (See comment at the beginning of header for underlying box2d version.)
 
 Prerequisites: `git`, GNU `make`, `sed`, `perl`, `gawk` (GNU awk). On Windows, install that from MSYS2 and run inside MSYS2 terminal (or use WSL).
 
 Run `make`. It will clone box2d to `./box2d` (or do nothing if already exists; make sure to advance it to the latest commit manually if needed), and will regenerate `include/box2cpp.h`. The comments at the beginning of `Makefile` have instructions for running tests, if you want to.
+
+</details>
 
 ## How it works
 
