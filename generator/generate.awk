@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.7"
+    own_version = "0.8"
 
     print "#pragma once"
     print ""
@@ -959,7 +959,7 @@ END {
                 print "        " type "& operator=(" type "&& other) noexcept"
                 print "        {"
                 print "            if (this == &other) return *this;"
-                print "            if (*this) *this = {};"
+                print "            if (*this) b2" type "_Destroy(&value);"
                 print "            value = other.value;"
                 print "            other.value = {};"
                 print "            return *this;"

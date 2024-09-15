@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: c69eee4 2024-09-08
-// Generator version: 0.7
+// Generator version: 0.8
 
 #include <box2d/box2d.h>
 
@@ -2046,7 +2046,7 @@ namespace b2
         DynamicTree& operator=(DynamicTree&& other) noexcept
         {
             if (this == &other) return *this;
-            if (*this) *this = {};
+            if (*this) b2DynamicTree_Destroy(&value);
             value = other.value;
             other.value = {};
             return *this;
