@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 90c2781 2024-11-09
-// Generator version: 0.8
+// Generator version: 0.9
 
 #include <box2d/box2d.h>
 
@@ -171,7 +171,7 @@ namespace b2
 
         /// Fill a user array with chain segment shape ids up to the specified capacity. Returns
         /// the actual number of segments returned.
-        [[nodiscard]] int GetSegments(b2ShapeId& segmentArray, int capacity) const;
+        [[nodiscard]] int GetSegments(b2ShapeId* segmentArray, int capacity) const;
 
         /// Get the world that owns this chain shape
         [[nodiscard]] WorldRef GetWorld() /*non-const*/ requires (!ForceConst);
@@ -311,7 +311,7 @@ namespace b2
         [[nodiscard]] int GetContactCapacity() const;
 
         /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
-        [[nodiscard]] int GetContactData(b2ContactData& contactData, int capacity) const;
+        [[nodiscard]] int GetContactData(b2ContactData* contactData, int capacity) const;
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
         /// @see b2ShapeDef::enableContactEvents
@@ -1610,7 +1610,7 @@ namespace b2
         [[nodiscard]] int GetContactCapacity() const;
 
         /// Get the touching contact data for a body
-        [[nodiscard]] int GetContactData(b2ContactData& contactData, int capacity) const;
+        [[nodiscard]] int GetContactData(b2ContactData* contactData, int capacity) const;
 
         /// Disable a body by removing it completely from the simulation. This is expensive.
         void Disable() /*non-const*/ requires (!ForceConst);
@@ -1637,7 +1637,7 @@ namespace b2
 
         /// Get the joint ids for all joints on this body, up to the provided capacity
         /// @returns the number of joint ids stored in the user array
-        [[nodiscard]] int GetJoints(b2JointId& jointArray, int capacity) const;
+        [[nodiscard]] int GetJoints(b2JointId* jointArray, int capacity) const;
 
         /// Adjust the linear damping. Normally this is set in b2BodyDef before creation.
         void SetLinearDamping(float linearDamping) /*non-const*/ requires (!ForceConst);
@@ -1685,7 +1685,7 @@ namespace b2
 
         /// Get the shape ids for all shapes on this body, up to the provided capacity.
         /// @returns the number of shape ids stored in the user array
-        [[nodiscard]] int GetShapes(b2ShapeId& shapeArray, int capacity) const;
+        [[nodiscard]] int GetShapes(b2ShapeId* shapeArray, int capacity) const;
 
         /// Enable or disable sleeping for this body. If sleeping is disabled the body will wake.
         void EnableSleep(bool enableSleep) /*non-const*/ requires (!ForceConst);
@@ -2215,7 +2215,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Chain_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Chain_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegmentCount() const { return b2Chain_GetSegmentCount(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegments(b2ShapeId& segmentArray, int capacity) const { return b2Chain_GetSegments(static_cast<const D &>(*this).Handle(), &segmentArray, capacity); }
+    template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegments(b2ShapeId* segmentArray, int capacity) const { return b2Chain_GetSegments(static_cast<const D &>(*this).Handle(), segmentArray, capacity); }
     template <typename D, bool ForceConst> WorldRef BasicChainInterface<D, ForceConst>::GetWorld() requires (!ForceConst) { return b2Chain_GetWorld(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> WorldConstRef BasicChainInterface<D, ForceConst>::GetWorld() const { return b2Chain_GetWorld(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Destroy(bool updateBodyMass) requires (!ForceConst) { if (*this) { b2DestroyShape(static_cast<const D &>(*this).Handle(), updateBodyMass); static_cast<D &>(*this).id = {}; } }
@@ -2232,7 +2232,7 @@ namespace b2
     template <typename D, bool ForceConst> b2Circle BasicShapeInterface<D, ForceConst>::GetCircle() const { return b2Shape_GetCircle(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicShapeInterface<D, ForceConst>::GetClosestPoint(b2Vec2 target) const { return b2Shape_GetClosestPoint(static_cast<const D &>(*this).Handle(), target); }
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactCapacity() const { return b2Shape_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactData(b2ContactData& contactData, int capacity) const { return b2Shape_GetContactData(static_cast<const D &>(*this).Handle(), &contactData, capacity); }
+    template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Shape_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableContactEvents(bool flag) requires (!ForceConst) { b2Shape_EnableContactEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreContactEventsEnabled() const { return b2Shape_AreContactEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetDensity(float density, bool updateBodyMass) requires (!ForceConst) { b2Shape_SetDensity(static_cast<const D &>(*this).Handle(), density, updateBodyMass); }
@@ -2416,7 +2416,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsBullet() const { return b2Body_IsBullet(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2AABB BasicBodyInterface<D, ForceConst>::ComputeAABB() const { return b2Body_ComputeAABB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactCapacity() const { return b2Body_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactData(b2ContactData& contactData, int capacity) const { return b2Body_GetContactData(static_cast<const D &>(*this).Handle(), &contactData, capacity); }
+    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Body_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Disable() requires (!ForceConst) { b2Body_Disable(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetFixedRotation(bool flag) requires (!ForceConst) { b2Body_SetFixedRotation(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsFixedRotation() const { return b2Body_IsFixedRotation(static_cast<const D &>(*this).Handle()); }
@@ -2424,7 +2424,7 @@ namespace b2
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetGravityScale() const { return b2Body_GetGravityScale(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableHitEvents(bool enableHitEvents) requires (!ForceConst) { b2Body_EnableHitEvents(static_cast<const D &>(*this).Handle(), enableHitEvents); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJointCount() const { return b2Body_GetJointCount(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJoints(b2JointId& jointArray, int capacity) const { return b2Body_GetJoints(static_cast<const D &>(*this).Handle(), &jointArray, capacity); }
+    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJoints(b2JointId* jointArray, int capacity) const { return b2Body_GetJoints(static_cast<const D &>(*this).Handle(), jointArray, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearDamping(float linearDamping) requires (!ForceConst) { b2Body_SetLinearDamping(static_cast<const D &>(*this).Handle(), linearDamping); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetLinearDamping() const { return b2Body_GetLinearDamping(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearVelocity(b2Vec2 linearVelocity) requires (!ForceConst) { b2Body_SetLinearVelocity(static_cast<const D &>(*this).Handle(), linearVelocity); }
@@ -2439,7 +2439,7 @@ namespace b2
     template <typename D, bool ForceConst> b2Rot BasicBodyInterface<D, ForceConst>::GetRotation() const { return b2Body_GetRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetRotationalInertia() const { return b2Body_GetRotationalInertia(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapeCount() const { return b2Body_GetShapeCount(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapes(b2ShapeId& shapeArray, int capacity) const { return b2Body_GetShapes(static_cast<const D &>(*this).Handle(), &shapeArray, capacity); }
+    template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapes(b2ShapeId* shapeArray, int capacity) const { return b2Body_GetShapes(static_cast<const D &>(*this).Handle(), shapeArray, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableSleep(bool enableSleep) requires (!ForceConst) { b2Body_EnableSleep(static_cast<const D &>(*this).Handle(), enableSleep); }
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsSleepEnabled() const { return b2Body_IsSleepEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetSleepThreshold(float sleepThreshold) requires (!ForceConst) { b2Body_SetSleepThreshold(static_cast<const D &>(*this).Handle(), sleepThreshold); }

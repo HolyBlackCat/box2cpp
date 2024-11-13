@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.8"
+    own_version = "0.9"
 
     print "#pragma once"
     print ""
@@ -384,7 +384,10 @@ function emit_func(func_name, type, func_variant_index, indent)
         else
         {
             # Adjust pointer parameters to references (except for `void *`).
-            if (param_type_fixed != "void*" && param_type_fixed ~ /\*$/ && !(param_type_fixed ~ /Fcn\*$/))
+            if (param_type_fixed != "void*" &&
+                param_type_fixed ~ /\*$/ &&
+                param_type_fixed !~ /Fcn\*$/ &&
+                (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*"))
             {
                 param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
                 funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
