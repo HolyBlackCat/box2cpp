@@ -430,7 +430,7 @@ function emit_func(func_name, type, func_variant_index, indent)
 
         if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
-        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump)($|[A-Z])/ || clean_func_name == "Step")
+        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
         else
         {
