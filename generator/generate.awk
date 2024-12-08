@@ -860,7 +860,13 @@ END {
 
                 # Destructor.
                 print ""
-                print "        ~" type "() { if (*this) Destroy(); }"
+                if (type == "Shape") {
+                    # destructors can't have args, so we do the safest option: update body-mass.
+                    # if you wish to defer the mass update: do an explicit Destroy(false).
+                    print "        ~" type "() { if (*this) Destroy(true); }"
+                } else {
+                    print "        ~" type "() { if (*this) Destroy(); }"
+                }
             }
 
             print "    };"
