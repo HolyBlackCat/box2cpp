@@ -3,3 +3,5 @@
 /test/test*
 /tmp.part2
 /test.obj
+# database file that stores symbols for browsing features such as "go to definition".
+/.vscode/browse.vc.db*
