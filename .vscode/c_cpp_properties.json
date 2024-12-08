@@ -1,6 +1,6 @@
 {
   "env": {
-    "myIncludePath": ["${workspaceFolder}/../box2d/include", "${workspaceFolder}/include"],
+    "myIncludePath": ["${workspaceFolder}/box2d/include", "${workspaceFolder}/include"],
     // "myDefines": ["DEBUG", "MY_FEATURE=1"]
     "myDefines": []
   },
