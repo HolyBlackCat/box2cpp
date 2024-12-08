@@ -804,6 +804,7 @@ END {
             {
                 print "      protected:"
                 print "        b2"type"Id id{};" # Not using `b2_null"type "Id` for simplicity and constexpr-ness, here and everywhere else.
+                print "        void ExchangeId("type"& other) { this->id = std::exchange(other.id, {}); };"
                 print ""
             }
             print "      public:"
@@ -845,7 +846,7 @@ END {
                 print "        explicit "type"(Joint&& other) noexcept"
                 print "        {"
                 print "            if (other.GetType() == "joint_enum_value")"
-                print "                this->id = std::exchange(other.id, {});"
+                print "                ExchangeId(other);"
                 print "            else"
                 print "                BOX2CPP_ASSERT(false && \"This joint is not a `"type"`.\");"
                 print "        }"
