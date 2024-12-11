@@ -312,7 +312,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     # Nodiscard?
     if (return_type == "void")
     {}
-    else if (type == "DynamicTree" && func_name == "b2DynamicTree_Rebuild")
+    else if ((type == "DynamicTree" && func_name == "b2DynamicTree_Rebuild") || return_type == "b2TreeStats")
     {} # This returns optional statistics.
     else if (is_factory_func && !factory_func_owning)
     {} # You don't have to store the shape handle when it's non-owning.
@@ -844,7 +844,7 @@ END {
                 print "        // Triggers an assertion if this isn't the right joint kind."
                 print "        explicit "type"(Joint&& other) noexcept"
                 print "        {"
-                print "            if (other.GetType() == "joint_enum_value")"
+                print "            if (!other || other.GetType() == "joint_enum_value")"
                 print "                this->id = std::exchange(other.id, {});"
                 print "            else"
                 print "                BOX2CPP_ASSERT(false && \"This joint is not a `"type"`.\");"
@@ -859,8 +859,15 @@ END {
                 print "        " type "& operator=(" type " other) noexcept { std::swap(id, other.id); return *this; }"
 
                 # Destructor.
+                dtor_args = ""
+                dtor_comment = ""
+                if (type == "Shape")
+                {
+                    dtor_args = "true"
+                    dtor_comment = " // Update mass by default. Call `Destroy(false)` manually if you don't want this."
+                }
                 print ""
-                print "        ~" type "() { if (*this) Destroy(); }"
+                print "        ~" type "() { if (*this) Destroy(" dtor_args "); }" dtor_comment
             }
 
             print "    };"

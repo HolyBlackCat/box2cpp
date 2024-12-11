@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 90c2781 2024-11-09
+// Generated from box2d commit: 2c939c2 2024-12-02
 // Generator version: 0.9
 
 #include <box2d/box2d.h>
@@ -162,9 +162,15 @@ namespace b2
         /// @see b2ChainDef::friction
         void SetFriction(float friction) /*non-const*/ requires (!ForceConst);
 
+        /// Get the chain friction
+        [[nodiscard]] float GetFriction() const;
+
         /// Set the chain restitution (bounciness)
         /// @see b2ChainDef::restitution
         void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
+
+        /// Get the chain restitution
+        [[nodiscard]] float GetRestitution() const;
 
         /// Get the number of segments on this chain
         [[nodiscard]] int GetSegmentCount() const;
@@ -436,7 +442,7 @@ namespace b2
         Shape(Shape&& other) noexcept { id = std::exchange(other.id, b2ShapeId{}); }
         Shape& operator=(Shape other) noexcept { std::swap(id, other.id); return *this; }
 
-        ~Shape() { if (*this) Destroy(); }
+        ~Shape() { if (*this) Destroy(true); } // Update mass by default. Call `Destroy(false)` manually if you don't want this.
     };
 
     template <bool IsConstRef>
@@ -688,7 +694,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit DistanceJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_distanceJoint)
+            if (!other || other.GetType() == b2_distanceJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `DistanceJoint`.");
@@ -794,7 +800,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit MotorJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_motorJoint)
+            if (!other || other.GetType() == b2_motorJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `MotorJoint`.");
@@ -895,7 +901,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit MouseJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_mouseJoint)
+            if (!other || other.GetType() == b2_mouseJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `MouseJoint`.");
@@ -1036,7 +1042,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit PrismaticJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_prismaticJoint)
+            if (!other || other.GetType() == b2_prismaticJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `PrismaticJoint`.");
@@ -1178,7 +1184,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit RevoluteJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_revoluteJoint)
+            if (!other || other.GetType() == b2_revoluteJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `RevoluteJoint`.");
@@ -1286,7 +1292,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit WeldJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_weldJoint)
+            if (!other || other.GetType() == b2_weldJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `WeldJoint`.");
@@ -1419,7 +1425,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit WheelJoint(Joint&& other) noexcept
         {
-            if (other.GetType() == b2_wheelJoint)
+            if (!other || other.GetType() == b2_wheelJoint)
                 this->id = std::exchange(other.id, {});
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `WheelJoint`.");
@@ -1609,7 +1615,10 @@ namespace b2
         /// Get the maximum capacity required for retrieving all the touching contacts on a body
         [[nodiscard]] int GetContactCapacity() const;
 
-        /// Get the touching contact data for a body
+        /// Get the touching contact data for a body.
+        /// @note Box2D uses speculative collision so some contact points may be separated.
+        /// @returns the number of elements filled in the provided array
+        /// @warning do not ignore the return value, it specifies the valid number of elements
         [[nodiscard]] int GetContactData(b2ContactData* contactData, int capacity) const;
 
         /// Disable a body by removing it completely from the simulation. This is expensive.
@@ -1863,23 +1872,26 @@ namespace b2
         /// World id validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
 
+        /// Get the number of awake bodies.
+        [[nodiscard]] int GetAwakeBodyCount() const;
+
         /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2BodyEvents GetBodyEvents() const;
 
         /// Cast a capsule through the world. Similar to a cast ray except that a capsule is cast instead of a point.
         ///	@see b2World_CastRay
-        [[nodiscard]] b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a circle through the world. Similar to a cast ray except that a circle is cast instead of a point.
         ///	@see b2World_CastRay
-        [[nodiscard]] b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a polygon through the world. Similar to a cast ray except that a polygon is cast instead of a point.
         ///	@see b2World_CastRay
-        [[nodiscard]] b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a ray into the world to collect shapes in the path of the ray.
         /// Your callback function controls whether you get the closest point, any point, or n-points.
@@ -1892,8 +1904,8 @@ namespace b2
         /// @param fcn A user implemented callback function
         /// @param context A user context that is passed along to the callback function
         ///	@return traversal performance counters
-        [[nodiscard]] b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a ray into the world to collect the closest hit. This is a convenience function.
         /// This is less general than b2World_CastRay() and does not allow for custom filtering.
@@ -1966,24 +1978,24 @@ namespace b2
         [[nodiscard]] float GetMaximumLinearVelocity() const;
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB
-        [[nodiscard]] b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Overlap test for all shapes that overlap the provided capsule
-        [[nodiscard]] b2TreeStats Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        b2TreeStats Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Overlap test for for all shapes that overlap the provided circle. A zero radius may be used for a point query.
-        [[nodiscard]] b2TreeStats Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        b2TreeStats Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(const b2Circle& circle, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Overlap test for for all shapes that overlap the provided point.
-        [[nodiscard]] b2TreeStats Overlap(b2Vec2 point, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Overlap(b2Vec2 point, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        b2TreeStats Overlap(b2Vec2 point, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(b2Vec2 point, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Overlap test for all shapes that overlap the provided polygon
-        [[nodiscard]] b2TreeStats Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        [[nodiscard]] b2TreeStats Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        b2TreeStats Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(const b2Polygon& polygon, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Register the pre-solve callback. This is optional.
         void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) /*non-const*/ requires (!ForceConst);
@@ -1991,7 +2003,7 @@ namespace b2
         /// Get the current world performance profile
         [[nodiscard]] b2Profile GetProfile() const;
 
-        /// todo testing
+        /// This is for internal testing
         void RebuildStaticTree() /*non-const*/ requires (!ForceConst);
 
         /// Adjust the restitution threshold. It is recommended not to make this value very small
@@ -2012,6 +2024,9 @@ namespace b2
 
         /// Is body sleeping enabled?
         [[nodiscard]] bool IsSleepingEnabled() const;
+
+        /// This is for internal testing
+        void EnableSpeculative(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId The world to simulate
@@ -2146,9 +2161,6 @@ namespace b2
         /// called often.
         [[nodiscard]] int GetHeight() const;
 
-        /// Get the maximum balance of the tree. The balance is the difference in height of the two children of a node.
-        [[nodiscard]] int GetMaxBalance() const;
-
         /// Move a proxy to a new AABB by removing and reinserting into the tree.
         void MoveProxy(int32_t proxyId, b2AABB aabb);
 
@@ -2157,7 +2169,7 @@ namespace b2
 
         /// Query an AABB for overlapping proxies. The callback class is called for each proxy that overlaps the supplied AABB.
         ///	@return performance data
-        [[nodiscard]] b2TreeStats Query(b2AABB aabb, uint64_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const;
+        b2TreeStats Query(b2AABB aabb, uint64_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const;
 
         /// Ray cast against the proxies in the tree. This relies on the callback
         /// to perform a exact ray cast in the case were the proxy contains a shape.
@@ -2172,13 +2184,10 @@ namespace b2
         /// @param callback a callback class that is called for each proxy that is hit by the ray
         /// @param context user context that is passed to the callback
         ///	@return performance data
-        [[nodiscard]] b2TreeStats RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const;
+        b2TreeStats RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const;
 
         /// Rebuild the tree while retaining subtrees that haven't changed. Returns the number of boxes sorted.
         int Rebuild(bool fullBuild);
-
-        /// Build an optimal tree. Very expensive. For testing.
-        void RebuildBottomUp();
 
         /// Ray cast against the proxies in the tree. This relies on the callback
         /// to perform a exact ray cast in the case were the proxy contains a shape.
@@ -2191,13 +2200,7 @@ namespace b2
         /// @param callback a callback class that is called for each proxy that is hit by the shape
         /// @param context user context that is passed to the callback
         ///	@return performance data
-        [[nodiscard]] b2TreeStats ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const;
-
-        /// Shift the world origin. Useful for large worlds.
-        /// The shift formula is: position -= newOrigin
-        /// @param tree the tree to shift
-        /// @param newOrigin the new origin with respect to the old origin
-        void ShiftOrigin(b2Vec2 newOrigin);
+        b2TreeStats ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const;
 
         /// Get proxy user data
         [[nodiscard]] int32_t GetUserData(int32_t proxyId) const;
@@ -2213,7 +2216,9 @@ namespace b2
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyChain(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> bool BasicChainInterface<D, ForceConst>::IsValid() const { return b2Chain_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Chain_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
+    template <typename D, bool ForceConst> float BasicChainInterface<D, ForceConst>::GetFriction() const { return b2Chain_GetFriction(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Chain_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
+    template <typename D, bool ForceConst> float BasicChainInterface<D, ForceConst>::GetRestitution() const { return b2Chain_GetRestitution(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegmentCount() const { return b2Chain_GetSegmentCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegments(b2ShapeId* segmentArray, int capacity) const { return b2Chain_GetSegments(static_cast<const D &>(*this).Handle(), segmentArray, capacity); }
     template <typename D, bool ForceConst> WorldRef BasicChainInterface<D, ForceConst>::GetWorld() requires (!ForceConst) { return b2Chain_GetWorld(static_cast<const D &>(*this).Handle()); }
@@ -2475,6 +2480,7 @@ namespace b2
     template <typename D, bool ForceConst> WheelJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2WheelJointDef> auto& def) requires (!ForceConst) { return (WheelJointRef)b2CreateWheelJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyWorld(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsValid() const { return b2World_IsValid(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::GetAwakeBodyCount() const { return b2World_GetAwakeBodyCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2BodyEvents BasicWorldInterface<D, ForceConst>::GetBodyEvents() const { return b2World_GetBodyEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
@@ -2519,6 +2525,7 @@ namespace b2
     template <typename D, bool ForceConst> b2SensorEvents BasicWorldInterface<D, ForceConst>::GetSensorEvents() const { return b2World_GetSensorEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSleeping(bool flag) requires (!ForceConst) { b2World_EnableSleeping(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsSleepingEnabled() const { return b2World_IsSleepingEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSpeculative(bool flag) requires (!ForceConst) { b2World_EnableSpeculative(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Step(float timeStep, int subStepCount) requires (!ForceConst) { b2World_Step(static_cast<const D &>(*this).Handle(), timeStep, subStepCount); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2World_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> void* BasicWorldInterface<D, ForceConst>::GetUserData() const { return b2World_GetUserData(static_cast<const D &>(*this).Handle()); }
@@ -2531,15 +2538,12 @@ namespace b2
     inline void DynamicTree::DestroyProxy(int32_t proxyId) { b2DynamicTree_DestroyProxy(&value, proxyId); }
     inline void DynamicTree::EnlargeProxy(int32_t proxyId, b2AABB aabb) { b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     inline int DynamicTree::GetHeight() const { return b2DynamicTree_GetHeight(&value); }
-    inline int DynamicTree::GetMaxBalance() const { return b2DynamicTree_GetMaxBalance(&value); }
     inline void DynamicTree::MoveProxy(int32_t proxyId, b2AABB aabb) { b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
     inline int DynamicTree::GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
     inline b2TreeStats DynamicTree::Query(b2AABB aabb, uint64_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_Query(&value, aabb, maskBits, callback, context); }
     inline b2TreeStats DynamicTree::RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
     inline int DynamicTree::Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
-    inline void DynamicTree::RebuildBottomUp() { b2DynamicTree_RebuildBottomUp(&value); }
     inline b2TreeStats DynamicTree::ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
-    inline void DynamicTree::ShiftOrigin(b2Vec2 newOrigin) { b2DynamicTree_ShiftOrigin(&value, newOrigin); }
     inline int32_t DynamicTree::GetUserData(int32_t proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
     inline void DynamicTree::Validate() const { b2DynamicTree_Validate(&value); }
 } // namespace box2d
