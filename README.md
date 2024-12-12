@@ -170,7 +170,7 @@ Those callback improvements are not yet implemented for `b2::World::SetPreSolveC
 
 We have an optional debug renderer using ImGui.
 
-See comments in [`<box2cpp/debug_imgui_renderer.h>`](https://github.com/HolyBlackCat/box2cpp/blob/main/include/box2cpp/debug_imgui_renderer.h) for usage details.
+See comments in [`<box2cpp/debug_imgui_renderer.h>`](/include/box2cpp/debug_imgui_renderer.h) for usage details.
 
 Simple example: (this assumes you already know how to use ImGui)
 ```cpp
