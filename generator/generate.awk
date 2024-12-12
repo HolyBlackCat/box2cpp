@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.9"
+    own_version = "0.10"
 
     print "#pragma once"
     print ""
@@ -905,7 +905,7 @@ END {
                 print "        // Triggers an assertion if this isn't the right joint kind."
                 print "        explicit constexpr MaybeConst"type"Ref(std::same_as<b2JointId> auto id) noexcept"
                 print "        {"
-                print "            if (b2Joint_GetType(id) == "joint_enum_value")"
+                print "            if (B2_IS_NULL(id) || b2Joint_GetType(id) == "joint_enum_value")"
                 print "                this->id = id;"
                 print "            else"
                 print "                BOX2CPP_ASSERT(false && \"This joint is not a `"type"`.\");"

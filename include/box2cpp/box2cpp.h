@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 2c939c2 2024-12-02
-// Generator version: 0.9
+// Generator version: 0.10
 
 #include <box2d/box2d.h>
 
@@ -720,7 +720,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstDistanceJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_distanceJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_distanceJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `DistanceJoint`.");
@@ -826,7 +826,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstMotorJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_motorJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_motorJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `MotorJoint`.");
@@ -927,7 +927,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstMouseJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_mouseJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_mouseJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `MouseJoint`.");
@@ -1068,7 +1068,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstPrismaticJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_prismaticJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_prismaticJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `PrismaticJoint`.");
@@ -1210,7 +1210,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstRevoluteJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_revoluteJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_revoluteJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `RevoluteJoint`.");
@@ -1318,7 +1318,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstWeldJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_weldJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_weldJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `WeldJoint`.");
@@ -1451,7 +1451,7 @@ namespace b2
         // Triggers an assertion if this isn't the right joint kind.
         explicit constexpr MaybeConstWheelJointRef(std::same_as<b2JointId> auto id) noexcept
         {
-            if (b2Joint_GetType(id) == b2_wheelJoint)
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_wheelJoint)
                 this->id = id;
             else
                 BOX2CPP_ASSERT(false && "This joint is not a `WheelJoint`.");
