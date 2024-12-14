@@ -1,4 +1,4 @@
 {
     "C_Cpp.default.cppStandard": "c++20",
-    "cmake.ignoreCMakeListsMissing": true,
+    "C_Cpp.default.includePath": ["${workspaceFolder}/../box2d/include", "${workspaceFolder}/include"],
 }
