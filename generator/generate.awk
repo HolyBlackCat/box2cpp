@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.10"
+    own_version = "0.11"
 
     print "#pragma once"
     print ""
@@ -385,6 +385,7 @@ function emit_func(func_name, type, func_variant_index, indent)
         {
             # Adjust pointer parameters to references (except for `void *`).
             if (param_type_fixed != "void*" &&
+                param_type_fixed != "const char*" &&
                 param_type_fixed ~ /\*$/ &&
                 param_type_fixed !~ /Fcn\*$/ &&
                 (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*"))

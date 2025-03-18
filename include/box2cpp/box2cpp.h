@@ -1,8 +1,8 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 2c939c2 2024-12-02
-// Generator version: 0.10
+// Generated from box2d commit: 28adacf 2025-01-27
+// Generator version: 0.11
 
 #include <box2d/box2d.h>
 
@@ -165,6 +165,13 @@ namespace b2
         /// Get the chain friction
         [[nodiscard]] float GetFriction() const;
 
+        /// Set the chain material
+        /// @see b2ChainDef::material
+        void SetMaterial(int material) /*non-const*/ requires (!ForceConst);
+
+        /// Get the chain material
+        [[nodiscard]] int GetMaterial() const;
+
         /// Set the chain restitution (bounciness)
         /// @see b2ChainDef::restitution
         void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
@@ -190,7 +197,7 @@ namespace b2
     /// - chains have a counter-clockwise winding order
     /// - chains are either a loop or open
     /// - a chain must have at least 4 points
-    /// - the distance between any two points must be greater than b2_linearSlop
+    /// - the distance between any two points must be greater than B2_LINEAR_SLOP
     /// - a chain shape should not self intersect (this is not validated)
     /// - an open chain shape has NO COLLISION on the first and final edge
     /// - you may overlap two open chains on their first three and/or last three points to get smooth collision
@@ -311,30 +318,37 @@ namespace b2
         [[nodiscard]] b2Circle GetCircle() const;
 
         /// Get the closest point on a shape to a target point. Target and result are in world space.
+        /// todo need sample
         [[nodiscard]] b2Vec2 GetClosestPoint(b2Vec2 target) const;
 
         /// Get the maximum capacity required for retrieving all the touching contacts on a shape
         [[nodiscard]] int GetContactCapacity() const;
 
         /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
+        /// @note Box2D uses speculative collision so some contact points may be separated.
+        /// @returns the number of elements filled in the provided array
+        /// @warning do not ignore the return value, it specifies the valid number of elements
         [[nodiscard]] int GetContactData(b2ContactData* contactData, int capacity) const;
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
         /// @see b2ShapeDef::enableContactEvents
+        /// @warning changing this at run-time may lead to lost begin/end events
         void EnableContactEvents(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Returns true if contact events are enabled
         [[nodiscard]] bool AreContactEventsEnabled() const;
 
-        /// Set the mass density of a shape, typically in kg/m^2.
+        /// Set the mass density of a shape, usually in kg/m^2.
         /// This will optionally update the mass properties on the parent body.
         /// @see b2ShapeDef::density, b2Body_ApplyMassFromShapes
         void SetDensity(float density, bool updateBodyMass) /*non-const*/ requires (!ForceConst);
 
-        /// Get the density of a shape, typically in kg/m^2
+        /// Get the density of a shape, usually in kg/m^2
         [[nodiscard]] float GetDensity() const;
 
-        /// Set the current filter. This is almost as expensive as recreating the shape.
+        /// Set the current filter. This is almost as expensive as recreating the shape. This may cause
+        /// contacts to be immediately destroyed. However contacts are not created until the next world step.
+        /// Sensor overlap state is also not updated until the next world step.
         /// @see b2ShapeDef::filter
         void SetFilter(b2Filter filter) /*non-const*/ requires (!ForceConst);
 
@@ -354,6 +368,16 @@ namespace b2
 
         /// Returns true if hit events are enabled
         [[nodiscard]] bool AreHitEventsEnabled() const;
+
+        /// Get the mass data for a shape
+        [[nodiscard]] b2MassData GetMassData() const;
+
+        /// Set the shape material identifier
+        /// @see b2ShapeDef::material
+        void SetMaterial(int material) /*non-const*/ requires (!ForceConst);
+
+        /// Get the shape material identifier 
+        [[nodiscard]] int GetMaterial() const;
 
         /// Get the parent chain id if the shape type is a chain segment, otherwise
         /// returns b2_nullChainId.
@@ -387,12 +411,20 @@ namespace b2
         /// Returns true If the shape is a sensor
         [[nodiscard]] bool IsSensor() const;
 
-        /// Enable sensor events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        /// @see b2ShapeDef::isSensor
-        void EnableSensorEvents(bool flag) /*non-const*/ requires (!ForceConst);
+        /// Get the maximum capacity required for retrieving all the overlapped shapes on a sensor shape.
+        /// This returns 0 if the provided shape is not a sensor.
+        /// @param shapeId the id of a sensor shape
+        /// @returns the required capacity to get all the overlaps in b2Shape_GetSensorOverlaps
+        [[nodiscard]] int GetSensorCapacity() const;
 
-        /// Returns true if sensor events are enabled
-        [[nodiscard]] bool AreSensorEventsEnabled() const;
+        /// Get the overlapped shapes for a sensor shape.
+        /// @param shapeId the id of a sensor shape
+        /// @param overlaps a user allocated array that is filled with the overlapping shapes
+        /// @param capacity the capacity of overlappedShapes
+        /// @returns the number of elements filled in the provided array
+        /// @warning do not ignore the return value, it specifies the valid number of elements
+        /// @warning overlaps may contain destroyed shapes so use b2Shape_IsValid to confirm each overlap
+        [[nodiscard]] int GetSensorOverlaps(b2ShapeId* overlaps, int capacity) const;
 
         /// Test a point for overlap with a shape
         [[nodiscard]] bool TestPoint(b2Vec2 point) const;
@@ -505,10 +537,10 @@ namespace b2
         /// Is collision allowed between connected bodies?
         [[nodiscard]] bool GetCollideConnected() const;
 
-        /// Get the current constraint force for this joint
+        /// Get the current constraint force for this joint. Usually in Newtons.
         [[nodiscard]] b2Vec2 GetConstraintForce() const;
 
-        /// Get the current constraint torque for this joint
+        /// Get the current constraint torque for this joint. Usually in Newton * meters.
         [[nodiscard]] float GetConstraintTorque() const;
 
         /// Get the local anchor on bodyA
@@ -621,10 +653,10 @@ namespace b2
         /// Get the distance joint maximum length
         [[nodiscard]] float GetMaxLength() const;
 
-        /// Set the distance joint maximum motor force, typically in newtons
+        /// Set the distance joint maximum motor force, usually in newtons
         void SetMaxMotorForce(float force) /*non-const*/ requires (!ForceConst);
 
-        /// Get the distance joint maximum motor force, typically in newtons
+        /// Get the distance joint maximum motor force, usually in newtons
         [[nodiscard]] float GetMaxMotorForce() const;
 
         /// Get the distance joint minimum length
@@ -636,13 +668,13 @@ namespace b2
         /// Is the distance joint motor enabled?
         [[nodiscard]] bool IsMotorEnabled() const;
 
-        /// Get the distance joint current motor force, typically in newtons
+        /// Get the distance joint current motor force, usually in newtons
         [[nodiscard]] float GetMotorForce() const;
 
-        /// Set the distance joint motor speed, typically in meters per second
+        /// Set the distance joint motor speed, usually in meters per second
         void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
 
-        /// Get the distance joint motor speed, typically in meters per second
+        /// Get the distance joint motor speed, usually in meters per second
         [[nodiscard]] float GetMotorSpeed() const;
 
         /// Enable/disable the distance joint spring. When disabled the distance joint is rigid.
@@ -748,10 +780,10 @@ namespace b2
         /// Get the motor joint angular offset target in radians
         [[nodiscard]] float GetAngularOffset() const;
 
-        /// Set the motor joint correction factor, typically in [0, 1]
+        /// Set the motor joint correction factor, usually in [0, 1]
         void SetCorrectionFactor(float correctionFactor) /*non-const*/ requires (!ForceConst);
 
-        /// Get the motor joint correction factor, typically in [0, 1]
+        /// Get the motor joint correction factor, usually in [0, 1]
         [[nodiscard]] float GetCorrectionFactor() const;
 
         /// Set the motor joint linear offset target
@@ -760,16 +792,16 @@ namespace b2
         /// Get the motor joint linear offset target
         [[nodiscard]] b2Vec2 GetLinearOffset() const;
 
-        /// Set the motor joint maximum force, typically in newtons
+        /// Set the motor joint maximum force, usually in newtons
         void SetMaxForce(float maxForce) /*non-const*/ requires (!ForceConst);
 
-        /// Get the motor joint maximum force, typically in newtons
+        /// Get the motor joint maximum force, usually in newtons
         [[nodiscard]] float GetMaxForce() const;
 
-        /// Set the motor joint maximum torque, typically in newton-meters
+        /// Set the motor joint maximum torque, usually in newton-meters
         void SetMaxTorque(float maxTorque) /*non-const*/ requires (!ForceConst);
 
-        /// Get the motor joint maximum torque, typically in newton-meters
+        /// Get the motor joint maximum torque, usually in newton-meters
         [[nodiscard]] float GetMaxTorque() const;
     };
 
@@ -848,10 +880,10 @@ namespace b2
         BasicMouseJointInterface() = default;
 
       public:
-        /// Set the mouse joint maximum force, typically in newtons
+        /// Set the mouse joint maximum force, usually in newtons
         void SetMaxForce(float maxForce) /*non-const*/ requires (!ForceConst);
 
-        /// Get the mouse joint maximum force, typically in newtons
+        /// Get the mouse joint maximum force, usually in newtons
         [[nodiscard]] float GetMaxForce() const;
 
         /// Set the mouse joint spring damping ratio, non-dimensional
@@ -961,10 +993,10 @@ namespace b2
         /// Get the prismatic joint lower limit
         [[nodiscard]] float GetLowerLimit() const;
 
-        /// Set the prismatic joint maximum motor force, typically in newtons
+        /// Set the prismatic joint maximum motor force, usually in newtons
         void SetMaxMotorForce(float force) /*non-const*/ requires (!ForceConst);
 
-        /// Get the prismatic joint maximum motor force, typically in newtons
+        /// Get the prismatic joint maximum motor force, usually in newtons
         [[nodiscard]] float GetMaxMotorForce() const;
 
         /// Enable/disable a prismatic joint motor
@@ -973,13 +1005,13 @@ namespace b2
         /// Is the prismatic joint motor enabled?
         [[nodiscard]] bool IsMotorEnabled() const;
 
-        /// Get the prismatic joint current motor force, typically in newtons
+        /// Get the prismatic joint current motor force, usually in newtons
         [[nodiscard]] float GetMotorForce() const;
 
-        /// Set the prismatic joint motor speed, typically in meters per second
+        /// Set the prismatic joint motor speed, usually in meters per second
         void SetMotorSpeed(float motorSpeed) /*non-const*/ requires (!ForceConst);
 
-        /// Get the prismatic joint motor speed, typically in meters per second
+        /// Get the prismatic joint motor speed, usually in meters per second
         [[nodiscard]] float GetMotorSpeed() const;
 
         /// Get the current joint translation speed, usually in meters per second.
@@ -1106,10 +1138,10 @@ namespace b2
         /// Get the revolute joint lower limit in radians
         [[nodiscard]] float GetLowerLimit() const;
 
-        /// Set the revolute joint maximum motor torque, typically in newton-meters
+        /// Set the revolute joint maximum motor torque, usually in newton-meters
         void SetMaxMotorTorque(float torque) /*non-const*/ requires (!ForceConst);
 
-        /// Get the revolute joint maximum motor torque, typically in newton-meters
+        /// Get the revolute joint maximum motor torque, usually in newton-meters
         [[nodiscard]] float GetMaxMotorTorque() const;
 
         /// Enable/disable a revolute joint motor
@@ -1124,7 +1156,7 @@ namespace b2
         /// Get the revolute joint motor speed in radians per second
         [[nodiscard]] float GetMotorSpeed() const;
 
-        /// Get the revolute joint current motor torque, typically in newton-meters
+        /// Get the revolute joint current motor torque, usually in newton-meters
         [[nodiscard]] float GetMotorTorque() const;
 
         /// Enable/disable the revolute joint spring
@@ -1352,10 +1384,10 @@ namespace b2
         /// Get the wheel joint lower limit
         [[nodiscard]] float GetLowerLimit() const;
 
-        /// Set the wheel joint maximum motor torque, typically in newton-meters
+        /// Set the wheel joint maximum motor torque, usually in newton-meters
         void SetMaxMotorTorque(float torque) /*non-const*/ requires (!ForceConst);
 
-        /// Get the wheel joint maximum motor torque, typically in newton-meters
+        /// Get the wheel joint maximum motor torque, usually in newton-meters
         [[nodiscard]] float GetMaxMotorTorque() const;
 
         /// Enable/disable the wheel joint motor
@@ -1370,7 +1402,7 @@ namespace b2
         /// Get the wheel joint motor speed in radians per second
         [[nodiscard]] float GetMotorSpeed() const;
 
-        /// Get the wheel joint current motor torque, typically in newton-meters
+        /// Get the wheel joint current motor torque, usually in newton-meters
         [[nodiscard]] float GetMotorTorque() const;
 
         /// Enable/disable the wheel joint spring
@@ -1536,7 +1568,7 @@ namespace b2
         /// Apply an angular impulse. The impulse is ignored if the body is not awake.
         /// This optionally wakes the body.
         /// @param bodyId The body id
-        /// @param impulse the angular impulse, typically in units of kg*m*m/s
+        /// @param impulse the angular impulse, usually in units of kg*m*m/s
         /// @param wake also wake up the body
         /// @warning This should be used for one-shot impulses. If you need a steady force,
         /// use a force instead, which will work better with the sub-stepping solver.
@@ -1546,7 +1578,7 @@ namespace b2
         /// it will generate a torque and affect the angular velocity. This optionally wakes up the body.
         /// The force is ignored if the body is not awake.
         /// @param bodyId The body id
-        /// @param force The world force vector, typically in newtons (N)
+        /// @param force The world force vector, usually in newtons (N)
         /// @param point The world position of the point of application
         /// @param wake Option to wake up the body
         void ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) /*non-const*/ requires (!ForceConst);
@@ -1563,7 +1595,7 @@ namespace b2
         /// is not at the center of mass. This optionally wakes the body.
         /// The impulse is ignored if the body is not awake.
         /// @param bodyId The body id
-        /// @param impulse the world impulse vector, typically in N*s or kg*m/s.
+        /// @param impulse the world impulse vector, usually in N*s or kg*m/s.
         /// @param point the world position of the point of application.
         /// @param wake also wake up the body
         /// @warning This should be used for one-shot impulses. If you need a steady force,
@@ -1573,7 +1605,7 @@ namespace b2
         /// Apply an impulse to the center of mass. This immediately modifies the velocity.
         /// The impulse is ignored if the body is not awake. This optionally wakes the body.
         /// @param bodyId The body id
-        /// @param impulse the world impulse vector, typically in N*s or kg*m/s.
+        /// @param impulse the world impulse vector, usually in N*s or kg*m/s.
         /// @param wake also wake up the body
         /// @warning This should be used for one-shot impulses. If you need a steady force,
         /// use a force instead, which will work better with the sub-stepping solver.
@@ -1589,7 +1621,7 @@ namespace b2
         /// Apply a torque. This affects the angular velocity without affecting the linear velocity.
         /// This optionally wakes the body. The torque is ignored if the body is not awake.
         /// @param bodyId The body id
-        /// @param torque about the z-axis (out of the screen), typically in N*m.
+        /// @param torque about the z-axis (out of the screen), usually in N*m.
         /// @param wake also wake up the body
         void ApplyTorque(float torque, bool wake) /*non-const*/ requires (!ForceConst);
 
@@ -1621,6 +1653,11 @@ namespace b2
         /// @warning do not ignore the return value, it specifies the valid number of elements
         [[nodiscard]] int GetContactData(b2ContactData* contactData, int capacity) const;
 
+        /// Enable/disable contact events on all shapes.
+        /// @see b2ShapeDef::enableContactEvents
+        /// @warning changing this at runtime may cause mismatched begin/end touch events
+        void EnableContactEvents(bool flag) /*non-const*/ requires (!ForceConst);
+
         /// Disable a body by removing it completely from the simulation. This is expensive.
         void Disable() /*non-const*/ requires (!ForceConst);
 
@@ -1639,7 +1676,7 @@ namespace b2
 
         /// Enable/disable hit events on all shapes
         /// @see b2ShapeDef::enableHitEvents
-        void EnableHitEvents(bool enableHitEvents) /*non-const*/ requires (!ForceConst);
+        void EnableHitEvents(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Get the number of joints on this body
         [[nodiscard]] int GetJointCount() const;
@@ -1654,10 +1691,10 @@ namespace b2
         /// Get the current linear damping.
         [[nodiscard]] float GetLinearDamping() const;
 
-        /// Set the linear velocity of a body. Typically in meters per second.
+        /// Set the linear velocity of a body. Usually in meters per second.
         void SetLinearVelocity(b2Vec2 linearVelocity) /*non-const*/ requires (!ForceConst);
 
-        /// Get the linear velocity of a body's center of mass. Typically in meters per second.
+        /// Get the linear velocity of a body's center of mass. Usually in meters per second.
         [[nodiscard]] b2Vec2 GetLinearVelocity() const;
 
         /// Get the center of mass position of the body in local space
@@ -1666,10 +1703,13 @@ namespace b2
         /// Get a local point on a body given a world point
         [[nodiscard]] b2Vec2 GetLocalPoint(b2Vec2 worldPoint) const;
 
+        /// Get the linear velocity of a local point attached to a body. Usually in meters per second.
+        [[nodiscard]] b2Vec2 GetLocalPointVelocity(b2Vec2 localPoint) const;
+
         /// Get a local vector on a body given a world vector
         [[nodiscard]] b2Vec2 GetLocalVector(b2Vec2 worldVector) const;
 
-        /// Get the mass of the body, typically in kilograms
+        /// Get the mass of the body, usually in kilograms
         [[nodiscard]] float GetMass() const;
 
         /// Override the body's mass properties. Normally this is computed automatically using the
@@ -1680,13 +1720,19 @@ namespace b2
         /// Get the mass data for a body
         [[nodiscard]] b2MassData GetMassData() const;
 
+        /// Set the body name. Up to 31 characters excluding 0 termination.
+        void SetName(const char* name) /*non-const*/ requires (!ForceConst);
+
+        /// Get the body name. May be null.
+        [[nodiscard]] const char* GetName() const;
+
         /// Get the world position of a body. This is the location of the body origin.
         [[nodiscard]] b2Vec2 GetPosition() const;
 
         /// Get the world rotation of a body as a cosine/sine pair (complex number)
         [[nodiscard]] b2Rot GetRotation() const;
 
-        /// Get the rotational inertia of the body, typically in kg*m^2
+        /// Get the rotational inertia of the body, usually in kg*m^2
         [[nodiscard]] float GetRotationalInertia() const;
 
         /// Get the number of shapes on this body
@@ -1702,10 +1748,10 @@ namespace b2
         /// Returns true if sleeping is enabled for this body
         [[nodiscard]] bool IsSleepEnabled() const;
 
-        /// Set the sleep threshold, typically in meters per second
+        /// Set the sleep threshold, usually in meters per second
         void SetSleepThreshold(float sleepThreshold) /*non-const*/ requires (!ForceConst);
 
-        /// Get the sleep threshold, typically in meters per second.
+        /// Get the sleep threshold, usually in meters per second.
         [[nodiscard]] float GetSleepThreshold() const;
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
@@ -1738,6 +1784,9 @@ namespace b2
 
         /// Get a world point on a body given a local point
         [[nodiscard]] b2Vec2 GetWorldPoint(b2Vec2 localPoint) const;
+
+        /// Get the linear velocity of a world point attached to a body. Usually in meters per second.
+        [[nodiscard]] b2Vec2 GetWorldPointVelocity(b2Vec2 worldPoint) const;
 
         /// Get a world vector on a body given a local vector
         [[nodiscard]] b2Vec2 GetWorldVector(b2Vec2 localVector) const;
@@ -1918,9 +1967,9 @@ namespace b2
         /// @param worldId The world id
         /// @param hertz The contact stiffness (cycles per second)
         /// @param dampingRatio The contact bounciness with 1 being critical damping (non-dimensional)
-        /// @param pushVelocity The maximum contact constraint push out velocity (meters per second)
+        /// @param pushSpeed The maximum contact constraint push out speed (meters per second)
         /// @note Advanced feature
-        void SetContactTuning(float hertz, float dampingRatio, float pushVelocity) /*non-const*/ requires (!ForceConst);
+        void SetContactTuning(float hertz, float dampingRatio, float pushSpeed) /*non-const*/ requires (!ForceConst);
 
         /// Enable/disable continuous collision between dynamic and static bodies. Generally you should keep continuous
         /// collision enabled to prevent fast moving objects from going through static objects. The performance gain from
@@ -1948,20 +1997,23 @@ namespace b2
         /// @param explosionDef The explosion definition
         void Explode(const b2ExplosionDef& explosionDef) /*non-const*/ requires (!ForceConst);
 
+        /// Set the friction callback. Passing NULL resets to default.
+        void SetFrictionCallback(b2FrictionCallback* callback) /*non-const*/ requires (!ForceConst);
+
         /// Set the gravity vector for the entire world. Box2D has no concept of an up direction and this
-        /// is left as a decision for the application. Typically in m/s^2.
+        /// is left as a decision for the application. Usually in m/s^2.
         /// @see b2WorldDef
         void SetGravity(b2Vec2 gravity) /*non-const*/ requires (!ForceConst);
 
         /// Get the gravity vector
         [[nodiscard]] b2Vec2 GetGravity() const;
 
-        /// Adjust the hit event threshold. This controls the collision velocity needed to generate a b2ContactHitEvent.
-        /// Typically in meters per second.
+        /// Adjust the hit event threshold. This controls the collision speed needed to generate a b2ContactHitEvent.
+        /// Usually in meters per second.
         /// @see b2WorldDef::hitEventThreshold
         void SetHitEventThreshold(float value) /*non-const*/ requires (!ForceConst);
 
-        /// Get the the hit event speed threshold. Typically in meters per second.
+        /// Get the the hit event speed threshold. Usually in meters per second.
         [[nodiscard]] float GetHitEventThreshold() const;
 
         /// Adjust joint tuning parameters
@@ -1971,11 +2023,11 @@ namespace b2
         /// @note Advanced feature
         void SetJointTuning(float hertz, float dampingRatio) /*non-const*/ requires (!ForceConst);
 
-        /// Set the maximum linear velocity. Typically in m/s.
-        void SetMaximumLinearVelocity(float maximumLinearVelocity) /*non-const*/ requires (!ForceConst);
+        /// Set the maximum linear speed. Usually in m/s.
+        void SetMaximumLinearSpeed(float maximumLinearSpeed) /*non-const*/ requires (!ForceConst);
 
-        /// Get the maximum linear velocity. Typically in m/s.
-        [[nodiscard]] float GetMaximumLinearVelocity() const;
+        /// Get the maximum linear speed. Usually in m/s.
+        [[nodiscard]] float GetMaximumLinearSpeed() const;
 
         /// Overlap test for all shapes that *potentially* overlap the provided AABB
         b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
@@ -2006,12 +2058,15 @@ namespace b2
         /// This is for internal testing
         void RebuildStaticTree() /*non-const*/ requires (!ForceConst);
 
+        /// Set the restitution callback. Passing NULL resets to default.
+        void SetRestitutionCallback(b2RestitutionCallback* callback) /*non-const*/ requires (!ForceConst);
+
         /// Adjust the restitution threshold. It is recommended not to make this value very small
-        /// because it will prevent bodies from sleeping. Typically in meters per second.
+        /// because it will prevent bodies from sleeping. Usually in meters per second.
         /// @see b2WorldDef
         void SetRestitutionThreshold(float value) /*non-const*/ requires (!ForceConst);
 
-        /// Get the the restitution speed threshold. Typically in meters per second.
+        /// Get the the restitution speed threshold. Usually in meters per second.
         [[nodiscard]] float GetRestitutionThreshold() const;
 
         /// Get sensor events for the current time step. The event data is transient. Do not store a reference to this data.
@@ -2030,8 +2085,8 @@ namespace b2
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId The world to simulate
-        /// @param timeStep The amount of time to simulate, this should be a fixed number. Typically 1/60.
-        /// @param subStepCount The number of sub-steps, increasing the sub-step count can increase accuracy. Typically 4.
+        /// @param timeStep The amount of time to simulate, this should be a fixed number. Usually 1/60.
+        /// @param subStepCount The number of sub-steps, increasing the sub-step count can increase accuracy. Usually 4.
         void Step(float timeStep, int subStepCount) /*non-const*/ requires (!ForceConst);
 
         /// Set the user data pointer.
@@ -2140,7 +2195,7 @@ namespace b2
         [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }
 
         /// Get the AABB of a proxy
-        [[nodiscard]] b2AABB GetAABB(int32_t proxyId) const;
+        [[nodiscard]] b2AABB GetAABB(int proxyId) const;
 
         /// Get the ratio of the sum of the node areas to the root area.
         [[nodiscard]] float GetAreaRatio() const;
@@ -2149,20 +2204,19 @@ namespace b2
         [[nodiscard]] int GetByteCount() const;
 
         /// Create a proxy. Provide an AABB and a userData value.
-        [[nodiscard]] int32_t CreateProxy(b2AABB aabb, uint64_t categoryBits, int32_t userData);
+        [[nodiscard]] int CreateProxy(b2AABB aabb, uint64_t categoryBits, int userData);
 
         /// Destroy a proxy. This asserts if the id is invalid.
-        void DestroyProxy(int32_t proxyId);
+        void DestroyProxy(int proxyId);
 
         /// Enlarge a proxy and enlarge ancestors as necessary.
-        void EnlargeProxy(int32_t proxyId, b2AABB aabb);
+        void EnlargeProxy(int proxyId, b2AABB aabb);
 
-        /// Compute the height of the binary tree in O(N) time. Should not be
-        /// called often.
+        /// Get the height of the binary tree.
         [[nodiscard]] int GetHeight() const;
 
         /// Move a proxy to a new AABB by removing and reinserting into the tree.
-        void MoveProxy(int32_t proxyId, b2AABB aabb);
+        void MoveProxy(int proxyId, b2AABB aabb);
 
         /// Get the number of proxies created
         [[nodiscard]] int GetProxyCount() const;
@@ -2203,10 +2257,13 @@ namespace b2
         b2TreeStats ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const;
 
         /// Get proxy user data
-        [[nodiscard]] int32_t GetUserData(int32_t proxyId) const;
+        [[nodiscard]] int GetUserData(int proxyId) const;
 
         /// Validate this tree. For testing.
         void Validate() const;
+
+        /// Validate this tree has no enlarged AABBs. For testing.
+        void ValidateNoEnlarged() const;
     };
 } // namespace box2d
 
@@ -2217,6 +2274,8 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicChainInterface<D, ForceConst>::IsValid() const { return b2Chain_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetFriction(float friction) requires (!ForceConst) { b2Chain_SetFriction(static_cast<const D &>(*this).Handle(), friction); }
     template <typename D, bool ForceConst> float BasicChainInterface<D, ForceConst>::GetFriction() const { return b2Chain_GetFriction(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetMaterial(int material) requires (!ForceConst) { b2Chain_SetMaterial(static_cast<const D &>(*this).Handle(), material); }
+    template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetMaterial() const { return b2Chain_GetMaterial(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicChainInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Chain_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> float BasicChainInterface<D, ForceConst>::GetRestitution() const { return b2Chain_GetRestitution(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicChainInterface<D, ForceConst>::GetSegmentCount() const { return b2Chain_GetSegmentCount(static_cast<const D &>(*this).Handle()); }
@@ -2248,6 +2307,9 @@ namespace b2
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetFriction() const { return b2Shape_GetFriction(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableHitEvents(bool flag) requires (!ForceConst) { b2Shape_EnableHitEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreHitEventsEnabled() const { return b2Shape_AreHitEventsEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2MassData BasicShapeInterface<D, ForceConst>::GetMassData() const { return b2Shape_GetMassData(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetMaterial(int material) requires (!ForceConst) { b2Shape_SetMaterial(static_cast<const D &>(*this).Handle(), material); }
+    template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetMaterial() const { return b2Shape_GetMaterial(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> ChainRef BasicShapeInterface<D, ForceConst>::GetParentChain() requires (!ForceConst) { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> ChainConstRef BasicShapeInterface<D, ForceConst>::GetParentChain() const { return b2Shape_GetParentChain(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Polygon BasicShapeInterface<D, ForceConst>::GetPolygon() const { return b2Shape_GetPolygon(static_cast<const D &>(*this).Handle()); }
@@ -2258,8 +2320,8 @@ namespace b2
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetRestitution() const { return b2Shape_GetRestitution(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Segment BasicShapeInterface<D, ForceConst>::GetSegment() const { return b2Shape_GetSegment(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsSensor() const { return b2Shape_IsSensor(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableSensorEvents(bool flag) requires (!ForceConst) { b2Shape_EnableSensorEvents(static_cast<const D &>(*this).Handle(), flag); }
-    template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetSensorCapacity() const { return b2Shape_GetSensorCapacity(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetSensorOverlaps(b2ShapeId* overlaps, int capacity) const { return b2Shape_GetSensorOverlaps(static_cast<const D &>(*this).Handle(), overlaps, capacity); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::TestPoint(b2Vec2 point) const { return b2Shape_TestPoint(static_cast<const D &>(*this).Handle(), point); }
     template <typename D, bool ForceConst> b2ShapeType BasicShapeInterface<D, ForceConst>::GetType() const { return b2Shape_GetType(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Shape_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
@@ -2422,12 +2484,13 @@ namespace b2
     template <typename D, bool ForceConst> b2AABB BasicBodyInterface<D, ForceConst>::ComputeAABB() const { return b2Body_ComputeAABB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactCapacity() const { return b2Body_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Body_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableContactEvents(bool flag) requires (!ForceConst) { b2Body_EnableContactEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Disable() requires (!ForceConst) { b2Body_Disable(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetFixedRotation(bool flag) requires (!ForceConst) { b2Body_SetFixedRotation(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsFixedRotation() const { return b2Body_IsFixedRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetGravityScale(float gravityScale) requires (!ForceConst) { b2Body_SetGravityScale(static_cast<const D &>(*this).Handle(), gravityScale); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetGravityScale() const { return b2Body_GetGravityScale(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableHitEvents(bool enableHitEvents) requires (!ForceConst) { b2Body_EnableHitEvents(static_cast<const D &>(*this).Handle(), enableHitEvents); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableHitEvents(bool flag) requires (!ForceConst) { b2Body_EnableHitEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJointCount() const { return b2Body_GetJointCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJoints(b2JointId* jointArray, int capacity) const { return b2Body_GetJoints(static_cast<const D &>(*this).Handle(), jointArray, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearDamping(float linearDamping) requires (!ForceConst) { b2Body_SetLinearDamping(static_cast<const D &>(*this).Handle(), linearDamping); }
@@ -2436,10 +2499,13 @@ namespace b2
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLinearVelocity() const { return b2Body_GetLinearVelocity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalCenterOfMass() const { return b2Body_GetLocalCenterOfMass(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalPoint(b2Vec2 worldPoint) const { return b2Body_GetLocalPoint(static_cast<const D &>(*this).Handle(), worldPoint); }
+    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalPointVelocity(b2Vec2 localPoint) const { return b2Body_GetLocalPointVelocity(static_cast<const D &>(*this).Handle(), localPoint); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalVector(b2Vec2 worldVector) const { return b2Body_GetLocalVector(static_cast<const D &>(*this).Handle(), worldVector); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetMass() const { return b2Body_GetMass(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetMassData(b2MassData massData) requires (!ForceConst) { b2Body_SetMassData(static_cast<const D &>(*this).Handle(), massData); }
     template <typename D, bool ForceConst> b2MassData BasicBodyInterface<D, ForceConst>::GetMassData() const { return b2Body_GetMassData(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetName(const char* name) requires (!ForceConst) { b2Body_SetName(static_cast<const D &>(*this).Handle(), name); }
+    template <typename D, bool ForceConst> const char* BasicBodyInterface<D, ForceConst>::GetName() const { return b2Body_GetName(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetPosition() const { return b2Body_GetPosition(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Rot BasicBodyInterface<D, ForceConst>::GetRotation() const { return b2Body_GetRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetRotationalInertia() const { return b2Body_GetRotationalInertia(static_cast<const D &>(*this).Handle()); }
@@ -2459,6 +2525,7 @@ namespace b2
     template <typename D, bool ForceConst> WorldConstRef BasicBodyInterface<D, ForceConst>::GetWorld() const { return b2Body_GetWorld(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldCenterOfMass() const { return b2Body_GetWorldCenterOfMass(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPoint(b2Vec2 localPoint) const { return b2Body_GetWorldPoint(static_cast<const D &>(*this).Handle(), localPoint); }
+    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPointVelocity(b2Vec2 worldPoint) const { return b2Body_GetWorldPointVelocity(static_cast<const D &>(*this).Handle(), worldPoint); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldVector(b2Vec2 localVector) const { return b2Body_GetWorldVector(static_cast<const D &>(*this).Handle(), localVector); }
     template <typename D, bool ForceConst> Body BasicWorldInterface<D, ForceConst>::CreateBody(Tags::OwningHandle, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { Body ret; ret.id = b2CreateBody(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> BodyRef BasicWorldInterface<D, ForceConst>::CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { return b2CreateBody(static_cast<const D &>(*this).Handle(), &def); }
@@ -2492,7 +2559,7 @@ namespace b2
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastRayClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
     template <typename D, bool ForceConst> b2ContactEvents BasicWorldInterface<D, ForceConst>::GetContactEvents() const { return b2World_GetContactEvents(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactTuning(float hertz, float dampingRatio, float pushVelocity) requires (!ForceConst) { b2World_SetContactTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio, pushVelocity); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactTuning(float hertz, float dampingRatio, float pushSpeed) requires (!ForceConst) { b2World_SetContactTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio, pushSpeed); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableContinuous(bool flag) requires (!ForceConst) { b2World_EnableContinuous(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsContinuousEnabled() const { return b2World_IsContinuousEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Counters BasicWorldInterface<D, ForceConst>::GetCounters() const { return b2World_GetCounters(static_cast<const D &>(*this).Handle()); }
@@ -2500,13 +2567,14 @@ namespace b2
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Draw(b2DebugDraw& draw) const { b2World_Draw(static_cast<const D &>(*this).Handle(), &draw); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::DumpMemoryStats() requires (!ForceConst) { b2World_DumpMemoryStats(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Explode(const b2ExplosionDef& explosionDef) requires (!ForceConst) { b2World_Explode(static_cast<const D &>(*this).Handle(), &explosionDef); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetFrictionCallback(b2FrictionCallback* callback) requires (!ForceConst) { b2World_SetFrictionCallback(static_cast<const D &>(*this).Handle(), callback); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetGravity(b2Vec2 gravity) requires (!ForceConst) { b2World_SetGravity(static_cast<const D &>(*this).Handle(), gravity); }
     template <typename D, bool ForceConst> b2Vec2 BasicWorldInterface<D, ForceConst>::GetGravity() const { return b2World_GetGravity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetHitEventThreshold(float value) requires (!ForceConst) { b2World_SetHitEventThreshold(static_cast<const D &>(*this).Handle(), value); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetHitEventThreshold() const { return b2World_GetHitEventThreshold(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetJointTuning(float hertz, float dampingRatio) requires (!ForceConst) { b2World_SetJointTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetMaximumLinearVelocity(float maximumLinearVelocity) requires (!ForceConst) { b2World_SetMaximumLinearVelocity(static_cast<const D &>(*this).Handle(), maximumLinearVelocity); }
-    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetMaximumLinearVelocity() const { return b2World_GetMaximumLinearVelocity(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetMaximumLinearSpeed(float maximumLinearSpeed) requires (!ForceConst) { b2World_SetMaximumLinearSpeed(static_cast<const D &>(*this).Handle(), maximumLinearSpeed); }
+    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetMaximumLinearSpeed() const { return b2World_GetMaximumLinearSpeed(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(const b2Capsule& capsule, b2Transform transform, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapCapsule(static_cast<const D &>(*this).Handle(), &capsule, transform, filter, fcn.GetFunc(), fcn.GetContext()); }
@@ -2520,6 +2588,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) requires (!ForceConst) { b2World_SetPreSolveCallback(static_cast<const D &>(*this).Handle(), fcn, context); }
     template <typename D, bool ForceConst> b2Profile BasicWorldInterface<D, ForceConst>::GetProfile() const { return b2World_GetProfile(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::RebuildStaticTree() requires (!ForceConst) { b2World_RebuildStaticTree(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionCallback(b2RestitutionCallback* callback) requires (!ForceConst) { b2World_SetRestitutionCallback(static_cast<const D &>(*this).Handle(), callback); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionThreshold(float value) requires (!ForceConst) { b2World_SetRestitutionThreshold(static_cast<const D &>(*this).Handle(), value); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetRestitutionThreshold() const { return b2World_GetRestitutionThreshold(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2SensorEvents BasicWorldInterface<D, ForceConst>::GetSensorEvents() const { return b2World_GetSensorEvents(static_cast<const D &>(*this).Handle()); }
@@ -2531,19 +2600,20 @@ namespace b2
     template <typename D, bool ForceConst> void* BasicWorldInterface<D, ForceConst>::GetUserData() const { return b2World_GetUserData(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableWarmStarting(bool flag) requires (!ForceConst) { b2World_EnableWarmStarting(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsWarmStartingEnabled() const { return b2World_IsWarmStartingEnabled(static_cast<const D &>(*this).Handle()); }
-    inline b2AABB DynamicTree::GetAABB(int32_t proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
+    inline b2AABB DynamicTree::GetAABB(int proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
     inline float DynamicTree::GetAreaRatio() const { return b2DynamicTree_GetAreaRatio(&value); }
     inline int DynamicTree::GetByteCount() const { return b2DynamicTree_GetByteCount(&value); }
-    inline int32_t DynamicTree::CreateProxy(b2AABB aabb, uint64_t categoryBits, int32_t userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
-    inline void DynamicTree::DestroyProxy(int32_t proxyId) { b2DynamicTree_DestroyProxy(&value, proxyId); }
-    inline void DynamicTree::EnlargeProxy(int32_t proxyId, b2AABB aabb) { b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
+    inline int DynamicTree::CreateProxy(b2AABB aabb, uint64_t categoryBits, int userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
+    inline void DynamicTree::DestroyProxy(int proxyId) { b2DynamicTree_DestroyProxy(&value, proxyId); }
+    inline void DynamicTree::EnlargeProxy(int proxyId, b2AABB aabb) { b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     inline int DynamicTree::GetHeight() const { return b2DynamicTree_GetHeight(&value); }
-    inline void DynamicTree::MoveProxy(int32_t proxyId, b2AABB aabb) { b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
+    inline void DynamicTree::MoveProxy(int proxyId, b2AABB aabb) { b2DynamicTree_MoveProxy(&value, proxyId, aabb); }
     inline int DynamicTree::GetProxyCount() const { return b2DynamicTree_GetProxyCount(&value); }
     inline b2TreeStats DynamicTree::Query(b2AABB aabb, uint64_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_Query(&value, aabb, maskBits, callback, context); }
     inline b2TreeStats DynamicTree::RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
     inline int DynamicTree::Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
     inline b2TreeStats DynamicTree::ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
-    inline int32_t DynamicTree::GetUserData(int32_t proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
+    inline int DynamicTree::GetUserData(int proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
     inline void DynamicTree::Validate() const { b2DynamicTree_Validate(&value); }
+    inline void DynamicTree::ValidateNoEnlarged() const { b2DynamicTree_ValidateNoEnlarged(&value); }
 } // namespace box2d
