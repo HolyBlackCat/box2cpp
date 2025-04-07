@@ -1,8 +1,8 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 28adacf 2025-01-27
-// Generator version: 0.11
+// Generated from box2d commit: 9f3c5c9 2025-04-06
+// Generator version: 0.13
 
 #include <box2d/box2d.h>
 
@@ -194,7 +194,7 @@ namespace b2
     /// Used to create a chain of line segments. This is designed to eliminate ghost collisions with some limitations.
     /// - chains are one-sided
     /// - chains have no mass and should be used on static bodies
-    /// - chains have a counter-clockwise winding order
+    /// - chains have a counter-clockwise winding order (normal points right of segment direction)
     /// - chains are either a loop or open
     /// - a chain must have at least 4 points
     /// - the distance between any two points must be greater than B2_LINEAR_SLOP
@@ -376,7 +376,7 @@ namespace b2
         /// @see b2ShapeDef::material
         void SetMaterial(int material) /*non-const*/ requires (!ForceConst);
 
-        /// Get the shape material identifier 
+        /// Get the shape material identifier
         [[nodiscard]] int GetMaterial() const;
 
         /// Get the parent chain id if the shape type is a chain segment, otherwise
@@ -416,6 +416,13 @@ namespace b2
         /// @param shapeId the id of a sensor shape
         /// @returns the required capacity to get all the overlaps in b2Shape_GetSensorOverlaps
         [[nodiscard]] int GetSensorCapacity() const;
+
+        /// Enable sensor events for this shape.
+        /// @see b2ShapeDef::enableSensorEvents
+        void EnableSensorEvents(bool flag) /*non-const*/ requires (!ForceConst);
+
+        /// Returns true if sensor events are enabled.
+        [[nodiscard]] bool AreSensorEventsEnabled() const;
 
         /// Get the overlapped shapes for a sensor shape.
         /// @param shapeId the id of a sensor shape
@@ -1685,6 +1692,11 @@ namespace b2
         /// @returns the number of joint ids stored in the user array
         [[nodiscard]] int GetJoints(b2JointId* jointArray, int capacity) const;
 
+        /// Set the velocity to reach the given transform after a given time step.
+        /// The result will be close but maybe not exact. This is meant for kinematic bodies.
+        /// This will automatically wake the body if asleep.
+        void SetKinematicTarget(b2Transform target, float timeStep) /*non-const*/ requires (!ForceConst);
+
         /// Adjust the linear damping. Normally this is set in b2BodyDef before creation.
         void SetLinearDamping(float linearDamping) /*non-const*/ requires (!ForceConst);
 
@@ -1880,6 +1892,11 @@ namespace b2
         [[nodiscard]] DistanceJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
         DistanceJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
+        /// Create a filter joint.
+        /// @see b2FilterJointDef for details
+        [[nodiscard]] Joint CreateJoint(Tags::OwningHandle, const b2FilterJointDef& def) /*non-const*/ requires (!ForceConst);
+        JointRef CreateJoint(Tags::DestroyWithParent, const b2FilterJointDef& def) /*non-const*/ requires (!ForceConst);
+
         /// Create a motor joint
         /// @see b2MotorJointDef for details
         [[nodiscard]] MotorJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
@@ -1889,11 +1906,6 @@ namespace b2
         /// @see b2MouseJointDef for details
         [[nodiscard]] MouseJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
         MouseJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) /*non-const*/ requires (!ForceConst);
-
-        /// Create a null joint.
-        /// @see b2NullJointDef for details
-        [[nodiscard]] Joint CreateJoint(Tags::OwningHandle, const b2NullJointDef& def) /*non-const*/ requires (!ForceConst);
-        JointRef CreateJoint(Tags::DestroyWithParent, const b2NullJointDef& def) /*non-const*/ requires (!ForceConst);
 
         /// Create a prismatic (slider) joint.
         /// @see b2PrismaticJointDef for details
@@ -1929,18 +1941,22 @@ namespace b2
 
         /// Cast a capsule through the world. Similar to a cast ray except that a capsule is cast instead of a point.
         ///	@see b2World_CastRay
-        b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Capsule& capsule, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Capsule& capsule, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a circle through the world. Similar to a cast ray except that a circle is cast instead of a point.
         ///	@see b2World_CastRay
-        b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Circle& circle, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Circle& circle, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a polygon through the world. Similar to a cast ray except that a polygon is cast instead of a point.
         ///	@see b2World_CastRay
-        b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(const b2Polygon& polygon, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(const b2Polygon& polygon, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+
+        /// Cast a capsule mover through the world. This is a special shape cast that handles sliding along other shapes while reducing
+        /// clipping.
+        [[nodiscard]] float CastMover(const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const;
 
         /// Cast a ray into the world to collect shapes in the path of the ray.
         /// Your callback function controls whether you get the closest point, any point, or n-points.
@@ -1959,6 +1975,10 @@ namespace b2
         /// Cast a ray into the world to collect the closest hit. This is a convenience function.
         /// This is less general than b2World_CastRay() and does not allow for custom filtering.
         [[nodiscard]] b2RayResult CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const;
+
+        /// Collide a capsule mover with the world, gathering collision planes that can be fed to b2SolvePlanes. Useful for
+        /// kinematic character movement.
+        void CollideMover(const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const;
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2ContactEvents GetContactEvents() const;
@@ -2096,7 +2116,7 @@ namespace b2
         [[nodiscard]] void* GetUserData() const;
 
         /// Enable/disable constraint warm starting. Advanced feature for testing. Disabling
-        /// sleeping greatly reduces stability and provides no performance gain.
+        /// warm starting greatly reduces stability and provides no performance gain.
         void EnableWarmStarting(bool flag) /*non-const*/ requires (!ForceConst);
 
         /// Is constraint warm starting enabled?
@@ -2203,8 +2223,14 @@ namespace b2
         /// Get the number of bytes used by this tree
         [[nodiscard]] int GetByteCount() const;
 
+        /// Modify the category bits on a proxy. This is an expensive operation.
+        void SetCategoryBits(int proxyId, uint64_t categoryBits);
+
+        /// Get the category bits on a proxy.
+        [[nodiscard]] uint64_t GetCategoryBits(int proxyId);
+
         /// Create a proxy. Provide an AABB and a userData value.
-        [[nodiscard]] int CreateProxy(b2AABB aabb, uint64_t categoryBits, int userData);
+        [[nodiscard]] int CreateProxy(b2AABB aabb, uint64_t categoryBits, uint64_t userData);
 
         /// Destroy a proxy. This asserts if the id is invalid.
         void DestroyProxy(int proxyId);
@@ -2243,6 +2269,9 @@ namespace b2
         /// Rebuild the tree while retaining subtrees that haven't changed. Returns the number of boxes sorted.
         int Rebuild(bool fullBuild);
 
+        /// Get the bounding box that contains the entire tree
+        [[nodiscard]] b2AABB GetRootBounds() const;
+
         /// Ray cast against the proxies in the tree. This relies on the callback
         /// to perform a exact ray cast in the case were the proxy contains a shape.
         /// The callback also performs the any collision filtering. This has performance
@@ -2257,7 +2286,7 @@ namespace b2
         b2TreeStats ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const;
 
         /// Get proxy user data
-        [[nodiscard]] int GetUserData(int proxyId) const;
+        [[nodiscard]] uint64_t GetUserData(int proxyId) const;
 
         /// Validate this tree. For testing.
         void Validate() const;
@@ -2321,6 +2350,8 @@ namespace b2
     template <typename D, bool ForceConst> b2Segment BasicShapeInterface<D, ForceConst>::GetSegment() const { return b2Shape_GetSegment(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsSensor() const { return b2Shape_IsSensor(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetSensorCapacity() const { return b2Shape_GetSensorCapacity(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnableSensorEvents(bool flag) requires (!ForceConst) { b2Shape_EnableSensorEvents(static_cast<const D &>(*this).Handle(), flag); }
+    template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetSensorOverlaps(b2ShapeId* overlaps, int capacity) const { return b2Shape_GetSensorOverlaps(static_cast<const D &>(*this).Handle(), overlaps, capacity); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::TestPoint(b2Vec2 point) const { return b2Shape_TestPoint(static_cast<const D &>(*this).Handle(), point); }
     template <typename D, bool ForceConst> b2ShapeType BasicShapeInterface<D, ForceConst>::GetType() const { return b2Shape_GetType(static_cast<const D &>(*this).Handle()); }
@@ -2493,6 +2524,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableHitEvents(bool flag) requires (!ForceConst) { b2Body_EnableHitEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJointCount() const { return b2Body_GetJointCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetJoints(b2JointId* jointArray, int capacity) const { return b2Body_GetJoints(static_cast<const D &>(*this).Handle(), jointArray, capacity); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetKinematicTarget(b2Transform target, float timeStep) requires (!ForceConst) { b2Body_SetKinematicTarget(static_cast<const D &>(*this).Handle(), target, timeStep); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearDamping(float linearDamping) requires (!ForceConst) { b2Body_SetLinearDamping(static_cast<const D &>(*this).Handle(), linearDamping); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetLinearDamping() const { return b2Body_GetLinearDamping(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearVelocity(b2Vec2 linearVelocity) requires (!ForceConst) { b2Body_SetLinearVelocity(static_cast<const D &>(*this).Handle(), linearVelocity); }
@@ -2531,12 +2563,12 @@ namespace b2
     template <typename D, bool ForceConst> BodyRef BasicWorldInterface<D, ForceConst>::CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { return b2CreateBody(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> DistanceJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { DistanceJoint ret; ret.id = b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> DistanceJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2DistanceJointDef> auto& def) requires (!ForceConst) { return (DistanceJointRef)b2CreateDistanceJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> Joint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const b2FilterJointDef& def) requires (!ForceConst) { Joint ret; ret.id = b2CreateFilterJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> JointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const b2FilterJointDef& def) requires (!ForceConst) { return b2CreateFilterJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> MotorJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { MotorJoint ret; ret.id = b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> MotorJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { return (MotorJointRef)b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> MouseJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { MouseJoint ret; ret.id = b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> MouseJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MouseJointDef> auto& def) requires (!ForceConst) { return (MouseJointRef)b2CreateMouseJoint(static_cast<const D &>(*this).Handle(), &def); }
-    template <typename D, bool ForceConst> Joint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const b2NullJointDef& def) requires (!ForceConst) { Joint ret; ret.id = b2CreateNullJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
-    template <typename D, bool ForceConst> JointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const b2NullJointDef& def) requires (!ForceConst) { return b2CreateNullJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> PrismaticJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { PrismaticJoint ret; ret.id = b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> RevoluteJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { RevoluteJoint ret; ret.id = b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
@@ -2549,15 +2581,17 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsValid() const { return b2World_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::GetAwakeBodyCount() const { return b2World_GetAwakeBodyCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2BodyEvents BasicWorldInterface<D, ForceConst>::GetBodyEvents() const { return b2World_GetBodyEvents(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastCircle(static_cast<const D &>(*this).Handle(), &circle, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Circle& circle, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastCircle(static_cast<const D &>(*this).Handle(), &circle, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastPolygon(static_cast<const D &>(*this).Handle(), &polygon, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Polygon& polygon, b2Transform originTransform, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastPolygon(static_cast<const D &>(*this).Handle(), &polygon, originTransform, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Capsule& capsule, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastCapsule(static_cast<const D &>(*this).Handle(), &capsule, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Circle& circle, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastCircle(static_cast<const D &>(*this).Handle(), &circle, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Circle& circle, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastCircle(static_cast<const D &>(*this).Handle(), &circle, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Polygon& polygon, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastPolygon(static_cast<const D &>(*this).Handle(), &polygon, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2Polygon& polygon, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastPolygon(static_cast<const D &>(*this).Handle(), &polygon, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::CastMover(const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastMover(static_cast<const D &>(*this).Handle(), &mover, translation, filter); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastRayClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CollideMover(const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const { b2World_CollideMover(static_cast<const D &>(*this).Handle(), &mover, filter, fcn, context); }
     template <typename D, bool ForceConst> b2ContactEvents BasicWorldInterface<D, ForceConst>::GetContactEvents() const { return b2World_GetContactEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactTuning(float hertz, float dampingRatio, float pushSpeed) requires (!ForceConst) { b2World_SetContactTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio, pushSpeed); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableContinuous(bool flag) requires (!ForceConst) { b2World_EnableContinuous(static_cast<const D &>(*this).Handle(), flag); }
@@ -2603,7 +2637,9 @@ namespace b2
     inline b2AABB DynamicTree::GetAABB(int proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
     inline float DynamicTree::GetAreaRatio() const { return b2DynamicTree_GetAreaRatio(&value); }
     inline int DynamicTree::GetByteCount() const { return b2DynamicTree_GetByteCount(&value); }
-    inline int DynamicTree::CreateProxy(b2AABB aabb, uint64_t categoryBits, int userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
+    inline void DynamicTree::SetCategoryBits(int proxyId, uint64_t categoryBits) { b2DynamicTree_SetCategoryBits(&value, proxyId, categoryBits); }
+    inline uint64_t DynamicTree::GetCategoryBits(int proxyId) { return b2DynamicTree_GetCategoryBits(&value, proxyId); }
+    inline int DynamicTree::CreateProxy(b2AABB aabb, uint64_t categoryBits, uint64_t userData) { return b2DynamicTree_CreateProxy(&value, aabb, categoryBits, userData); }
     inline void DynamicTree::DestroyProxy(int proxyId) { b2DynamicTree_DestroyProxy(&value, proxyId); }
     inline void DynamicTree::EnlargeProxy(int proxyId, b2AABB aabb) { b2DynamicTree_EnlargeProxy(&value, proxyId, aabb); }
     inline int DynamicTree::GetHeight() const { return b2DynamicTree_GetHeight(&value); }
@@ -2612,8 +2648,9 @@ namespace b2
     inline b2TreeStats DynamicTree::Query(b2AABB aabb, uint64_t maskBits, b2TreeQueryCallbackFcn* callback, void* context) const { return b2DynamicTree_Query(&value, aabb, maskBits, callback, context); }
     inline b2TreeStats DynamicTree::RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
     inline int DynamicTree::Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
+    inline b2AABB DynamicTree::GetRootBounds() const { return b2DynamicTree_GetRootBounds(&value); }
     inline b2TreeStats DynamicTree::ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
-    inline int DynamicTree::GetUserData(int proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
+    inline uint64_t DynamicTree::GetUserData(int proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
     inline void DynamicTree::Validate() const { b2DynamicTree_Validate(&value); }
     inline void DynamicTree::ValidateNoEnlarged() const { b2DynamicTree_ValidateNoEnlarged(&value); }
 } // namespace box2d

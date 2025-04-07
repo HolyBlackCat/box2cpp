@@ -131,9 +131,9 @@ concept CheckCallbacks = requires{
     requires Passes == requires(W w) { w.Overlap( b2AABB{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
 
     // Cast.
-    requires Passes == requires(W w) { w.Cast( b2Circle{}, b2Transform{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
-    requires Passes == requires(W w) { w.Cast( b2Capsule{}, b2Transform{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
-    requires Passes == requires(W w) { w.Cast( b2Polygon{}, b2Transform{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
+    requires Passes == requires(W w) { w.Cast( b2Circle{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
+    requires Passes == requires(W w) { w.Cast( b2Capsule{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
+    requires Passes == requires(W w) { w.Cast( b2Polygon{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
     // Raycast.
     requires Passes == requires(W w) { w.CastRay( b2Vec2{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
 };

@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.11"
+    own_version = "0.13"
 
     print "#pragma once"
     print ""
@@ -432,7 +432,7 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
 
-        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast)($|[A-Z])/ || clean_func_name == "Draw")
+        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast|Collide)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
         else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
@@ -592,7 +592,7 @@ END {
             clean_func_name = "Set"
         else if (clean_func_name ~ /^Overlap.*/)
             clean_func_name = "Overlap"
-        else if (clean_func_name ~ /^Cast/ && !(clean_func_name ~ /CastRay/))
+        else if (clean_func_name ~ /^Cast/ && !(clean_func_name ~ /CastRay/) && !(clean_func_name ~ /CastMover/))
             clean_func_name = "Cast"
 
         funcs[func_name]["clean_name"] = clean_func_name
