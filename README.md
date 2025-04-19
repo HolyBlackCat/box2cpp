@@ -133,8 +133,7 @@ When the callback receives a `b2ShapeId`, you can (and should) instead use `b2::
 ```cpp
 std::string str = "Foo!";
 world.Overlap(
-    b2Circle{.center{}, .radius = 1},
-    b2Transform_identity,
+    b2ShapeProxy{.points = {point}, .count = 1, .radius = 0},
     b2DefaultQueryFilter(),
     [&](b2::ShapeRef shape)
     {
@@ -170,7 +169,7 @@ Those callback improvements are not yet implemented for `b2::World::SetPreSolveC
 
 We have an optional debug renderer using ImGui.
 
-See comments in [`<box2cpp/debug_imgui_renderer.h>`](/include/box2cpp/debug_imgui_renderer.h) for usage details.
+See comments in [`<box2cpp/debug_imgui_renderer.h>`](./include/box2cpp/debug_imgui_renderer.h) for usage details.
 
 Simple example: (this assumes you already know how to use ImGui)
 ```cpp
@@ -182,7 +181,7 @@ int main()
 {
     // Initialize ImGui...
 
-    b2::World w(b2::World::Params{});
+    b2::World world(b2::World::Params{});
     b2::DebugImguiRenderer debug_renderer;
 
     while (true)
