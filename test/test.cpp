@@ -190,8 +190,8 @@ int main()
     b2::Body b2 = w.CreateBody(b2::OwningHandle, bp);
 
     b2::WeldJoint::Params wjp;
-    wjp.bodyIdA = b;
-    wjp.bodyIdB = b2;
+    wjp.base.bodyIdA = b;
+    wjp.base.bodyIdB = b2;
     b2::WeldJoint wj = w.CreateJoint(b2::OwningHandle, wjp);
     assert(wj);
     b2::Joint bj = std::move(wj);

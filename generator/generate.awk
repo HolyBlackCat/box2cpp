@@ -39,6 +39,7 @@ BEGIN {
     forced_non_classes["Vec2"] = 1
     forced_non_classes["Rot"] = 1
     forced_non_classes["AABB"] = 1
+    forced_non_classes["Contact"] = 1
 }
 
 # Collect enums.
