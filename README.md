@@ -146,11 +146,10 @@ world.Overlap(
 Compare with the original C API:
 ```cpp
 std::string str = "Foo!";
-b2Circle circle{.center{}, .radius = 1};
-b2World_OverlapCircle(
+b2ShapeProxy shape{.points = {point}, .count = 1, .radius = 0};
+b2World_OverlapShape(
     world,
-    &circle,
-    b2Transform_identity,
+    &shape,
     b2DefaultQueryFilter(),
     [](b2ShapeId shape, void *context)
     {

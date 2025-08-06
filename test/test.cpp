@@ -124,16 +124,12 @@ static_assert(std::constructible_from<b2::WeldJointConstRef, b2::JointConstRef>)
 template <typename W, typename P, bool Passes>
 concept CheckCallbacks = requires{
     // Overlap.
-    requires Passes == requires(W w) { w.Overlap( b2Circle{}, b2Transform{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
-    requires Passes == requires(W w) { w.Overlap( b2Capsule{}, b2Transform{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
-    requires Passes == requires(W w) { w.Overlap( b2Polygon{}, b2Transform{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
+    requires Passes == requires(W w) { w.Overlap( b2ShapeProxy{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
     // Overlap AABB.
     requires Passes == requires(W w) { w.Overlap( b2AABB{}, b2DefaultQueryFilter(), [](P shape){ (void)shape; return bool{}; } ); };
 
     // Cast.
-    requires Passes == requires(W w) { w.Cast( b2Circle{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
-    requires Passes == requires(W w) { w.Cast( b2Capsule{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
-    requires Passes == requires(W w) { w.Cast( b2Polygon{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
+    requires Passes == requires(W w) { w.Cast( b2ShapeProxy{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
     // Raycast.
     requires Passes == requires(W w) { w.CastRay( b2Vec2{}, b2Vec2{}, b2DefaultQueryFilter(), [](P shape, b2Vec2 point, b2Vec2 normal, float fraction){ (void)shape; (void)point; (void)normal; (void)fraction; return float{}; } ); };
 };
@@ -179,8 +175,7 @@ int main()
     // Notice that we pass a lambda directly, without the `void* context` madness.
     std::string str = "Foo!";
     w.Overlap(
-        b2Circle{.center{}, .radius = 1},
-        b2Transform_identity,
+        b2ShapeProxy{.points = {b2Vec2{0,0}}, .count = 1, .radius = 0},
         b2DefaultQueryFilter(),
         [&](b2::ShapeRef shape)
         {
