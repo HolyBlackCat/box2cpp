@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 3a4f0da 2025-10-19
+// Generated from box2d commit: c05c487 2025-12-14
 // Generator version: 0.13
 
 #include <box2d/box2d.h>
@@ -1484,7 +1484,7 @@ namespace b2
 
         /// Create a capsule shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
-        /// @return the shape id for accessing the shape
+        /// @return the shape id for accessing the shape, this will be b2_nullShapeId if the length is too small.
         [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
         ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
@@ -1608,6 +1608,12 @@ namespace b2
         /// Is this body a bullet?
         [[nodiscard]] bool IsBullet() const;
 
+        /// Clear the force and torque on this body. Forces and torques are automatically cleared after each world
+        /// step. So this only needs to be called if the application wants to remove the effect of previous
+        /// calls to apply forces and torques before the world step is called.
+        /// @param bodyId The body id
+        void ClearForces() /*non-const*/ requires (!ForceConst);
+
         /// Get the current world AABB that contains all the attached shapes. Note that this may not encompass the body origin.
         /// If there are no shapes attached then the returned AABB is empty and centered on the body origin.
         [[nodiscard]] b2AABB ComputeAABB() const;
@@ -1724,9 +1730,13 @@ namespace b2
 
         /// Set the velocity to reach the given transform after a given time step.
         /// The result will be close but maybe not exact. This is meant for kinematic bodies.
-        /// The target is not applied if the velocity would be below the sleep threshold.
-        /// This will automatically wake the body if asleep.
-        void SetTargetTransform(b2Transform target, float timeStep) /*non-const*/ requires (!ForceConst);
+        /// The target is not applied if the velocity would be below the sleep threshold and
+        /// the body is currently asleep.
+        /// @param bodyId The body id
+        /// @param target The target transform for the body
+        /// @param timeStep The time step of the next call to b2World_Step
+        /// @param wake Option to wake the body or not
+        void SetTargetTransform(b2Transform target, float timeStep, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
         /// @note Generally you should create a body with then intended transform.
@@ -2466,6 +2476,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsAwake() const { return b2Body_IsAwake(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetBullet(bool flag) requires (!ForceConst) { b2Body_SetBullet(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsBullet() const { return b2Body_IsBullet(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ClearForces() requires (!ForceConst) { b2Body_ClearForces(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2AABB BasicBodyInterface<D, ForceConst>::ComputeAABB() const { return b2Body_ComputeAABB(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactCapacity() const { return b2Body_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Body_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
@@ -2500,7 +2511,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsSleepEnabled() const { return b2Body_IsSleepEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetSleepThreshold(float sleepThreshold) requires (!ForceConst) { b2Body_SetSleepThreshold(static_cast<const D &>(*this).Handle(), sleepThreshold); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetSleepThreshold() const { return b2Body_GetSleepThreshold(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTargetTransform(b2Transform target, float timeStep) requires (!ForceConst) { b2Body_SetTargetTransform(static_cast<const D &>(*this).Handle(), target, timeStep); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTargetTransform(b2Transform target, float timeStep, bool wake) requires (!ForceConst) { b2Body_SetTargetTransform(static_cast<const D &>(*this).Handle(), target, timeStep, wake); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTransform(b2Vec2 position, b2Rot rotation) requires (!ForceConst) { b2Body_SetTransform(static_cast<const D &>(*this).Handle(), position, rotation); }
     template <typename D, bool ForceConst> b2Transform BasicBodyInterface<D, ForceConst>::GetTransform() const { return b2Body_GetTransform(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetType(b2BodyType type) requires (!ForceConst) { b2Body_SetType(static_cast<const D &>(*this).Handle(), type); }
