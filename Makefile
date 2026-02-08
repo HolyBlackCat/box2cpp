@@ -26,7 +26,7 @@ override SYNTAX_ONLY := $(filter-out 0,$(SYNTAX_ONLY))
 # Clone the repo.
 box2d:
 	rm -rf box2d
-	git clone https://github.com/erincatto/box2d
+	git clone --branch v3.1.1 https://github.com/erincatto/box2d
 
 # Generate the file.
 include/box2cpp/box2cpp.h test/test_header.h &: box2d $(wildcard box2d/include/box2d/*.h) | include test
