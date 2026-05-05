@@ -965,7 +965,7 @@ END {
 
             # Parametrized ctor.
             printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
-            print type "(std::nullptr_t) : value(b2" type "_Create()) {}"
+            print type "(int proxyCapacity) : value(b2" type "_Create(proxyCapacity)) {}"
             delete funcs["b2" type "_Create"]
 
             # Copy/move ctors.

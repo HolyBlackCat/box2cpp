@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: c05c487 2025-12-14
+// Generated from box2d commit: 8c65dcb 2026-04-30
 // Generator version: 0.13
 
 #include <box2d/box2d.h>
@@ -403,10 +403,10 @@ namespace b2
         /// Get the maximum capacity required for retrieving all the overlapped shapes on a sensor shape.
         /// This returns 0 if the provided shape is not a sensor.
         /// @param shapeId the id of a sensor shape
-        /// @returns the required capacity to get all the overlaps in b2Shape_GetSensorOverlaps
+        /// @returns the required capacity to get all the overlaps in b2Shape_GetSensorData
         [[nodiscard]] int GetSensorCapacity() const;
 
-        /// Get the overlap data for a sensor shape.
+        /// Get the overlap data for a sensor shape computed the previous world step.
         /// @param shapeId the id of a sensor shape
         /// @param visitorIds a user allocated array that is filled with the overlapping shapes (visitors)
         /// @param capacity the capacity of overlappedShapes
@@ -1942,6 +1942,13 @@ namespace b2
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2ContactEvents GetContactEvents() const;
 
+        /// Set the contact point recycling distance. Setting this to zero disables contact point recycling.
+        /// Usually in meters.
+        void SetContactRecycleDistance(float recycleDistance) /*non-const*/ requires (!ForceConst);
+
+        /// Get the contact point recycling distance. Usually in meters.
+        [[nodiscard]] float GetContactRecycleDistance() const;
+
         /// Adjust contact tuning parameters
         /// @param worldId The world id
         /// @param hertz The contact stiffness (cycles per second)
@@ -1997,6 +2004,9 @@ namespace b2
 
         /// Get the joint events for the current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2JointEvents GetJointEvents() const;
+
+        /// Get max capacity. This can be used with b2WorldDef to avoid run-time allocations and copies
+        [[nodiscard]] b2Capacity GetMaxCapacity() const;
 
         /// Set the maximum linear speed. Usually in m/s.
         void SetMaximumLinearSpeed(float maximumLinearSpeed) /*non-const*/ requires (!ForceConst);
@@ -2064,6 +2074,12 @@ namespace b2
 
         /// Is constraint warm starting enabled?
         [[nodiscard]] bool IsWarmStartingEnabled() const;
+
+        /// Set the worker count. Must be between in the range [1, B2_MAX_WORKERS]
+        void SetWorkerCount(int count) /*non-const*/ requires (!ForceConst);
+
+        /// Get the worker count.
+        [[nodiscard]] int GetWorkerCount() const;
     };
 
     /// World definition used to create a simulation world.
@@ -2138,7 +2154,7 @@ namespace b2
         constexpr DynamicTree() {}
 
         /// Constructing the tree initializes the node pool.
-        DynamicTree(std::nullptr_t) : value(b2DynamicTree_Create()) {}
+        DynamicTree(int proxyCapacity) : value(b2DynamicTree_Create(proxyCapacity)) {}
 
         DynamicTree(DynamicTree&& other) noexcept : value(other.value) { other.value = {}; }
         DynamicTree& operator=(DynamicTree&& other) noexcept
@@ -2553,6 +2569,8 @@ namespace b2
     template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastRayClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CollideMover(const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const { b2World_CollideMover(static_cast<const D &>(*this).Handle(), &mover, filter, fcn, context); }
     template <typename D, bool ForceConst> b2ContactEvents BasicWorldInterface<D, ForceConst>::GetContactEvents() const { return b2World_GetContactEvents(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactRecycleDistance(float recycleDistance) requires (!ForceConst) { b2World_SetContactRecycleDistance(static_cast<const D &>(*this).Handle(), recycleDistance); }
+    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetContactRecycleDistance() const { return b2World_GetContactRecycleDistance(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactTuning(float hertz, float dampingRatio, float pushSpeed) requires (!ForceConst) { b2World_SetContactTuning(static_cast<const D &>(*this).Handle(), hertz, dampingRatio, pushSpeed); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableContinuous(bool flag) requires (!ForceConst) { b2World_EnableContinuous(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsContinuousEnabled() const { return b2World_IsContinuousEnabled(static_cast<const D &>(*this).Handle()); }
@@ -2567,6 +2585,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetHitEventThreshold(float value) requires (!ForceConst) { b2World_SetHitEventThreshold(static_cast<const D &>(*this).Handle(), value); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetHitEventThreshold() const { return b2World_GetHitEventThreshold(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2JointEvents BasicWorldInterface<D, ForceConst>::GetJointEvents() const { return b2World_GetJointEvents(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2Capacity BasicWorldInterface<D, ForceConst>::GetMaxCapacity() const { return b2World_GetMaxCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetMaximumLinearSpeed(float maximumLinearSpeed) requires (!ForceConst) { b2World_SetMaximumLinearSpeed(static_cast<const D &>(*this).Handle(), maximumLinearSpeed); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetMaximumLinearSpeed() const { return b2World_GetMaximumLinearSpeed(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
@@ -2588,6 +2607,8 @@ namespace b2
     template <typename D, bool ForceConst> void* BasicWorldInterface<D, ForceConst>::GetUserData() const { return b2World_GetUserData(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableWarmStarting(bool flag) requires (!ForceConst) { b2World_EnableWarmStarting(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsWarmStartingEnabled() const { return b2World_IsWarmStartingEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetWorkerCount(int count) requires (!ForceConst) { b2World_SetWorkerCount(static_cast<const D &>(*this).Handle(), count); }
+    template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::GetWorkerCount() const { return b2World_GetWorkerCount(static_cast<const D &>(*this).Handle()); }
     inline b2AABB DynamicTree::GetAABB(int proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
     inline float DynamicTree::GetAreaRatio() const { return b2DynamicTree_GetAreaRatio(&value); }
     inline int DynamicTree::GetByteCount() const { return b2DynamicTree_GetByteCount(&value); }
