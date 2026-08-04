@@ -17,8 +17,11 @@ BEGIN {
     print "#include <concepts>" # For `std::derived_from`.
     print "#include <cstddef>" # For `std::nullptr_t`.
     print "#include <functional>" # For `std::invoke`.
+    print "#include <span>"
+    print "#include <stdexcept>"
     print "#include <type_traits>" # For our callback helpers, and `std::invoke_result_t`.
     print "#include <utility>" # For `std::exchange`.
+    print "#include <vector>"
     print ""
     print "#ifndef BOX2CPP_ASSERT"
     print "#include <cassert>" # For `assert()`.
@@ -151,10 +154,10 @@ cur_enum_name {
     }
 
     # Debug print the functions.
-    # printf "ret=[%s] name=[%s] params[", funcs[func_name]["ret"], func_name
+    # printf "ret=[%s] name=[%s] params[", funcs[func_name]["ret"], func_name >"/dev/stderr"
     # for (i in funcs[func_name]["params"])
-    #     printf "(%s:%s)", funcs[func_name]["params"][i]["type"], funcs[func_name]["params"][i]["name"]
-    # printf "%s\n", "]" $0
+    #     printf "(%s:%s)", funcs[func_name]["params"][i]["type"], funcs[func_name]["params"][i]["name"] >"/dev/stderr"
+    # printf "]  `%s`\n", $0 >"/dev/stderr"
 
     # Collect class names.
     match(func_name, /b2(\w+)_\w+/, elems)
@@ -349,6 +352,8 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         if (funcs[func_name]["params"][i]["is_callback_context"])
             continue # Skip `void* context` parameter for callbacks.
+        if (funcs[func_name]["params"][i]["is_span_size"])
+            continue # Skip the size parameter for spans.
 
         param_type = funcs[func_name]["params"][i]["type"]
 
@@ -382,14 +387,20 @@ function emit_func(func_name, type, func_variant_index, indent)
             # Adjust callback parameters.
             param_type_fixed = "detail::FuncRef<" gensub(/\*$/, "", 1, param_type) "," (func_variant_index ? "true" : "false") ">"
         }
+        else if (funcs[func_name]["params"][i]["is_span"])
+        {
+            # Adjust span parameters.
+            param_type_fixed = "std::span<" gensub(/\*$/, "", 1, param_type) ">"
+        }
         else
         {
+
             # Adjust pointer parameters to references (except for `void *`).
             if (param_type_fixed != "void*" &&
                 param_type_fixed != "const char*" &&
                 param_type_fixed ~ /\*$/ &&
                 param_type_fixed !~ /Fcn\*$/ &&
-                (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*"))
+                (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*" || gensub(/b2(.*)\*$/, "\\1", 1, param_type_fixed) in classes_any_raii_wrappers))
             {
                 param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
                 funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
@@ -433,9 +444,9 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
 
-        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast|Collide)($|[A-Z])/ || clean_func_name == "Draw")
+        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast|Collide|Snapshot)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
-        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild|Clear)($|[A-Z])/ || clean_func_name == "Step")
+        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild|Clear|Restore|Start|Stop)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
         else
         {
@@ -443,7 +454,7 @@ function emit_func(func_name, type, func_variant_index, indent)
             exit 1
         }
     }
-    else if (is_by_value_raii_wrapper && first_param_is_self)
+    else if ((is_by_value_raii_wrapper || is_ptr_raii_wrapper) && first_param_is_self)
     {
         if (length(funcs[func_name]["params"]) > 0 && funcs[func_name]["params"][1]["type"] ~ /^const /)
             is_const = 1
@@ -496,6 +507,8 @@ function emit_func(func_name, type, func_variant_index, indent)
         {
             if (is_by_value_raii_wrapper)
                 printf "&value" >second_file
+            else if (is_ptr_raii_wrapper)
+                printf "value" >second_file
             else
                 printf "static_cast<const D &>(*this).Handle()" >second_file
             first_param = 0
@@ -504,6 +517,8 @@ function emit_func(func_name, type, func_variant_index, indent)
 
         if (funcs[func_name]["params"][i]["is_callback_context"])
             continue # Skip passing `void *` to callbacks.
+        if (funcs[func_name]["params"][i]["is_span_size"])
+            continue # Skip passing span size.
 
         if (first_param)
             first_param = 0
@@ -516,6 +531,11 @@ function emit_func(func_name, type, func_variant_index, indent)
         if (funcs[func_name]["params"][i]["is_callback"])
         {
             printf "%s.GetFunc(), %s.GetContext()", param_name, param_name >second_file
+            continue
+        }
+        if (funcs[func_name]["params"][i]["is_span"])
+        {
+            printf "%s.data(), (int)%s.size()", param_name, param_name >second_file
             continue
         }
 
@@ -541,8 +561,22 @@ function emit_func(func_name, type, func_variant_index, indent)
     if (func_variant_index == 0 && (is_factory_func || is_const_nonconst_getter || funcs[func_name]["accepts_const_nonconst_callback"]))
         emit_func(func_name, type, func_variant_index + 1, indent)
 
-    # Destroy the function we just generated.
-    delete funcs[func_name]
+    # Add entirely custom function variants if needed.
+    if (func_name == "b2World_Snapshot")
+    {
+        print ""
+        print "        [[nodiscard]] std::vector<uint8_t> Snapshot() const"
+        print "        {"
+        print "            int size = Snapshot(nullptr, 0);"
+        print "            std::vector<uint8_t> ret((size_t)size);"
+        print "            if (!ret.empty()) // Just in case."
+        print "                (void)Snapshot(ret.data(), size);"
+        print "            return ret;"
+        print "        }"
+    }
+
+    # We used to destroy the function we just generated here, but we no longer do, because it helps to be able to copy comments from those to some of our custom functions sometimes.
+    # delete funcs[func_name]
 }
 
 END {
@@ -589,12 +623,16 @@ END {
             clean_func_name = gensub("^Create.+Joint$", "CreateJoint", 1, clean_func_name)
         else if (clean_func_name ~ /^Create.*Shape$/)
             clean_func_name = gensub("^Create.+Shape$", "CreateShape", 1, clean_func_name)
-        else if (clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment)/)
+        else if (clean_func_name ~ /Set(Capsule|Polygon|Circle|Segment|ChainSegment)$/)
             clean_func_name = "Set"
         else if (clean_func_name ~ /^Overlap.*/)
             clean_func_name = "Overlap"
         else if (clean_func_name ~ /^Cast/ && !(clean_func_name ~ /CastRay/) && !(clean_func_name ~ /CastMover/))
             clean_func_name = "Cast"
+        else if (clean_func_name == "GetBodyId")
+            clean_func_name = "GetBody"
+        else if (1 in funcs[func_name]["params"] && funcs[func_name]["params"][1]["type"] == "const b2Recording*" && clean_func_name == "GetData")
+            clean_func_name = "GetDataPtr"
 
         funcs[func_name]["clean_name"] = clean_func_name
 
@@ -613,6 +651,22 @@ END {
                 funcs[func_name]["accepts_const_nonconst_callback"] = 1
                 skip_context_param = 1
             }
+        }
+
+        # Detect spans in parameters.
+        for (i in funcs[func_name]["params"])
+        {
+            param_type = funcs[func_name]["params"][i]["type"]
+            if (param_type == "const uint8_t*" &&
+                # There's one more parameter after this one.
+                i+1 in funcs[func_name]["params"] &&
+                # The type of that parameter is `int`.
+                funcs[func_name]["params"][i+1]["type"] == "int")
+            {
+                funcs[func_name]["params"][i]["is_span"] = 1
+                funcs[func_name]["params"][i+1]["is_span_size"] = 1
+            }
+
         }
     }
 
@@ -633,9 +687,17 @@ END {
 
         # Those store a box2d struct by value, and act as a RAII wrapper.
         if (type == "DynamicTree")
+        {
             classes_by_value_raii_wrappers[type] = 1
+            classes_any_raii_wrappers[type] = 1
+        }
+        else if (type == "RecPlayer" || type == "Recording")
+        {
+            classes_ptr_raii_wrappers[type] = 1
+            classes_any_raii_wrappers[type] = 1
+        }
         # Those just inherit from the original struct and add some member functions.
-        if (!(type in classes_by_value_raii_wrappers) && ("b2Destroy" type in funcs || type in classes_joint_kinds))
+        else if ("b2Destroy" type in funcs || type in classes_joint_kinds)
             classes_id_based[type] = 1
     }
 
@@ -709,10 +771,12 @@ END {
 
         # Those store a box2d struct by value, and act as a RAII wrapper.
         is_by_value_raii_wrapper = type in classes_by_value_raii_wrappers
+        # Those store a pointer to a box2d struct, and act as a RAII wrapper.
+        is_ptr_raii_wrapper = type in classes_ptr_raii_wrappers
         # Those just inherit from the original struct and add some member functions.
         is_id_based = type in classes_id_based
 
-        if (!is_by_value_raii_wrapper && !is_id_based)
+        if (!is_by_value_raii_wrapper && !is_ptr_raii_wrapper && !is_id_based)
         {
             print "Unsure what to do with this class: " type >"/dev/stderr"
             exit 1
@@ -720,9 +784,6 @@ END {
 
         if (is_id_based)
         {
-            # Has public constructors?
-            public_constructible = ("b2Create" type in funcs);
-
             # Has a struct with parameters?
             has_params_struct = ("b2Default" type "Def") in funcs;
 
@@ -826,16 +887,19 @@ END {
                 delete funcs["b2Default" type "Def"]
             }
             # The parametrized constructor.
-            has_parametrized_ctor = 0
             if (has_params_struct && type == "World") # Only the `World` class can self-construct, others are constructed by other classes.
             {
-                has_parametrized_ctor = 1
-
                 print ""
                 printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
-                print type "(const std::derived_from<b2" type "Def> auto &params) { id = b2Create" type "(&params); }"
+                print type "(const std::derived_from<b2" type "Def> auto &params) : id(b2Create" type "(&params)) {}"
 
                 delete funcs["b2Create" type]
+
+                print ""
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2CreateWorldFromSnapshot"]["comment"])
+                print type "(std::span<const uint8_t> image, int workerCount) : id(b2CreateWorldFromSnapshot(image.data(), (int)image.size(), workerCount)) {}"
+
+                delete funcs["b2CreateWorldFromSnapshot"]
             }
 
             # Downcast.
@@ -885,7 +949,7 @@ END {
             printf "    class MaybeConst"type"Ref : "
             if (is_joint_kind)
                 printf "public MaybeConst"base_type_or_self"Ref<IsConstRef>, "
-            print "public Basic"type"Interface<"type"Ref, IsConstRef>"
+            print "public Basic"type"Interface<MaybeConst"type"Ref<IsConstRef>, IsConstRef>"
             print "    {"
             print "        template <typename, bool>"
             print "        friend class Basic"type"Interface;"
@@ -938,10 +1002,13 @@ END {
             print "        constexpr MaybeConst"type"Ref(const MaybeConst"type"Ref<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConst"type"Ref(other.Handle()) {}"
             print "    };"
         }
-        else if (is_by_value_raii_wrapper)
+        else if (is_by_value_raii_wrapper || is_ptr_raii_wrapper)
         {
             # Primary class comment.
-            printf "    %s", typedef_structs[typedef_structs_set[type]]["comment"]
+            if (type == "DynamicTree")
+                printf "    " # `DynamicTree` has a useless comment, skip it.
+            else
+                printf "    %s", typedef_structs[typedef_structs_set[type]]["comment"]
 
             # Class head.
             printf "class " type
@@ -952,7 +1019,22 @@ END {
             print "    {"
 
             # Member variables.
-            print "        b2" type " value{};"
+            null_str = "??"
+            if (is_by_value_raii_wrapper)
+            {
+                null_str = "{}"
+                print "        b2" type " value{};"
+            }
+            else if (is_ptr_raii_wrapper)
+            {
+                null_str = "nullptr"
+                print "        b2" type " *value = nullptr;"
+            }
+            else
+            {
+                print "Unsure how to store the state of this class: " type >"/dev/stderr"
+                exit 1
+            }
             print ""
 
             # Public members...
@@ -961,28 +1043,62 @@ END {
             # Default ctor.
             print "        // Consturcts a null (invalid) object."
             print "        constexpr " type "() {}"
-            print ""
 
-            # Parametrized ctor.
-            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
-            print type "(int proxyCapacity) : value(b2" type "_Create(proxyCapacity)) {}"
-            delete funcs["b2" type "_Create"]
-
-            # Copy/move ctors.
             if (type == "DynamicTree")
             {
+                # Parametrized ctor.
                 print ""
-                print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = {}; }"
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
+                print type "(int proxyCapacity) : value(b2" type "_Create(proxyCapacity)) {}"
+                delete funcs["b2" type "_Create"]
+            }
+            else if (type == "RecPlayer")
+            {
+                # Parametrized ctor.
+                # The span type matches what `b2Recording_GetData()` returns.
+
+                # This can return null.
+                print ""
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
+                print type "(std::span<const uint8_t> data, int workerCount) : value(b2" type "_Create(data.data(), (int)data.size(), workerCount)) {}"
+                delete funcs["b2" type "_Create"]
+            }
+            else if (type == "Recording")
+            {
+                # Parametrized ctor.
+                print ""
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2CreateRecording"]["comment"])
+                print type "(int byteCapacity) : value(b2CreateRecording(byteCapacity))"
+                print "        {"
+                print "            if (!value)"
+                print "                throw std::runtime_error(\"Failed to create `b2" type "`.\"); // This should never happen, the underlying box2d function crashes if allocation fails."
+                print "        }"
+                delete funcs["b2" type "_Create"]
+            }
+
+            # Work around improperly named `b2DestroyRecording()`. Bug report: https://github.com/erincatto/box2d/issues/1088
+            destroy_func = "b2" type "_Destroy";
+            if (!(destroy_func in funcs) && "b2Destroy" type in funcs)
+                destroy_func = "b2Destroy" type;
+
+            if (is_by_value_raii_wrapper)
+                maybe_address_of = "&"
+            else
+                maybe_address_of = ""
+
+            # Copy/move ctors.
+            if (type == "DynamicTree" || type == "RecPlayer" || type == "Recording")
+            {
+                print ""
+                print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = " null_str "; }"
                 print "        " type "& operator=(" type "&& other) noexcept"
                 print "        {"
                 print "            if (this == &other) return *this;"
-                print "            if (*this) b2" type "_Destroy(&value);"
+                print "            if (*this) " destroy_func "(" maybe_address_of "value);"
                 print "            value = other.value;"
-                print "            other.value = {};"
+                print "            other.value = " null_str ";"
                 print "            return *this;"
                 print "        }"
-
-                delete funcs["b2DynamicTree_Clone"]
             }
             else
             {
@@ -992,18 +1108,27 @@ END {
 
             # Destructor.
             print ""
-            printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Destroy"]["comment"])
-            print "~" type "() { if (*this) b2" type "_Destroy(&value); }"
+            printf "        %s", gensub(/\n/, "\n        ", "g", funcs[destroy_func]["comment"])
+            print "~" type "() { if (*this) " destroy_func "(" maybe_address_of "value); }"
 
-            delete funcs["b2" type "_Destroy"]
+            delete funcs[destroy_func]
 
             # Some custom members.
             if (type == "DynamicTree")
             {
                 print ""
-                print "        [[nodiscard]] explicit operator bool() const { return bool( value.nodes ); }"
-                print "        [[nodiscard]]       b2DynamicTree *RawTreePtr()       { return *this ? &value : nullptr; }"
-                print "        [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }"
+                print "        [[nodiscard]] explicit operator bool() const { return bool(value.nodes); }"
+                print "        [[nodiscard]]       b2DynamicTree *UnderlyingPtr()       { return *this ? &value : nullptr; }"
+                print "        [[nodiscard]] const b2DynamicTree *UnderlyingPtr() const { return *this ? &value : nullptr; }"
+            }
+
+            # Ptr wrapper methods.
+            if (is_ptr_raii_wrapper)
+            {
+                print ""
+                print "        [[nodiscard]] explicit operator bool() const { return bool(value); }"
+                print "        [[nodiscard]]       b2" type " *UnderlyingPtr()       { return value; }"
+                print "        [[nodiscard]] const b2" type " *UnderlyingPtr() const { return value; }"
             }
 
             # Expose all the functions.
@@ -1012,6 +1137,14 @@ END {
                 func_name = sorted_funcs[i]
                 if (func_name in funcs) # The function could've been deleted.
                     emit_func(func_name, type, 0, "        ")
+            }
+
+            # Some more custom members.
+            if (type == "Recording")
+            {
+                print ""
+                printf "        " gensub(/\n/, "\n        ", "g", funcs["b2Recording_GetData"]["comment"])
+                print "[[nodiscard]] std::span<const uint8_t> GetData() const { return {GetDataPtr(), (size_t)GetSize()}; }"
             }
 
             # Close the class.

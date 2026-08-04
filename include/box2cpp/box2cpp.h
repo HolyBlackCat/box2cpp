@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 8c65dcb 2026-04-30
+// Generated from box2d commit: 56edae7 2026-06-16
 // Generator version: 0.13
 
 #include <box2d/box2d.h>
@@ -9,8 +9,11 @@
 #include <concepts>
 #include <cstddef>
 #include <functional>
+#include <span>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #ifndef BOX2CPP_ASSERT
 #include <cassert>
@@ -221,7 +224,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstChainRef : public BasicChainInterface<ChainRef, IsConstRef>
+    class MaybeConstChainRef : public BasicChainInterface<MaybeConstChainRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicChainInterface;
@@ -273,6 +276,12 @@ namespace b2
         /// @see b2Body_ApplyMassFromShapes
         void Set(const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
+        /// Allows you to change a shape to be an orphaned chain segment or update the current chain
+        /// segment, including its ghost vertices. The chainId on the input is ignored. The resulting
+        /// shape is always orphaned. Asserts if the shape is already a chain segment
+        /// owned by a b2ChainShape (chainId != B2_NULL_INDEX).
+        void Set(const b2ChainSegment& chainSegment) /*non-const*/ requires (!ForceConst);
+
         /// Allows you to change a shape to be a circle or update the current circle.
         /// This does not modify the mass properties.
         /// @see b2Body_ApplyMassFromShapes
@@ -313,9 +322,9 @@ namespace b2
         /// Get a copy of the shape's circle. Asserts the type is correct.
         [[nodiscard]] b2Circle GetCircle() const;
 
-        /// Get the closest point on a shape to a target point. Target and result are in world space.
+        /// Get the closest point on a shape to a target point. Target and result are world positions.
         /// todo need sample
-        [[nodiscard]] b2Vec2 GetClosestPoint(b2Vec2 target) const;
+        [[nodiscard]] b2Pos GetClosestPoint(b2Pos target) const;
 
         /// Compute the mass data for a shape
         [[nodiscard]] b2MassData ComputeMassData() const;
@@ -383,8 +392,9 @@ namespace b2
         /// Returns true if pre-solve events are enabled
         [[nodiscard]] bool ArePreSolveEventsEnabled() const;
 
-        /// Ray cast a shape directly
-        [[nodiscard]] b2CastOutput RayCast(const b2RayCastInput& input) const;
+        /// Ray cast a single shape. The ray starts at the origin and extends by the translation. The output
+        /// point is a world position.
+        [[nodiscard]] b2WorldCastOutput RayCast(b2Pos origin, b2Vec2 translation) const;
 
         /// Set the shape restitution (bounciness)
         void SetRestitution(float restitution) /*non-const*/ requires (!ForceConst);
@@ -428,8 +438,8 @@ namespace b2
         /// Get the shape surface material
         [[nodiscard]] b2SurfaceMaterial GetSurfaceMaterial() const;
 
-        /// Test a point for overlap with a shape
-        [[nodiscard]] bool TestPoint(b2Vec2 point) const;
+        /// Test a world point for overlap with a shape
+        [[nodiscard]] bool TestPoint(b2Pos point) const;
 
         /// Get the type of a shape
         [[nodiscard]] b2ShapeType GetType() const;
@@ -486,7 +496,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstShapeRef : public BasicShapeInterface<ShapeRef, IsConstRef>
+    class MaybeConstShapeRef : public BasicShapeInterface<MaybeConstShapeRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicShapeInterface;
@@ -640,7 +650,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstJointRef : public BasicJointInterface<JointRef, IsConstRef>
+    class MaybeConstJointRef : public BasicJointInterface<MaybeConstJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicJointInterface;
@@ -781,7 +791,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstDistanceJointRef : public MaybeConstJointRef<IsConstRef>, public BasicDistanceJointInterface<DistanceJointRef, IsConstRef>
+    class MaybeConstDistanceJointRef : public MaybeConstJointRef<IsConstRef>, public BasicDistanceJointInterface<MaybeConstDistanceJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicDistanceJointInterface;
@@ -916,7 +926,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstMotorJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMotorJointInterface<MotorJointRef, IsConstRef>
+    class MaybeConstMotorJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMotorJointInterface<MaybeConstMotorJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicMotorJointInterface;
@@ -1060,7 +1070,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstPrismaticJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPrismaticJointInterface<PrismaticJointRef, IsConstRef>
+    class MaybeConstPrismaticJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPrismaticJointInterface<MaybeConstPrismaticJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicPrismaticJointInterface;
@@ -1200,7 +1210,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstRevoluteJointRef : public MaybeConstJointRef<IsConstRef>, public BasicRevoluteJointInterface<RevoluteJointRef, IsConstRef>
+    class MaybeConstRevoluteJointRef : public MaybeConstJointRef<IsConstRef>, public BasicRevoluteJointInterface<MaybeConstRevoluteJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicRevoluteJointInterface;
@@ -1301,7 +1311,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWeldJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWeldJointInterface<WeldJointRef, IsConstRef>
+    class MaybeConstWeldJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWeldJointInterface<MaybeConstWeldJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWeldJointInterface;
@@ -1431,7 +1441,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWheelJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWheelJointInterface<WheelJointRef, IsConstRef>
+    class MaybeConstWheelJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWheelJointInterface<MaybeConstWheelJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWheelJointInterface;
@@ -1488,6 +1498,13 @@ namespace b2
         [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
         ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) /*non-const*/ requires (!ForceConst);
 
+        /// Create an orphaned chain segment shape and attach it to a body. The shape definition and
+        /// geometry are fully cloned. The caller is responsible for the segment's ghost vertices and
+        /// lifetime. The segment is not owned by any b2ChainShape (b2Shape_GetParentChain returns/// b2_nullChainId). Contacts are not created until the next time step.
+        /// @return the shape id, or b2_nullShapeId if the segment is too short.
+        [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2ChainSegment& chainSegment) /*non-const*/ requires (!ForceConst);
+        ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2ChainSegment& chainSegment) /*non-const*/ requires (!ForceConst);
+
         /// Create a circle shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
         /// @return the shape id for accessing the shape
@@ -1502,7 +1519,7 @@ namespace b2
 
         /// Create a line segment shape and attach it to a body. The shape definition and geometry are fully cloned.
         /// Contacts are not created until the next time step.
-        /// @return the shape id for accessing the shape
+        /// @return the shape id or b2_nullShapeId if the segment is too short.
         [[nodiscard]] Shape CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
         ShapeRef CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Segment& segment) /*non-const*/ requires (!ForceConst);
 
@@ -1548,7 +1565,7 @@ namespace b2
         /// @param force The world force vector, usually in newtons (N)
         /// @param point The world position of the point of application
         /// @param wake Option to wake up the body
-        void ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) /*non-const*/ requires (!ForceConst);
+        void ApplyForce(b2Vec2 force, b2Pos point, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Apply a force to the center of mass. This optionally wakes up the body.
         /// The force is ignored if the body is not awake.
@@ -1567,7 +1584,7 @@ namespace b2
         /// @param wake also wake up the body
         /// @warning This should be used for one-shot impulses. If you need a steady force,
         /// use a force instead, which will work better with the sub-stepping solver.
-        void ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) /*non-const*/ requires (!ForceConst);
+        void ApplyLinearImpulse(b2Vec2 impulse, b2Pos point, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Apply an impulse to the center of mass. This immediately modifies the velocity.
         /// The impulse is ignored if the body is not awake. This optionally wakes the body.
@@ -1632,6 +1649,16 @@ namespace b2
         /// @warning changing this at runtime may cause mismatched begin/end touch events
         void EnableContactEvents(bool flag) /*non-const*/ requires (!ForceConst);
 
+        /// Enable or disable contact recycling for this body. Contact recycling is a performance optimization
+        /// that reuses contact manifolds when bodies move slightly. Disabling it can avoid ghost collisions
+        /// on characters at the cost of higher per-step work. Existing contacts retain their prior setting;
+        /// only contacts created after this call see the new value.
+        /// @see b2BodyDef::enableContactRecycling
+        void EnableContactRecycling(bool flag) /*non-const*/ requires (!ForceConst);
+
+        /// Is contact recycling enabled on this body?
+        [[nodiscard]] bool IsContactRecyclingEnabled() const;
+
         /// Disable a body by removing it completely from the simulation. This is expensive.
         void Disable() /*non-const*/ requires (!ForceConst);
 
@@ -1665,11 +1692,11 @@ namespace b2
         /// Get the linear velocity of a body's center of mass. Usually in meters per second.
         [[nodiscard]] b2Vec2 GetLinearVelocity() const;
 
-        /// Get the center of mass position of the body in local space
-        [[nodiscard]] b2Vec2 GetLocalCenterOfMass() const;
+        /// Get the center of mass position of the body in local space.
+        [[nodiscard]] b2Vec2 GetLocalCenter() const;
 
         /// Get a local point on a body given a world point
-        [[nodiscard]] b2Vec2 GetLocalPoint(b2Vec2 worldPoint) const;
+        [[nodiscard]] b2Vec2 GetLocalPoint(b2Pos worldPoint) const;
 
         /// Get the linear velocity of a local point attached to a body. Usually in meters per second.
         [[nodiscard]] b2Vec2 GetLocalPointVelocity(b2Vec2 localPoint) const;
@@ -1701,7 +1728,7 @@ namespace b2
         [[nodiscard]] const char* GetName() const;
 
         /// Get the world position of a body. This is the location of the body origin.
-        [[nodiscard]] b2Vec2 GetPosition() const;
+        [[nodiscard]] b2Pos GetPosition() const;
 
         /// Get the world rotation of a body as a cosine/sine pair (complex number)
         [[nodiscard]] b2Rot GetRotation() const;
@@ -1716,7 +1743,7 @@ namespace b2
         /// @returns the number of shape ids stored in the user array
         [[nodiscard]] int GetShapes(b2ShapeId* shapeArray, int capacity) const;
 
-        /// Enable or disable sleeping for this body. If sleeping is disabled the body will wake.
+        /// Enable or disable sleeping for this body. If sleeping is disabled the body will wake (and the entire island).
         void EnableSleep(bool enableSleep) /*non-const*/ requires (!ForceConst);
 
         /// Returns true if sleeping is enabled for this body
@@ -1736,15 +1763,15 @@ namespace b2
         /// @param target The target transform for the body
         /// @param timeStep The time step of the next call to b2World_Step
         /// @param wake Option to wake the body or not
-        void SetTargetTransform(b2Transform target, float timeStep, bool wake) /*non-const*/ requires (!ForceConst);
+        void SetTargetTransform(b2WorldTransform target, float timeStep, bool wake) /*non-const*/ requires (!ForceConst);
 
         /// Set the world transform of a body. This acts as a teleport and is fairly expensive.
         /// @note Generally you should create a body with then intended transform.
         /// @see b2BodyDef::position and b2BodyDef::rotation
-        void SetTransform(b2Vec2 position, b2Rot rotation) /*non-const*/ requires (!ForceConst);
+        void SetTransform(b2Pos position, b2Rot rotation) /*non-const*/ requires (!ForceConst);
 
         /// Get the world transform of a body.
-        [[nodiscard]] b2Transform GetTransform() const;
+        [[nodiscard]] b2WorldTransform GetTransform() const;
 
         /// Change the body type. This is an expensive operation. This automatically updates the mass
         /// properties regardless of the automatic mass setting.
@@ -1766,14 +1793,14 @@ namespace b2
         [[nodiscard]] WorldRef GetWorld() /*non-const*/ requires (!ForceConst);
         [[nodiscard]] WorldConstRef GetWorld() const;
 
-        /// Get the center of mass position of the body in world space
-        [[nodiscard]] b2Vec2 GetWorldCenterOfMass() const;
+        /// Get the center of mass position of the body in world space.
+        [[nodiscard]] b2Pos GetWorldCenter() const;
 
         /// Get a world point on a body given a local point
-        [[nodiscard]] b2Vec2 GetWorldPoint(b2Vec2 localPoint) const;
+        [[nodiscard]] b2Pos GetWorldPoint(b2Vec2 localPoint) const;
 
         /// Get the linear velocity of a world point attached to a body. Usually in meters per second.
-        [[nodiscard]] b2Vec2 GetWorldPointVelocity(b2Vec2 worldPoint) const;
+        [[nodiscard]] b2Vec2 GetWorldPointVelocity(b2Pos worldPoint) const;
 
         /// Get a world vector on a body given a local vector
         [[nodiscard]] b2Vec2 GetWorldVector(b2Vec2 localVector) const;
@@ -1813,7 +1840,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstBodyRef : public BasicBodyInterface<BodyRef, IsConstRef>
+    class MaybeConstBodyRef : public BasicBodyInterface<MaybeConstBodyRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicBodyInterface;
@@ -1909,14 +1936,18 @@ namespace b2
         /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2BodyEvents GetBodyEvents() const;
 
+        /// Call this to get the world bounds based on the union of all shape bounds.
+        [[nodiscard]] b2AABB GetBounds() const;
+
         /// Cast a shape through the world. Similar to a cast ray except that a shape is cast instead of a point.
+        /// The proxy points are relative to the origin. Callback points are world positions.
         ///	@see b2World_CastRay
-        b2TreeStats Cast(const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Cast(const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats Cast(b2Pos origin, const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Cast(b2Pos origin, const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a capsule mover through the world. This is a special shape cast that handles sliding along other shapes while reducing
-        /// clipping.
-        [[nodiscard]] float CastMover(const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const;
+        /// clipping. The mover capsule is relative to the origin. Near the origin pass b2Pos_zero and a world capsule.
+        [[nodiscard]] float CastMover(b2Pos origin, const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const;
 
         /// Cast a ray into the world to collect shapes in the path of the ray.
         /// Your callback function controls whether you get the closest point, any point, or n-points.
@@ -1928,16 +1959,16 @@ namespace b2
         /// @param fcn A user implemented callback function
         /// @param context A user context that is passed along to the callback function
         ///	@return traversal performance counters
-        b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
+        b2TreeStats CastRay(b2Pos origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats CastRay(b2Pos origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const;
 
         /// Cast a ray into the world to collect the closest hit. This is a convenience function. Ignores initial overlap.
         /// This is less general than b2World_CastRay() and does not allow for custom filtering.
-        [[nodiscard]] b2RayResult CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const;
+        [[nodiscard]] b2RayResult CastRayClosest(b2Pos origin, b2Vec2 translation, b2QueryFilter filter) const;
 
         /// Collide a capsule mover with the world, gathering collision planes that can be fed to b2SolvePlanes. Useful for
-        /// kinematic character movement.
-        void CollideMover(const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const;
+        /// kinematic character movement. The mover capsule and the resulting planes are relative to the origin.
+        void CollideMover(b2Pos origin, const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const;
 
         /// Get contact events for this current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2ContactEvents GetContactEvents() const;
@@ -2014,13 +2045,16 @@ namespace b2
         /// Get the maximum linear speed. Usually in m/s.
         [[nodiscard]] float GetMaximumLinearSpeed() const;
 
-        /// Overlap test for all shapes that *potentially* overlap the provided AABB
-        b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        /// Overlap test for all shapes that *potentially* overlap the provided AABB.
+        /// The AABB is relative to the origin, which keeps the test precise far from the world origin
+        /// in large world mode. Near the origin pass b2Pos_zero and a world AABB.
+        b2TreeStats Overlap(b2Pos origin, b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(b2Pos origin, b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Overlap test for all shapes that overlap the provided shape proxy.
-        b2TreeStats Overlap(const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
-        b2TreeStats Overlap(const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
+        /// The proxy points are relative to the origin. Near the origin pass b2Pos_zero and world points.
+        b2TreeStats Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
+        b2TreeStats Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
         /// Register the pre-solve callback. This is optional.
         void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) /*non-const*/ requires (!ForceConst);
@@ -2042,6 +2076,19 @@ namespace b2
         /// Get the the restitution speed threshold. Usually in meters per second.
         [[nodiscard]] float GetRestitutionThreshold() const;
 
+        /// Restore a world's simulation state from a snapshot image, in place. The world keeps
+        /// its slot and generation, so this b2WorldId and any ids held from this same world stay
+        /// valid for objects that existed at the snapshot instant. Host wiring is preserved.
+        /// Restore into the same world the snapshot came from to keep held ids valid. Must be
+        /// called at a step boundary.
+        /// @param worldId The world to restore into
+        /// @param image A snapshot image produced by b2World_Snapshot
+        /// @param size Size of image in bytes
+        /// @return true on success. On a rejected image (bad magic, version, or layout) the world
+        ///         is left unchanged. A corrupt payload detected after the rebuild begins returns
+        ///         false and leaves the world unusable, so the caller must destroy it.
+        [[nodiscard]] bool Restore(std::span<const uint8_t> image) /*non-const*/ requires (!ForceConst);
+
         /// Get sensor events for the current time step. The event data is transient. Do not store a reference to this data.
         [[nodiscard]] b2SensorEvents GetSensorEvents() const;
 
@@ -2053,14 +2100,45 @@ namespace b2
         /// Is body sleeping enabled?
         [[nodiscard]] bool IsSleepingEnabled() const;
 
+        /// Write a snapshot of the world's simulation state into a caller-owned buffer.
+        /// Call once with image == NULL to get the required size, then again with a buffer
+        /// of at least that size. Must be called at a step boundary.
+        /// @param worldId The world to snapshot
+        /// @param image Destination buffer, or NULL to query the size
+        /// @param capacity Size of image in bytes, ignored when querying
+        /// @return The number of bytes the snapshot needs. If it exceeds capacity nothing is written.
+        ///         Returns 0 if the world is mid-step.
+        [[nodiscard]] int Snapshot(uint8_t* image, int capacity) const;
+
+        [[nodiscard]] std::vector<uint8_t> Snapshot() const
+        {
+            int size = Snapshot(nullptr, 0);
+            std::vector<uint8_t> ret((size_t)size);
+            if (!ret.empty()) // Just in case.
+                (void)Snapshot(ret.data(), size);
+            return ret;
+        }
+
         /// This is for internal testing
         void EnableSpeculative(bool flag) /*non-const*/ requires (!ForceConst);
+
+        /// Begin recording the world into @p recording. Serializes a snapshot of the current world as the
+        /// seed, then logs every mutating call. Call at a step boundary, before or after creating bodies.
+        /// Start before the first step to capture the whole session. No effect if already recording or if
+        /// the world is locked.
+        /// @param worldId The world to record
+        /// @param recording A recording buffer from b2CreateRecording
+        void StartRecording(b2Recording& recording) /*non-const*/ requires (!ForceConst);
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId The world to simulate
         /// @param timeStep The amount of time to simulate, this should be a fixed number. Usually 1/60.
         /// @param subStepCount The number of sub-steps, increasing the sub-step count can increase accuracy. Usually 4.
         void Step(float timeStep, int subStepCount) /*non-const*/ requires (!ForceConst);
+
+        /// Stop recording. The recording buffer keeps its bytes. Save and destroy it yourself.
+        /// @param worldId The world being recorded
+        void StopRecording() /*non-const*/ requires (!ForceConst);
 
         /// Set the user data pointer.
         void SetUserData(void* userData) /*non-const*/ requires (!ForceConst);
@@ -2108,7 +2186,16 @@ namespace b2
         /// Create a world for rigid body simulation. A world contains bodies, shapes, and constraints. You make create
         /// up to 128 worlds. Each world is completely independent and may be simulated in parallel.
         /// @return the world id.
-        World(const std::derived_from<b2WorldDef> auto &params) { id = b2CreateWorld(&params); }
+        World(const std::derived_from<b2WorldDef> auto &params) : id(b2CreateWorld(&params)) {}
+
+        /// Create a new world from a snapshot image. Use this to load a saved world when there is
+        /// no existing world to restore into. The new world gets a fresh slot and id, so ids held
+        /// from the origin world will not match it. Host wiring is reset to defaults.
+        /// @param image A snapshot image produced by b2World_Snapshot
+        /// @param size Size of image in bytes
+        /// @param workerCount Worker count for the new world. 0 uses the serial single-worker fallback.
+        /// @return The new world id, or b2_nullWorldId on failure.
+        World(std::span<const uint8_t> image, int workerCount) : id(b2CreateWorldFromSnapshot(image.data(), (int)image.size(), workerCount)) {}
 
         World(World&& other) noexcept { id = std::exchange(other.id, b2WorldId{}); }
         World& operator=(World other) noexcept { std::swap(id, other.id); return *this; }
@@ -2117,7 +2204,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWorldRef : public BasicWorldInterface<WorldRef, IsConstRef>
+    class MaybeConstWorldRef : public BasicWorldInterface<MaybeConstWorldRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWorldInterface;
@@ -2143,8 +2230,166 @@ namespace b2
         constexpr MaybeConstWorldRef(const MaybeConstWorldRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstWorldRef(other.Handle()) {}
     };
 
-    /// The dynamic tree structure. This should be considered private data.
-    /// It is placed here for performance reasons.
+    /// Opaque handle for a recording buffer. Create one, hand it to b2World_StartRecording, then
+    /// save its bytes and destroy it. The buffer grows as the world records into it.
+    class Recording
+    {
+        b2Recording *value = nullptr;
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr Recording() {}
+
+        /// Create a recording buffer. The buffer grows on demand. @p byteCapacity pre-sizes it to avoid
+        /// reallocations during a known-length session. Pass 0 for a small default.
+        /// @return A recording handle, freed with b2DestroyRecording
+        Recording(int byteCapacity) : value(b2CreateRecording(byteCapacity))
+        {
+            if (!value)
+                throw std::runtime_error("Failed to create `b2Recording`."); // This should never happen, the underlying box2d function crashes if allocation fails.
+        }
+
+        Recording(Recording&& other) noexcept : value(other.value) { other.value = nullptr; }
+        Recording& operator=(Recording&& other) noexcept
+        {
+            if (this == &other) return *this;
+            if (*this) b2DestroyRecording(value);
+            value = other.value;
+            other.value = nullptr;
+            return *this;
+        }
+
+        /// Destroy a recording buffer and free its memory.
+        ~Recording() { if (*this) b2DestroyRecording(value); }
+
+        [[nodiscard]] explicit operator bool() const { return bool(value); }
+        [[nodiscard]]       b2Recording *UnderlyingPtr()       { return value; }
+        [[nodiscard]] const b2Recording *UnderlyingPtr() const { return value; }
+
+        /// Get a pointer to the recorded bytes, for saving to a file or transmitting. Valid until the
+        /// next recording call or b2DestroyRecording.
+        [[nodiscard]] const uint8_t* GetDataPtr() const;
+
+        /// Get the number of recorded bytes.
+        [[nodiscard]] int GetSize() const;
+
+        /// Get a pointer to the recorded bytes, for saving to a file or transmitting. Valid until the
+        /// next recording call or b2DestroyRecording.
+        [[nodiscard]] std::span<const uint8_t> GetData() const { return {GetDataPtr(), (size_t)GetSize()}; }
+    };
+
+    /// Opaque handle for incremental playback of a recording.
+    class RecPlayer
+    {
+        b2RecPlayer *value = nullptr;
+
+      public:
+        // Consturcts a null (invalid) object.
+        constexpr RecPlayer() {}
+
+        /// Open a recording for incremental playback and replay up to the first step. The player copies
+        /// the bytes, so you may free or destroy the source buffer immediately after this call.
+        /// @param data Recorded bytes, e.g. from b2Recording_GetData or a loaded file
+        /// @param size Number of recorded bytes
+        /// @param workerCount Worker count for the replay world. 0 uses the serial single-worker fallback.
+        /// @return A player handle, or NULL if the recording is malformed
+        RecPlayer(std::span<const uint8_t> data, int workerCount) : value(b2RecPlayer_Create(data.data(), (int)data.size(), workerCount)) {}
+
+        RecPlayer(RecPlayer&& other) noexcept : value(other.value) { other.value = nullptr; }
+        RecPlayer& operator=(RecPlayer&& other) noexcept
+        {
+            if (this == &other) return *this;
+            if (*this) b2RecPlayer_Destroy(value);
+            value = other.value;
+            other.value = nullptr;
+            return *this;
+        }
+
+        /// Close a player and free its replay world and file buffer.
+        ~RecPlayer() { if (*this) b2RecPlayer_Destroy(value); }
+
+        [[nodiscard]] explicit operator bool() const { return bool(value); }
+        [[nodiscard]]       b2RecPlayer *UnderlyingPtr()       { return value; }
+        [[nodiscard]] const b2RecPlayer *UnderlyingPtr() const { return value; }
+
+        /// Returns true once the end of the recording has been reached.
+        [[nodiscard]] bool IsAtEnd() const;
+
+        /// Get a tracked body by creation ordinal. Returns b2_nullBodyId for a destroyed slot, an ordinal not
+        /// yet reached at the current frame, or an out-of-range index. Validate with b2Body_IsValid.
+        [[nodiscard]] BodyRef GetBody(int index);
+        [[nodiscard]] BodyConstRef GetBody(int index) const;
+
+        /// Get the number of body slots tracked for the outliner. This is the creation-order span and
+        /// includes holes for destroyed bodies, so it only grows as the replay advances.
+        [[nodiscard]] int GetBodyCount() const;
+
+        /// Get the first step at which replay diverged, or -1 if it has not diverged.
+        [[nodiscard]] int GetDivergeFrame() const;
+
+        /// Draw spatial queries recorded during the most recently replayed frame.
+        /// Call after b2World_Draw so queries are layered on top of the world.
+        /// @param player A valid player handle
+        /// @param draw Debug draw callbacks. NULL draw function pointers are skipped.
+        /// @param queryIndex Index into the frame's queries to draw, or -1 to draw all of them.
+        void DrawFrameQueries(b2DebugDraw& draw, int queryIndex);
+
+        /// Get the number of steps replayed so far.
+        [[nodiscard]] int GetFrame() const;
+
+        /// Get a recorded query from the most recently replayed frame by index.
+        [[nodiscard]] b2RecQueryInfo GetFrameQuery(int index) const;
+
+        /// Get the number of spatial queries recorded for the most recently replayed frame.
+        [[nodiscard]] int GetFrameQueryCount() const;
+
+        /// Get one result of a recorded query from the most recently replayed frame.
+        [[nodiscard]] b2RecQueryHit GetFrameQueryHit(int queryIndex, int hitIndex) const;
+
+        /// Returns true if a recorded state hash failed to reproduce, meaning replay diverged.
+        [[nodiscard]] bool HasDiverged() const;
+
+        /// Get static metadata for the recording (frame count, recorded tuning, time).
+        [[nodiscard]] b2RecPlayerInfo GetInfo() const;
+
+        /// Get the keyframe memory budget in bytes.
+        [[nodiscard]] size_t GetKeyframeBudget() const;
+
+        /// Get the memory currently held by keyframe snapshots, in bytes.
+        [[nodiscard]] size_t GetKeyframeBytes() const;
+
+        /// Get the current keyframe spacing in frames. Starts at the min interval and doubles as the ring
+        /// evicts to stay under budget, so it reflects the effective backward-seek granularity right now.
+        [[nodiscard]] int GetKeyframeInterval() const;
+
+        /// Get the finest keyframe spacing in frames.
+        [[nodiscard]] int GetKeyframeMinInterval() const;
+
+        /// Tune the keyframe ring used to speed up backward seeking. A keyframe is a periodic snapshot the
+        /// player restores from instead of replaying from the start, trading memory for seek speed.
+        /// @param player the recording player
+        /// @param budgetBytes Memory cap for the kept snapshots. The spacing widens to stay under it.
+        /// @param minIntervalFrames Finest spacing between keyframes, in frames.
+        /// A zero budget or a non-positive interval keeps that value. Clears the existing ring, so call
+        /// b2RecPlayer_Restart afterward to repopulate it under the new policy.
+        void SetKeyframePolicy(size_t budgetBytes, int minIntervalFrames);
+
+        /// Rewind the player to the first step, recreating the replay world from the file.
+        void Restart();
+
+        /// Seek to a recorded step. Seeking backward rewinds and re-runs from the start, so the
+        /// cost grows with the target frame. Clamps to the recording bounds.
+        void SeekFrame(int targetFrame);
+
+        /// Advance the replay by one recorded step.
+        /// @return true if a step executed, false once the end of the recording is reached
+        [[nodiscard]] bool StepFrame();
+
+        /// Get the id of the replayed world.
+        [[nodiscard]] WorldRef GetWorldId();
+        [[nodiscard]] WorldConstRef GetWorldId() const;
+    };
+
     class DynamicTree
     {
         b2DynamicTree value{};
@@ -2169,15 +2414,25 @@ namespace b2
         /// Destroy the tree, freeing the node pool.
         ~DynamicTree() { if (*this) b2DynamicTree_Destroy(&value); }
 
-        [[nodiscard]] explicit operator bool() const { return bool( value.nodes ); }
-        [[nodiscard]]       b2DynamicTree *RawTreePtr()       { return *this ? &value : nullptr; }
-        [[nodiscard]] const b2DynamicTree *RawTreePtr() const { return *this ? &value : nullptr; }
+        [[nodiscard]] explicit operator bool() const { return bool(value.nodes); }
+        [[nodiscard]]       b2DynamicTree *UnderlyingPtr()       { return *this ? &value : nullptr; }
+        [[nodiscard]] const b2DynamicTree *UnderlyingPtr() const { return *this ? &value : nullptr; }
 
         /// Get the AABB of a proxy
         [[nodiscard]] b2AABB GetAABB(int proxyId) const;
 
         /// Get the ratio of the sum of the node areas to the root area.
         [[nodiscard]] float GetAreaRatio() const;
+
+        /// Cast a swept AABB through the tree. This has performance roughly equal to k * log(n),
+        /// where k is the number of collisions and n is the number of proxies in the tree.
+        /// @param tree the dynamic tree to cast through
+        /// @param input the AABB cast input. The box sweeps from its origin to origin + maxFraction * translation.
+        /// @param maskBits filter bits: `bool accept = (maskBits & node->categoryBits) != 0;`
+        /// @param callback a callback that is called for each proxy the swept box may hit
+        /// @param context user context that is passed to the callback
+        ///	@return performance data
+        b2TreeStats BoxCast(const b2BoxCastInput& input, uint64_t maskBits, b2TreeBoxCastCallbackFcn* callback, void* context) const;
 
         /// Get the number of bytes used by this tree
         [[nodiscard]] int GetByteCount() const;
@@ -2236,19 +2491,6 @@ namespace b2
         /// Get the bounding box that contains the entire tree
         [[nodiscard]] b2AABB GetRootBounds() const;
 
-        /// Ray cast against the proxies in the tree. This relies on the callback
-        /// to perform a exact ray cast in the case were the proxy contains a shape.
-        /// The callback also performs the any collision filtering. This has performance
-        /// roughly equal to k * log(n), where k is the number of collisions and n is the
-        /// number of proxies in the tree.
-        /// @param tree the dynamic tree to ray cast
-        /// @param input the ray cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
-        /// @param maskBits filter bits: `bool accept = (maskBits & node->categoryBits) != 0;`
-        /// @param callback a callback class that is called for each proxy that is hit by the shape
-        /// @param context user context that is passed to the callback
-        ///	@return performance data
-        b2TreeStats ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const;
-
         /// Get proxy user data
         [[nodiscard]] uint64_t GetUserData(int proxyId) const;
 
@@ -2275,6 +2517,7 @@ namespace b2
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Destroy(bool updateBodyMass) requires (!ForceConst) { if (*this) { b2DestroyShape(static_cast<const D &>(*this).Handle(), updateBodyMass); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::IsValid() const { return b2Shape_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Capsule& capsule) requires (!ForceConst) { b2Shape_SetCapsule(static_cast<const D &>(*this).Handle(), &capsule); }
+    template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2ChainSegment& chainSegment) requires (!ForceConst) { b2Shape_SetChainSegment(static_cast<const D &>(*this).Handle(), &chainSegment); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Circle& circle) requires (!ForceConst) { b2Shape_SetCircle(static_cast<const D &>(*this).Handle(), &circle); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Polygon& polygon) requires (!ForceConst) { b2Shape_SetPolygon(static_cast<const D &>(*this).Handle(), &polygon); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::Set(const b2Segment& segment) requires (!ForceConst) { b2Shape_SetSegment(static_cast<const D &>(*this).Handle(), &segment); }
@@ -2285,7 +2528,7 @@ namespace b2
     template <typename D, bool ForceConst> b2Capsule BasicShapeInterface<D, ForceConst>::GetCapsule() const { return b2Shape_GetCapsule(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2ChainSegment BasicShapeInterface<D, ForceConst>::GetChainSegment() const { return b2Shape_GetChainSegment(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Circle BasicShapeInterface<D, ForceConst>::GetCircle() const { return b2Shape_GetCircle(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicShapeInterface<D, ForceConst>::GetClosestPoint(b2Vec2 target) const { return b2Shape_GetClosestPoint(static_cast<const D &>(*this).Handle(), target); }
+    template <typename D, bool ForceConst> b2Pos BasicShapeInterface<D, ForceConst>::GetClosestPoint(b2Pos target) const { return b2Shape_GetClosestPoint(static_cast<const D &>(*this).Handle(), target); }
     template <typename D, bool ForceConst> b2MassData BasicShapeInterface<D, ForceConst>::ComputeMassData() const { return b2Shape_ComputeMassData(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactCapacity() const { return b2Shape_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicShapeInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Shape_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
@@ -2304,7 +2547,7 @@ namespace b2
     template <typename D, bool ForceConst> b2Polygon BasicShapeInterface<D, ForceConst>::GetPolygon() const { return b2Shape_GetPolygon(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::EnablePreSolveEvents(bool flag) requires (!ForceConst) { b2Shape_EnablePreSolveEvents(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::ArePreSolveEventsEnabled() const { return b2Shape_ArePreSolveEventsEnabled(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2CastOutput BasicShapeInterface<D, ForceConst>::RayCast(const b2RayCastInput& input) const { return b2Shape_RayCast(static_cast<const D &>(*this).Handle(), &input); }
+    template <typename D, bool ForceConst> b2WorldCastOutput BasicShapeInterface<D, ForceConst>::RayCast(b2Pos origin, b2Vec2 translation) const { return b2Shape_RayCast(static_cast<const D &>(*this).Handle(), origin, translation); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetRestitution(float restitution) requires (!ForceConst) { b2Shape_SetRestitution(static_cast<const D &>(*this).Handle(), restitution); }
     template <typename D, bool ForceConst> float BasicShapeInterface<D, ForceConst>::GetRestitution() const { return b2Shape_GetRestitution(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Segment BasicShapeInterface<D, ForceConst>::GetSegment() const { return b2Shape_GetSegment(static_cast<const D &>(*this).Handle()); }
@@ -2315,7 +2558,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::AreSensorEventsEnabled() const { return b2Shape_AreSensorEventsEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetSurfaceMaterial(const b2SurfaceMaterial& surfaceMaterial) requires (!ForceConst) { b2Shape_SetSurfaceMaterial(static_cast<const D &>(*this).Handle(), &surfaceMaterial); }
     template <typename D, bool ForceConst> b2SurfaceMaterial BasicShapeInterface<D, ForceConst>::GetSurfaceMaterial() const { return b2Shape_GetSurfaceMaterial(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::TestPoint(b2Vec2 point) const { return b2Shape_TestPoint(static_cast<const D &>(*this).Handle(), point); }
+    template <typename D, bool ForceConst> bool BasicShapeInterface<D, ForceConst>::TestPoint(b2Pos point) const { return b2Shape_TestPoint(static_cast<const D &>(*this).Handle(), point); }
     template <typename D, bool ForceConst> b2ShapeType BasicShapeInterface<D, ForceConst>::GetType() const { return b2Shape_GetType(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicShapeInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Shape_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> void* BasicShapeInterface<D, ForceConst>::GetUserData() const { return b2Shape_GetUserData(static_cast<const D &>(*this).Handle()); }
@@ -2467,6 +2710,8 @@ namespace b2
     template <typename D, bool ForceConst> ChainRef BasicBodyInterface<D, ForceConst>::CreateChain(Tags::DestroyWithParent, const std::derived_from<b2ChainDef> auto& def) requires (!ForceConst) { return b2CreateChain(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { Shape ret; ret.id = b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); return ret; }
     template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Capsule& capsule) requires (!ForceConst) { return b2CreateCapsuleShape(static_cast<const D &>(*this).Handle(), &def, &capsule); }
+    template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2ChainSegment& chainSegment) requires (!ForceConst) { Shape ret; ret.id = b2CreateChainSegmentShape(static_cast<const D &>(*this).Handle(), &def, &chainSegment); return ret; }
+    template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2ChainSegment& chainSegment) requires (!ForceConst) { return b2CreateChainSegmentShape(static_cast<const D &>(*this).Handle(), &def, &chainSegment); }
     template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { Shape ret; ret.id = b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); return ret; }
     template <typename D, bool ForceConst> ShapeRef BasicBodyInterface<D, ForceConst>::CreateShape(Tags::DestroyWithParent, const std::derived_from<b2ShapeDef> auto& def, const b2Circle& circle) requires (!ForceConst) { return b2CreateCircleShape(static_cast<const D &>(*this).Handle(), &def, &circle); }
     template <typename D, bool ForceConst> Shape BasicBodyInterface<D, ForceConst>::CreateShape(Tags::OwningHandle, const std::derived_from<b2ShapeDef> auto& def, const b2Polygon& polygon) requires (!ForceConst) { Shape ret; ret.id = b2CreatePolygonShape(static_cast<const D &>(*this).Handle(), &def, &polygon); return ret; }
@@ -2482,9 +2727,9 @@ namespace b2
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetAngularVelocity(float angularVelocity) requires (!ForceConst) { b2Body_SetAngularVelocity(static_cast<const D &>(*this).Handle(), angularVelocity); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetAngularVelocity() const { return b2Body_GetAngularVelocity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyAngularImpulse(float impulse, bool wake) requires (!ForceConst) { b2Body_ApplyAngularImpulse(static_cast<const D &>(*this).Handle(), impulse, wake); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyForce(b2Vec2 force, b2Vec2 point, bool wake) requires (!ForceConst) { b2Body_ApplyForce(static_cast<const D &>(*this).Handle(), force, point, wake); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyForce(b2Vec2 force, b2Pos point, bool wake) requires (!ForceConst) { b2Body_ApplyForce(static_cast<const D &>(*this).Handle(), force, point, wake); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyForceToCenter(b2Vec2 force, bool wake) requires (!ForceConst) { b2Body_ApplyForceToCenter(static_cast<const D &>(*this).Handle(), force, wake); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyLinearImpulse(b2Vec2 impulse, b2Vec2 point, bool wake) requires (!ForceConst) { b2Body_ApplyLinearImpulse(static_cast<const D &>(*this).Handle(), impulse, point, wake); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyLinearImpulse(b2Vec2 impulse, b2Pos point, bool wake) requires (!ForceConst) { b2Body_ApplyLinearImpulse(static_cast<const D &>(*this).Handle(), impulse, point, wake); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyLinearImpulseToCenter(b2Vec2 impulse, bool wake) requires (!ForceConst) { b2Body_ApplyLinearImpulseToCenter(static_cast<const D &>(*this).Handle(), impulse, wake); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyMassFromShapes() requires (!ForceConst) { b2Body_ApplyMassFromShapes(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::ApplyTorque(float torque, bool wake) requires (!ForceConst) { b2Body_ApplyTorque(static_cast<const D &>(*this).Handle(), torque, wake); }
@@ -2497,6 +2742,8 @@ namespace b2
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactCapacity() const { return b2Body_GetContactCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetContactData(b2ContactData* contactData, int capacity) const { return b2Body_GetContactData(static_cast<const D &>(*this).Handle(), contactData, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableContactEvents(bool flag) requires (!ForceConst) { b2Body_EnableContactEvents(static_cast<const D &>(*this).Handle(), flag); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableContactRecycling(bool flag) requires (!ForceConst) { b2Body_EnableContactRecycling(static_cast<const D &>(*this).Handle(), flag); }
+    template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsContactRecyclingEnabled() const { return b2Body_IsContactRecyclingEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::Disable() requires (!ForceConst) { b2Body_Disable(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetGravityScale(float gravityScale) requires (!ForceConst) { b2Body_SetGravityScale(static_cast<const D &>(*this).Handle(), gravityScale); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetGravityScale() const { return b2Body_GetGravityScale(static_cast<const D &>(*this).Handle()); }
@@ -2507,8 +2754,8 @@ namespace b2
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetLinearDamping() const { return b2Body_GetLinearDamping(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetLinearVelocity(b2Vec2 linearVelocity) requires (!ForceConst) { b2Body_SetLinearVelocity(static_cast<const D &>(*this).Handle(), linearVelocity); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLinearVelocity() const { return b2Body_GetLinearVelocity(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalCenterOfMass() const { return b2Body_GetLocalCenterOfMass(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalPoint(b2Vec2 worldPoint) const { return b2Body_GetLocalPoint(static_cast<const D &>(*this).Handle(), worldPoint); }
+    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalCenter() const { return b2Body_GetLocalCenter(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalPoint(b2Pos worldPoint) const { return b2Body_GetLocalPoint(static_cast<const D &>(*this).Handle(), worldPoint); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalPointVelocity(b2Vec2 localPoint) const { return b2Body_GetLocalPointVelocity(static_cast<const D &>(*this).Handle(), localPoint); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetLocalVector(b2Vec2 worldVector) const { return b2Body_GetLocalVector(static_cast<const D &>(*this).Handle(), worldVector); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetMass() const { return b2Body_GetMass(static_cast<const D &>(*this).Handle()); }
@@ -2518,7 +2765,7 @@ namespace b2
     template <typename D, bool ForceConst> b2MotionLocks BasicBodyInterface<D, ForceConst>::GetMotionLocks() const { return b2Body_GetMotionLocks(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetName(const char* name) requires (!ForceConst) { b2Body_SetName(static_cast<const D &>(*this).Handle(), name); }
     template <typename D, bool ForceConst> const char* BasicBodyInterface<D, ForceConst>::GetName() const { return b2Body_GetName(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetPosition() const { return b2Body_GetPosition(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2Pos BasicBodyInterface<D, ForceConst>::GetPosition() const { return b2Body_GetPosition(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Rot BasicBodyInterface<D, ForceConst>::GetRotation() const { return b2Body_GetRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetRotationalInertia() const { return b2Body_GetRotationalInertia(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapeCount() const { return b2Body_GetShapeCount(static_cast<const D &>(*this).Handle()); }
@@ -2527,9 +2774,9 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicBodyInterface<D, ForceConst>::IsSleepEnabled() const { return b2Body_IsSleepEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetSleepThreshold(float sleepThreshold) requires (!ForceConst) { b2Body_SetSleepThreshold(static_cast<const D &>(*this).Handle(), sleepThreshold); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetSleepThreshold() const { return b2Body_GetSleepThreshold(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTargetTransform(b2Transform target, float timeStep, bool wake) requires (!ForceConst) { b2Body_SetTargetTransform(static_cast<const D &>(*this).Handle(), target, timeStep, wake); }
-    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTransform(b2Vec2 position, b2Rot rotation) requires (!ForceConst) { b2Body_SetTransform(static_cast<const D &>(*this).Handle(), position, rotation); }
-    template <typename D, bool ForceConst> b2Transform BasicBodyInterface<D, ForceConst>::GetTransform() const { return b2Body_GetTransform(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTargetTransform(b2WorldTransform target, float timeStep, bool wake) requires (!ForceConst) { b2Body_SetTargetTransform(static_cast<const D &>(*this).Handle(), target, timeStep, wake); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetTransform(b2Pos position, b2Rot rotation) requires (!ForceConst) { b2Body_SetTransform(static_cast<const D &>(*this).Handle(), position, rotation); }
+    template <typename D, bool ForceConst> b2WorldTransform BasicBodyInterface<D, ForceConst>::GetTransform() const { return b2Body_GetTransform(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetType(b2BodyType type) requires (!ForceConst) { b2Body_SetType(static_cast<const D &>(*this).Handle(), type); }
     template <typename D, bool ForceConst> b2BodyType BasicBodyInterface<D, ForceConst>::GetType() const { return b2Body_GetType(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2Body_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
@@ -2537,9 +2784,9 @@ namespace b2
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::WakeTouching() requires (!ForceConst) { b2Body_WakeTouching(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> WorldRef BasicBodyInterface<D, ForceConst>::GetWorld() requires (!ForceConst) { return b2Body_GetWorld(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> WorldConstRef BasicBodyInterface<D, ForceConst>::GetWorld() const { return b2Body_GetWorld(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldCenterOfMass() const { return b2Body_GetWorldCenterOfMass(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPoint(b2Vec2 localPoint) const { return b2Body_GetWorldPoint(static_cast<const D &>(*this).Handle(), localPoint); }
-    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPointVelocity(b2Vec2 worldPoint) const { return b2Body_GetWorldPointVelocity(static_cast<const D &>(*this).Handle(), worldPoint); }
+    template <typename D, bool ForceConst> b2Pos BasicBodyInterface<D, ForceConst>::GetWorldCenter() const { return b2Body_GetWorldCenter(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2Pos BasicBodyInterface<D, ForceConst>::GetWorldPoint(b2Vec2 localPoint) const { return b2Body_GetWorldPoint(static_cast<const D &>(*this).Handle(), localPoint); }
+    template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldPointVelocity(b2Pos worldPoint) const { return b2Body_GetWorldPointVelocity(static_cast<const D &>(*this).Handle(), worldPoint); }
     template <typename D, bool ForceConst> b2Vec2 BasicBodyInterface<D, ForceConst>::GetWorldVector(b2Vec2 localVector) const { return b2Body_GetWorldVector(static_cast<const D &>(*this).Handle(), localVector); }
     template <typename D, bool ForceConst> Body BasicWorldInterface<D, ForceConst>::CreateBody(Tags::OwningHandle, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { Body ret; ret.id = b2CreateBody(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> BodyRef BasicWorldInterface<D, ForceConst>::CreateBody(Tags::DestroyWithParent, const std::derived_from<b2BodyDef> auto& def) requires (!ForceConst) { return b2CreateBody(static_cast<const D &>(*this).Handle(), &def); }
@@ -2561,13 +2808,14 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsValid() const { return b2World_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::GetAwakeBodyCount() const { return b2World_GetAwakeBodyCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2BodyEvents BasicWorldInterface<D, ForceConst>::GetBodyEvents() const { return b2World_GetBodyEvents(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastShape(static_cast<const D &>(*this).Handle(), &proxy, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastShape(static_cast<const D &>(*this).Handle(), &proxy, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::CastMover(const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastMover(static_cast<const D &>(*this).Handle(), &mover, translation, filter); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::CastRayClosest(b2Vec2 origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastRayClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CollideMover(const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const { b2World_CollideMover(static_cast<const D &>(*this).Handle(), &mover, filter, fcn, context); }
+    template <typename D, bool ForceConst> b2AABB BasicWorldInterface<D, ForceConst>::GetBounds() const { return b2World_GetBounds(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(b2Pos origin, const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastShape(static_cast<const D &>(*this).Handle(), origin, &proxy, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Cast(b2Pos origin, const b2ShapeProxy& proxy, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastShape(static_cast<const D &>(*this).Handle(), origin, &proxy, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::CastMover(b2Pos origin, const b2Capsule& mover, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastMover(static_cast<const D &>(*this).Handle(), origin, &mover, translation, filter); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Pos origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,false> fcn) requires (!ForceConst) { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::CastRay(b2Pos origin, b2Vec2 translation, b2QueryFilter filter, detail::FuncRef<b2CastResultFcn,true> fcn) const { return b2World_CastRay(static_cast<const D &>(*this).Handle(), origin, translation, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2RayResult BasicWorldInterface<D, ForceConst>::CastRayClosest(b2Pos origin, b2Vec2 translation, b2QueryFilter filter) const { return b2World_CastRayClosest(static_cast<const D &>(*this).Handle(), origin, translation, filter); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::CollideMover(b2Pos origin, const b2Capsule& mover, b2QueryFilter filter, b2PlaneResultFcn* fcn, void* context) const { b2World_CollideMover(static_cast<const D &>(*this).Handle(), origin, &mover, filter, fcn, context); }
     template <typename D, bool ForceConst> b2ContactEvents BasicWorldInterface<D, ForceConst>::GetContactEvents() const { return b2World_GetContactEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetContactRecycleDistance(float recycleDistance) requires (!ForceConst) { b2World_SetContactRecycleDistance(static_cast<const D &>(*this).Handle(), recycleDistance); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetContactRecycleDistance() const { return b2World_GetContactRecycleDistance(static_cast<const D &>(*this).Handle()); }
@@ -2588,29 +2836,58 @@ namespace b2
     template <typename D, bool ForceConst> b2Capacity BasicWorldInterface<D, ForceConst>::GetMaxCapacity() const { return b2World_GetMaxCapacity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetMaximumLinearSpeed(float maximumLinearSpeed) requires (!ForceConst) { b2World_SetMaximumLinearSpeed(static_cast<const D &>(*this).Handle(), maximumLinearSpeed); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetMaximumLinearSpeed() const { return b2World_GetMaximumLinearSpeed(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), origin, aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), origin, aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), origin, &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
+    template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), origin, &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) requires (!ForceConst) { b2World_SetPreSolveCallback(static_cast<const D &>(*this).Handle(), fcn, context); }
     template <typename D, bool ForceConst> b2Profile BasicWorldInterface<D, ForceConst>::GetProfile() const { return b2World_GetProfile(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::RebuildStaticTree() requires (!ForceConst) { b2World_RebuildStaticTree(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionCallback(b2RestitutionCallback* callback) requires (!ForceConst) { b2World_SetRestitutionCallback(static_cast<const D &>(*this).Handle(), callback); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionThreshold(float value) requires (!ForceConst) { b2World_SetRestitutionThreshold(static_cast<const D &>(*this).Handle(), value); }
     template <typename D, bool ForceConst> float BasicWorldInterface<D, ForceConst>::GetRestitutionThreshold() const { return b2World_GetRestitutionThreshold(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::Restore(std::span<const uint8_t> image) requires (!ForceConst) { return b2World_Restore(static_cast<const D &>(*this).Handle(), image.data(), (int)image.size()); }
     template <typename D, bool ForceConst> b2SensorEvents BasicWorldInterface<D, ForceConst>::GetSensorEvents() const { return b2World_GetSensorEvents(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSleeping(bool flag) requires (!ForceConst) { b2World_EnableSleeping(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsSleepingEnabled() const { return b2World_IsSleepingEnabled(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::Snapshot(uint8_t* image, int capacity) const { return b2World_Snapshot(static_cast<const D &>(*this).Handle(), image, capacity); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSpeculative(bool flag) requires (!ForceConst) { b2World_EnableSpeculative(static_cast<const D &>(*this).Handle(), flag); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StartRecording(b2Recording& recording) requires (!ForceConst) { b2World_StartRecording(static_cast<const D &>(*this).Handle(), &recording); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Step(float timeStep, int subStepCount) requires (!ForceConst) { b2World_Step(static_cast<const D &>(*this).Handle(), timeStep, subStepCount); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StopRecording() requires (!ForceConst) { b2World_StopRecording(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2World_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
     template <typename D, bool ForceConst> void* BasicWorldInterface<D, ForceConst>::GetUserData() const { return b2World_GetUserData(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableWarmStarting(bool flag) requires (!ForceConst) { b2World_EnableWarmStarting(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsWarmStartingEnabled() const { return b2World_IsWarmStartingEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetWorkerCount(int count) requires (!ForceConst) { b2World_SetWorkerCount(static_cast<const D &>(*this).Handle(), count); }
     template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::GetWorkerCount() const { return b2World_GetWorkerCount(static_cast<const D &>(*this).Handle()); }
+    inline const uint8_t* Recording::GetDataPtr() const { return b2Recording_GetData(value); }
+    inline int Recording::GetSize() const { return b2Recording_GetSize(value); }
+    inline bool RecPlayer::IsAtEnd() const { return b2RecPlayer_IsAtEnd(value); }
+    inline BodyRef RecPlayer::GetBody(int index) { return b2RecPlayer_GetBodyId(value, index); }
+    inline BodyConstRef RecPlayer::GetBody(int index) const { return b2RecPlayer_GetBodyId(value, index); }
+    inline int RecPlayer::GetBodyCount() const { return b2RecPlayer_GetBodyCount(value); }
+    inline int RecPlayer::GetDivergeFrame() const { return b2RecPlayer_GetDivergeFrame(value); }
+    inline void RecPlayer::DrawFrameQueries(b2DebugDraw& draw, int queryIndex) { b2RecPlayer_DrawFrameQueries(value, &draw, queryIndex); }
+    inline int RecPlayer::GetFrame() const { return b2RecPlayer_GetFrame(value); }
+    inline b2RecQueryInfo RecPlayer::GetFrameQuery(int index) const { return b2RecPlayer_GetFrameQuery(value, index); }
+    inline int RecPlayer::GetFrameQueryCount() const { return b2RecPlayer_GetFrameQueryCount(value); }
+    inline b2RecQueryHit RecPlayer::GetFrameQueryHit(int queryIndex, int hitIndex) const { return b2RecPlayer_GetFrameQueryHit(value, queryIndex, hitIndex); }
+    inline bool RecPlayer::HasDiverged() const { return b2RecPlayer_HasDiverged(value); }
+    inline b2RecPlayerInfo RecPlayer::GetInfo() const { return b2RecPlayer_GetInfo(value); }
+    inline size_t RecPlayer::GetKeyframeBudget() const { return b2RecPlayer_GetKeyframeBudget(value); }
+    inline size_t RecPlayer::GetKeyframeBytes() const { return b2RecPlayer_GetKeyframeBytes(value); }
+    inline int RecPlayer::GetKeyframeInterval() const { return b2RecPlayer_GetKeyframeInterval(value); }
+    inline int RecPlayer::GetKeyframeMinInterval() const { return b2RecPlayer_GetKeyframeMinInterval(value); }
+    inline void RecPlayer::SetKeyframePolicy(size_t budgetBytes, int minIntervalFrames) { b2RecPlayer_SetKeyframePolicy(value, budgetBytes, minIntervalFrames); }
+    inline void RecPlayer::Restart() { b2RecPlayer_Restart(value); }
+    inline void RecPlayer::SeekFrame(int targetFrame) { b2RecPlayer_SeekFrame(value, targetFrame); }
+    inline bool RecPlayer::StepFrame() { return b2RecPlayer_StepFrame(value); }
+    inline WorldRef RecPlayer::GetWorldId() { return b2RecPlayer_GetWorldId(value); }
+    inline WorldConstRef RecPlayer::GetWorldId() const { return b2RecPlayer_GetWorldId(value); }
     inline b2AABB DynamicTree::GetAABB(int proxyId) const { return b2DynamicTree_GetAABB(&value, proxyId); }
     inline float DynamicTree::GetAreaRatio() const { return b2DynamicTree_GetAreaRatio(&value); }
+    inline b2TreeStats DynamicTree::BoxCast(const b2BoxCastInput& input, uint64_t maskBits, b2TreeBoxCastCallbackFcn* callback, void* context) const { return b2DynamicTree_BoxCast(&value, &input, maskBits, callback, context); }
     inline int DynamicTree::GetByteCount() const { return b2DynamicTree_GetByteCount(&value); }
     inline void DynamicTree::SetCategoryBits(int proxyId, uint64_t categoryBits) { b2DynamicTree_SetCategoryBits(&value, proxyId, categoryBits); }
     inline uint64_t DynamicTree::GetCategoryBits(int proxyId) { return b2DynamicTree_GetCategoryBits(&value, proxyId); }
@@ -2625,7 +2902,6 @@ namespace b2
     inline b2TreeStats DynamicTree::RayCast(const b2RayCastInput& input, uint64_t maskBits, b2TreeRayCastCallbackFcn* callback, void* context) const { return b2DynamicTree_RayCast(&value, &input, maskBits, callback, context); }
     inline int DynamicTree::Rebuild(bool fullBuild) { return b2DynamicTree_Rebuild(&value, fullBuild); }
     inline b2AABB DynamicTree::GetRootBounds() const { return b2DynamicTree_GetRootBounds(&value); }
-    inline b2TreeStats DynamicTree::ShapeCast(const b2ShapeCastInput& input, uint64_t maskBits, b2TreeShapeCastCallbackFcn* callback, void* context) const { return b2DynamicTree_ShapeCast(&value, &input, maskBits, callback, context); }
     inline uint64_t DynamicTree::GetUserData(int proxyId) const { return b2DynamicTree_GetUserData(&value, proxyId); }
     inline void DynamicTree::Validate() const { b2DynamicTree_Validate(&value); }
     inline void DynamicTree::ValidateNoEnlarged() const { b2DynamicTree_ValidateNoEnlarged(&value); }
