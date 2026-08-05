@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 8c66146 2025-06-03
-// Generator version: 0.13
+// Generator version: 0.13.1
 
 #include <box2d/box2d.h>
 
@@ -235,7 +235,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstChainRef : public BasicChainInterface<ChainRef, IsConstRef>
+    class MaybeConstChainRef : public BasicChainInterface<MaybeConstChainRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicChainInterface;
@@ -493,7 +493,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstShapeRef : public BasicShapeInterface<ShapeRef, IsConstRef>
+    class MaybeConstShapeRef : public BasicShapeInterface<MaybeConstShapeRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicShapeInterface;
@@ -644,7 +644,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstJointRef : public BasicJointInterface<JointRef, IsConstRef>
+    class MaybeConstJointRef : public BasicJointInterface<MaybeConstJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicJointInterface;
@@ -782,7 +782,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstDistanceJointRef : public MaybeConstJointRef<IsConstRef>, public BasicDistanceJointInterface<DistanceJointRef, IsConstRef>
+    class MaybeConstDistanceJointRef : public MaybeConstJointRef<IsConstRef>, public BasicDistanceJointInterface<MaybeConstDistanceJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicDistanceJointInterface;
@@ -889,7 +889,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstMotorJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMotorJointInterface<MotorJointRef, IsConstRef>
+    class MaybeConstMotorJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMotorJointInterface<MaybeConstMotorJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicMotorJointInterface;
@@ -990,7 +990,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstMouseJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMouseJointInterface<MouseJointRef, IsConstRef>
+    class MaybeConstMouseJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMouseJointInterface<MaybeConstMouseJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicMouseJointInterface;
@@ -1137,7 +1137,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstPrismaticJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPrismaticJointInterface<PrismaticJointRef, IsConstRef>
+    class MaybeConstPrismaticJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPrismaticJointInterface<MaybeConstPrismaticJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicPrismaticJointInterface;
@@ -1286,7 +1286,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstRevoluteJointRef : public MaybeConstJointRef<IsConstRef>, public BasicRevoluteJointInterface<RevoluteJointRef, IsConstRef>
+    class MaybeConstRevoluteJointRef : public MaybeConstJointRef<IsConstRef>, public BasicRevoluteJointInterface<MaybeConstRevoluteJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicRevoluteJointInterface;
@@ -1388,7 +1388,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWeldJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWeldJointInterface<WeldJointRef, IsConstRef>
+    class MaybeConstWeldJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWeldJointInterface<MaybeConstWeldJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWeldJointInterface;
@@ -1521,7 +1521,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWheelJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWheelJointInterface<WheelJointRef, IsConstRef>
+    class MaybeConstWheelJointRef : public MaybeConstJointRef<IsConstRef>, public BasicWheelJointInterface<MaybeConstWheelJointRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWheelJointInterface;
@@ -1889,7 +1889,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstBodyRef : public BasicBodyInterface<BodyRef, IsConstRef>
+    class MaybeConstBodyRef : public BasicBodyInterface<MaybeConstBodyRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicBodyInterface;
@@ -2179,7 +2179,7 @@ namespace b2
     };
 
     template <bool IsConstRef>
-    class MaybeConstWorldRef : public BasicWorldInterface<WorldRef, IsConstRef>
+    class MaybeConstWorldRef : public BasicWorldInterface<MaybeConstWorldRef<IsConstRef>, IsConstRef>
     {
         template <typename, bool>
         friend class BasicWorldInterface;
