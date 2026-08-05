@@ -56,7 +56,7 @@ Must use C++20 or newer.
 
 Install [box2d 3.x](https://github.com/erincatto/box2d) as usual, our header includes their.
 
-Clone and add `include/` to the header search path. Include `<box2cpp.h>`. The library is header-only.
+Clone and add `include/` to the header search path. Include `<box2cpp/box2cpp.h>`. The library is header-only.
 
 **Note on branches:**<br/>
 Box2cpp's `master` branch corresponds to box2d's `main` branch (open an issue if it gets outdated).<br/>
