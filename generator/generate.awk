@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.7"
+    own_version = "0.7.1"
 
     print "#pragma once"
     print ""
@@ -868,7 +868,7 @@ END {
             printf "    class MaybeConst"type"Ref : "
             if (is_joint_kind)
                 printf "public MaybeConst"base_type_or_self"Ref<IsConstRef>, "
-            print "public Basic"type"Interface<"type"Ref, IsConstRef>"
+            print "public Basic"type"Interface<MaybeConst"base_type_or_self"Ref<IsConstRef>, IsConstRef>"
             print "    {"
             print "        template <typename, bool>"
             print "        friend class Basic"type"Interface;"
