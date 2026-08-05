@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 56edae7 2026-06-16
-// Generator version: 0.13
+// Generator version: 0.14
 
 #include <box2d/box2d.h>
 
