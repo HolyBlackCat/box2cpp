@@ -2,7 +2,7 @@
 
 **C++ bindings for [box2d 3.x](https://github.com/erincatto/box2d) physics engine (aka box2c)**
 
-* Provides classes for all box2d entities: `World`, `Body`, `Shape`, `Chain`, all joint kinds, `DynamicTree`.
+* Provides classes for all box2d entities: `World`, `Body`, `Shape`, `Chain`, all joint kinds, `DynamicTree`, `Recording`, `RecPlayer`.
 
   * [With RAII](#ownership) - automatically destroy box2d objects in destructors
 
