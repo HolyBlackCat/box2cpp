@@ -1,5 +1,5 @@
 BEGIN {
-    own_version = "0.14"
+    own_version = "0.15"
 
     print "#pragma once"
     print ""
@@ -394,13 +394,35 @@ function emit_func(func_name, type, func_variant_index, indent)
         }
         else
         {
+            # Handle pointers to our RAII classes (maybe const).
+            if (param_type_fixed ~ /\*$/)
+            {
+                param_underlying_type = gensub(/\*$/, "", 1, param_type_fixed)
+                param_is_const = param_underlying_type ~ /^const /
+                param_underlying_type = gensub(/^const /, "", 1, param_underlying_type)
+
+                if (param_underlying_type ~ /^b2/)
+                {
+                    param_underlying_type = gensub(/^b2/, "", 1, param_underlying_type)
+
+                    if (param_underlying_type in classes_any_raii_wrappers)
+                    {
+                        param_type_fixed = param_underlying_type "&"
+                        if (param_is_const)
+                            param_type_fixed = "const " param_type_fixed
+
+                        funcs[func_name]["params"][i]["is_raii_wrapper"] = 1
+                    }
+                }
+            }
+
 
             # Adjust pointer parameters to references (except for `void *`).
             if (param_type_fixed != "void*" &&
                 param_type_fixed != "const char*" &&
                 param_type_fixed ~ /\*$/ &&
                 param_type_fixed !~ /Fcn\*$/ &&
-                (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*" || gensub(/b2(.*)\*$/, "\\1", 1, param_type_fixed) in classes_any_raii_wrappers))
+                (param_type_fixed ~ /^const/ || param_type_fixed == "b2DebugDraw*"))
             {
                 param_type_fixed = gensub(/\*$/, "\\&", 1, param_type_fixed)
                 funcs[func_name]["params"][i]["ptr_adjusted_to_ref"] = 1
@@ -543,12 +565,16 @@ function emit_func(func_name, type, func_variant_index, indent)
         if (funcs[func_name]["params"][i]["ptr_adjusted_to_ref"])
             printf "&" >second_file
 
-
         # Cast our enums to the original enums.
         if (param_type_fixed in enums)
             printf "(b2" param_type_fixed ")" >second_file
 
+        # Print the argument itself.
         printf "%s", param_name >second_file
+
+        # Get a pointer out of a RAII wrapper.
+        if (funcs[func_name]["params"][i]["is_raii_wrapper"])
+            printf ".UnderlyingPtr()" >second_file
     }
     printf ")" >second_file
     if (factory_func_owning)
@@ -731,6 +757,13 @@ END {
             print "    using "type"Ref = MaybeConst"type"Ref<false>;"
             print "    using "type"ConstRef = MaybeConst"type"Ref<true>;"
         }
+    }
+
+    # Forward-declare RAII wrappers too.
+    print ""
+    for (type in classes_any_raii_wrappers)
+    {
+        print "    class "type";"
     }
 
     print ""

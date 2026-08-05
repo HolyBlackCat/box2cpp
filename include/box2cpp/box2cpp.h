@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 56edae7 2026-06-16
-// Generator version: 0.14
+// Generator version: 0.15
 
 #include <box2d/box2d.h>
 
@@ -71,6 +71,10 @@ namespace b2
     template <bool IsConstRef> class MaybeConstWheelJointRef;
     using WheelJointRef = MaybeConstWheelJointRef<false>;
     using WheelJointConstRef = MaybeConstWheelJointRef<true>;
+
+    class RecPlayer;
+    class DynamicTree;
+    class Recording;
 
     namespace detail
     {
@@ -2128,7 +2132,7 @@ namespace b2
         /// the world is locked.
         /// @param worldId The world to record
         /// @param recording A recording buffer from b2CreateRecording
-        void StartRecording(b2Recording& recording) /*non-const*/ requires (!ForceConst);
+        void StartRecording(Recording& recording) /*non-const*/ requires (!ForceConst);
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId The world to simulate
@@ -2852,7 +2856,7 @@ namespace b2
     template <typename D, bool ForceConst> bool BasicWorldInterface<D, ForceConst>::IsSleepingEnabled() const { return b2World_IsSleepingEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::Snapshot(uint8_t* image, int capacity) const { return b2World_Snapshot(static_cast<const D &>(*this).Handle(), image, capacity); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSpeculative(bool flag) requires (!ForceConst) { b2World_EnableSpeculative(static_cast<const D &>(*this).Handle(), flag); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StartRecording(b2Recording& recording) requires (!ForceConst) { b2World_StartRecording(static_cast<const D &>(*this).Handle(), &recording); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StartRecording(Recording& recording) requires (!ForceConst) { b2World_StartRecording(static_cast<const D &>(*this).Handle(), recording.UnderlyingPtr()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Step(float timeStep, int subStepCount) requires (!ForceConst) { b2World_Step(static_cast<const D &>(*this).Handle(), timeStep, subStepCount); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StopRecording() requires (!ForceConst) { b2World_StopRecording(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2World_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
