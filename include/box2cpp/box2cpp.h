@@ -1,7 +1,7 @@
 #pragma once
 
 // box2cpp, C++ bindings for box2d 3.x
-// Generated from box2d commit: 56edae7 2026-06-16
+// Generated from box2d commit: 617d32a 2026-08-20
 // Generator version: 0.15
 
 #include <box2d/box2d.h>
@@ -59,6 +59,12 @@ namespace b2
     template <bool IsConstRef> class MaybeConstMotorJointRef;
     using MotorJointRef = MaybeConstMotorJointRef<false>;
     using MotorJointConstRef = MaybeConstMotorJointRef<true>;
+    template <bool IsConstRef> class MaybeConstMoverJointRef;
+    using MoverJointRef = MaybeConstMoverJointRef<false>;
+    using MoverJointConstRef = MaybeConstMoverJointRef<true>;
+    template <bool IsConstRef> class MaybeConstPogoJointRef;
+    using PogoJointRef = MaybeConstPogoJointRef<false>;
+    using PogoJointConstRef = MaybeConstPogoJointRef<true>;
     template <bool IsConstRef> class MaybeConstPrismaticJointRef;
     using PrismaticJointRef = MaybeConstPrismaticJointRef<false>;
     using PrismaticJointConstRef = MaybeConstPrismaticJointRef<true>;
@@ -539,8 +545,8 @@ namespace b2
         // I want this to return a const reference, but GCC 13 and earlier choke on that (fixed in 14). GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61663
         template <std::same_as<b2JointId> T> [[nodiscard]] operator T() const { return Handle(); }
 
-        /// Destroy a joint. Optionally wake attached bodies.
-        void Destroy(bool wakeAttached) /*non-const*/ requires (!ForceConst);
+        /// Destroy a joint.
+        void Destroy() /*non-const*/ requires (!ForceConst);
 
         /// Joint identifier validation. Provides validation for up to 64K allocations.
         [[nodiscard]] bool IsValid() const;
@@ -632,9 +638,11 @@ namespace b2
         friend class WeldJoint;
         friend class WheelJoint;
         friend class RevoluteJoint;
+        friend class MoverJoint;
         friend class DistanceJoint;
         friend class MotorJoint;
         friend class PrismaticJoint;
+        friend class PogoJoint;
         template <typename, bool>
         friend class BasicWorldInterface;
 
@@ -961,6 +969,196 @@ namespace b2
         explicit constexpr MaybeConstMotorJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstMotorJointRef(other.Handle()) {}
         // Convert a non-const reference to a const reference.
         constexpr MaybeConstMotorJointRef(const MaybeConstMotorJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstMotorJointRef(other.Handle()) {}
+    };
+
+    template <typename D, bool ForceConst>
+    class BasicMoverJointInterface
+    {
+      protected:
+        BasicMoverJointInterface() = default;
+
+      public:
+        /// Set the desired relative linear velocity in meters per second
+        void SetLinearVelocity(b2Vec2 velocity) /*non-const*/ requires (!ForceConst);
+
+        /// Get the desired relative linear velocity in meters per second
+        [[nodiscard]] b2Vec2 GetLinearVelocity() const;
+
+        /// Set the motor joint maximum force, usually in newtons
+        void SetMaxVelocityForce(b2Vec2 maxForce) /*non-const*/ requires (!ForceConst);
+
+        /// Get the motor joint maximum force, usually in newtons
+        [[nodiscard]] b2Vec2 GetMaxVelocityForce() const;
+    };
+
+    /// A mover joint is used to move a dynamic character mover through velocity commands.
+    /// The x and y directions are handled separately. Does not affect rotation.
+    /// @ingroup mover_joint
+    class MoverJoint : public Joint, public BasicMoverJointInterface<MoverJoint, false>
+    {
+        template <typename, bool>
+        friend class BasicMoverJointInterface;
+        template <typename, bool>
+        friend class BasicWorldInterface;
+
+      public:
+        static constexpr bool IsOwning = true;
+
+        // Constructs a null (invalid) object.
+        constexpr MoverJoint() noexcept {}
+
+        // The constructor accepts either this or directly `b2MoverJointDef`.
+        struct Params : b2MoverJointDef
+        {
+            Params() : b2MoverJointDef(b2DefaultMoverJointDef()) {}
+        };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit MoverJoint(Joint&& other) noexcept
+        {
+            if (!other || other.GetType() == b2_moverJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `MoverJoint`.");
+        }
+    };
+
+    template <bool IsConstRef>
+    class MaybeConstMoverJointRef : public MaybeConstJointRef<IsConstRef>, public BasicMoverJointInterface<MaybeConstMoverJointRef<IsConstRef>, IsConstRef>
+    {
+        template <typename, bool>
+        friend class BasicMoverJointInterface;
+
+      public:
+        static constexpr bool IsOwning = false;
+        static constexpr bool IsConst = IsConstRef;
+
+        // Constructs a null (invalid) object.
+        constexpr MaybeConstMoverJointRef() noexcept {}
+
+        // Point to an existing handle.
+        // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstMoverJointRef(std::same_as<b2JointId> auto id) noexcept
+        {
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_moverJoint)
+                this->id = id;
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `MoverJoint`.");
+        }
+
+        // Create from a non-reference.
+        constexpr MaybeConstMoverJointRef(const MoverJoint& other) noexcept : MaybeConstMoverJointRef(other.Handle()) {}
+
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstMoverJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstMoverJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
+        constexpr MaybeConstMoverJointRef(const MaybeConstMoverJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstMoverJointRef(other.Handle()) {}
+    };
+
+    template <typename D, bool ForceConst>
+    class BasicPogoJointInterface
+    {
+      protected:
+        BasicPogoJointInterface() = default;
+
+      public:
+        /// Get the internal pogo impulse.
+        [[nodiscard]] float GetImpulse() const;
+
+        /// Get the current length of the pogo.
+        [[nodiscard]] float GetLength() const;
+
+        /// Set the rest length of a pogo joint
+        /// @param jointId The id for a pogo joint
+        /// @param length The new pogo joint length
+        void SetRestLength(float length) /*non-const*/ requires (!ForceConst);
+
+        /// Get the rest length of a pogo joint
+        [[nodiscard]] float GetRestLength() const;
+
+        /// Set the spring damping ratio, non-dimensional
+        void SetSpringDampingRatio(float dampingRatio) /*non-const*/ requires (!ForceConst);
+
+        /// Get the spring damping ratio
+        [[nodiscard]] float GetSpringDampingRatio() const;
+
+        /// Set the spring stiffness in Hertz
+        void SetSpringHertz(float hertz) /*non-const*/ requires (!ForceConst);
+
+        /// Get the spring Hertz
+        [[nodiscard]] float GetSpringHertz() const;
+
+        /// Get the internal pogo velocity.
+        [[nodiscard]] float GetVelocity() const;
+    };
+
+    /// Pogo joint definition
+    /// @ingroup pogo_joint
+    class PogoJoint : public Joint, public BasicPogoJointInterface<PogoJoint, false>
+    {
+        template <typename, bool>
+        friend class BasicPogoJointInterface;
+        template <typename, bool>
+        friend class BasicWorldInterface;
+
+      public:
+        static constexpr bool IsOwning = true;
+
+        // Constructs a null (invalid) object.
+        constexpr PogoJoint() noexcept {}
+
+        // The constructor accepts either this or directly `b2PogoJointDef`.
+        struct Params : b2PogoJointDef
+        {
+            Params() : b2PogoJointDef(b2DefaultPogoJointDef()) {}
+        };
+
+        // Downcast from a generic joint.
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit PogoJoint(Joint&& other) noexcept
+        {
+            if (!other || other.GetType() == b2_pogoJoint)
+                this->id = std::exchange(other.id, {});
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `PogoJoint`.");
+        }
+    };
+
+    template <bool IsConstRef>
+    class MaybeConstPogoJointRef : public MaybeConstJointRef<IsConstRef>, public BasicPogoJointInterface<MaybeConstPogoJointRef<IsConstRef>, IsConstRef>
+    {
+        template <typename, bool>
+        friend class BasicPogoJointInterface;
+
+      public:
+        static constexpr bool IsOwning = false;
+        static constexpr bool IsConst = IsConstRef;
+
+        // Constructs a null (invalid) object.
+        constexpr MaybeConstPogoJointRef() noexcept {}
+
+        // Point to an existing handle.
+        // Using a `same_as` template to prevent implicit madness. In particular, to prevent const-to-non-const conversions between non-owning wrappers.
+        // Downcast from a generic joint reference (or owning joint).
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstPogoJointRef(std::same_as<b2JointId> auto id) noexcept
+        {
+            if (B2_IS_NULL(id) || b2Joint_GetType(id) == b2_pogoJoint)
+                this->id = id;
+            else
+                BOX2CPP_ASSERT(false && "This joint is not a `PogoJoint`.");
+        }
+
+        // Create from a non-reference.
+        constexpr MaybeConstPogoJointRef(const PogoJoint& other) noexcept : MaybeConstPogoJointRef(other.Handle()) {}
+
+        // Triggers an assertion if this isn't the right joint kind.
+        explicit constexpr MaybeConstPogoJointRef(MaybeConstJointRef<IsConstRef> other) noexcept : MaybeConstPogoJointRef(other.Handle()) {}
+        // Convert a non-const reference to a const reference.
+        constexpr MaybeConstPogoJointRef(const MaybeConstPogoJointRef<!IsConstRef>& other) noexcept requires IsConstRef : MaybeConstPogoJointRef(other.Handle()) {}
     };
 
     template <typename D, bool ForceConst>
@@ -1714,12 +1912,15 @@ namespace b2
         /// Override the body's mass properties. Normally this is computed automatically using the
         /// shape geometry and density. This information is lost if a shape is added or removed or if the
         /// body type changes.
+        /// If motion locks are used to fix rotation then the rotational inertia value is ignored and
+        /// rotational inertia remains fixed at zero.
         void SetMassData(b2MassData massData) /*non-const*/ requires (!ForceConst);
 
         /// Get the mass data for a body
         [[nodiscard]] b2MassData GetMassData() const;
 
-        /// Set the motion locks on this body.
+        /// Set the motion locks on this body. This causes mass properties to be recomputed because
+        /// fixed rotation sets the rotational inertia to zero.
         void SetMotionLocks(b2MotionLocks locks) /*non-const*/ requires (!ForceConst);
 
         /// Get the motion locks for this body.
@@ -1739,6 +1940,12 @@ namespace b2
 
         /// Get the rotational inertia of the body, usually in kg*m^2
         [[nodiscard]] float GetRotationalInertia() const;
+
+        /// Set the continuous collision safety factor. Smaller is safer but can lead to hitching. Recommended range [0.01, 0.5]. Non-dimensional.
+        void SetSafetyFactor(float safetyFactor) /*non-const*/ requires (!ForceConst);
+
+        /// Get the continuous collision safety factor. Non-dimensional.
+        [[nodiscard]] float GetSafetyFactor() const;
 
         /// Get the number of shapes on this body
         [[nodiscard]] int GetShapeCount() const;
@@ -1908,6 +2115,16 @@ namespace b2
         [[nodiscard]] MotorJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
         MotorJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) /*non-const*/ requires (!ForceConst);
 
+        /// Create a mover joint
+        /// @see b2MoverJointDef for details
+        [[nodiscard]] MoverJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2MoverJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        MoverJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MoverJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+
+        /// Create a pog joint
+        /// @see b2PogoJointDef for details
+        [[nodiscard]] PogoJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2PogoJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+        PogoJointRef CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PogoJointDef> auto& def) /*non-const*/ requires (!ForceConst);
+
         /// Create a prismatic (slider) joint.
         /// @see b2PrismaticJointDef for details
         [[nodiscard]] PrismaticJoint CreateJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) /*non-const*/ requires (!ForceConst);
@@ -2060,8 +2277,8 @@ namespace b2
         b2TreeStats Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) /*non-const*/ requires (!ForceConst);
         b2TreeStats Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const;
 
-        /// Register the pre-solve callback. This is optional.
-        void SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) /*non-const*/ requires (!ForceConst);
+        /// Register the pre-solve and pre-continuous callback. This is optional.
+        void SetPreSolveCallback(b2PreSolveFcn* preSolveFcn, b2PreContinuousFcn* preContinuousFcn, void* context) /*non-const*/ requires (!ForceConst);
 
         /// Get the current world performance profile
         [[nodiscard]] b2Profile GetProfile() const;
@@ -2133,6 +2350,13 @@ namespace b2
         /// @param worldId The world to record
         /// @param recording A recording buffer from b2CreateRecording
         void StartRecording(Recording& recording) /*non-const*/ requires (!ForceConst);
+
+        /// Compute a deterministic hash of the simulation state: body transforms and velocities, contact and
+        /// joint impulses, and the index bookkeeping that drives the solve. Reproduces exactly across worker
+        /// counts and ignores struct padding and free slots, so two worlds that simulate identically always
+        /// agree. Use this to detect desyncs (for example rollback resimulation) instead of comparing
+        /// serialized world bytes, which carry non-canonical padding.
+        [[nodiscard]] uint64_t GetStateHash() const;
 
         /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
         /// @param worldId The world to simulate
@@ -2570,7 +2794,7 @@ namespace b2
     template <typename D, bool ForceConst> uint64_t BasicShapeInterface<D, ForceConst>::GetUserMaterial() const { return b2Shape_GetUserMaterial(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> WorldRef BasicShapeInterface<D, ForceConst>::GetWorld() requires (!ForceConst) { return b2Shape_GetWorld(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> WorldConstRef BasicShapeInterface<D, ForceConst>::GetWorld() const { return b2Shape_GetWorld(static_cast<const D &>(*this).Handle()); }
-    template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::Destroy(bool wakeAttached) requires (!ForceConst) { if (*this) { b2DestroyJoint(static_cast<const D &>(*this).Handle(), wakeAttached); static_cast<D &>(*this).id = {}; } }
+    template <typename D, bool ForceConst> void BasicJointInterface<D, ForceConst>::Destroy() requires (!ForceConst) { if (*this) { b2DestroyJoint(static_cast<const D &>(*this).Handle()); static_cast<D &>(*this).id = {}; } }
     template <typename D, bool ForceConst> bool BasicJointInterface<D, ForceConst>::IsValid() const { return b2Joint_IsValid(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicJointInterface<D, ForceConst>::GetAngularSeparation() const { return b2Joint_GetAngularSeparation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> BodyRef BasicJointInterface<D, ForceConst>::GetBodyA() requires (!ForceConst) { return b2Joint_GetBodyA(static_cast<const D &>(*this).Handle()); }
@@ -2641,6 +2865,19 @@ namespace b2
     template <typename D, bool ForceConst> float BasicMotorJointInterface<D, ForceConst>::GetMaxVelocityForce() const { return b2MotorJoint_GetMaxVelocityForce(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicMotorJointInterface<D, ForceConst>::SetMaxVelocityTorque(float maxTorque) requires (!ForceConst) { b2MotorJoint_SetMaxVelocityTorque(static_cast<const D &>(*this).Handle(), maxTorque); }
     template <typename D, bool ForceConst> float BasicMotorJointInterface<D, ForceConst>::GetMaxVelocityTorque() const { return b2MotorJoint_GetMaxVelocityTorque(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicMoverJointInterface<D, ForceConst>::SetLinearVelocity(b2Vec2 velocity) requires (!ForceConst) { b2MoverJoint_SetLinearVelocity(static_cast<const D &>(*this).Handle(), velocity); }
+    template <typename D, bool ForceConst> b2Vec2 BasicMoverJointInterface<D, ForceConst>::GetLinearVelocity() const { return b2MoverJoint_GetLinearVelocity(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicMoverJointInterface<D, ForceConst>::SetMaxVelocityForce(b2Vec2 maxForce) requires (!ForceConst) { b2MoverJoint_SetMaxVelocityForce(static_cast<const D &>(*this).Handle(), maxForce); }
+    template <typename D, bool ForceConst> b2Vec2 BasicMoverJointInterface<D, ForceConst>::GetMaxVelocityForce() const { return b2MoverJoint_GetMaxVelocityForce(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetImpulse() const { return b2PogoJoint_GetImpulse(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetLength() const { return b2PogoJoint_GetLength(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPogoJointInterface<D, ForceConst>::SetRestLength(float length) requires (!ForceConst) { b2PogoJoint_SetRestLength(static_cast<const D &>(*this).Handle(), length); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetRestLength() const { return b2PogoJoint_GetRestLength(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPogoJointInterface<D, ForceConst>::SetSpringDampingRatio(float dampingRatio) requires (!ForceConst) { b2PogoJoint_SetSpringDampingRatio(static_cast<const D &>(*this).Handle(), dampingRatio); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetSpringDampingRatio() const { return b2PogoJoint_GetSpringDampingRatio(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicPogoJointInterface<D, ForceConst>::SetSpringHertz(float hertz) requires (!ForceConst) { b2PogoJoint_SetSpringHertz(static_cast<const D &>(*this).Handle(), hertz); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetSpringHertz() const { return b2PogoJoint_GetSpringHertz(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> float BasicPogoJointInterface<D, ForceConst>::GetVelocity() const { return b2PogoJoint_GetVelocity(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::EnableLimit(bool enableLimit) requires (!ForceConst) { b2PrismaticJoint_EnableLimit(static_cast<const D &>(*this).Handle(), enableLimit); }
     template <typename D, bool ForceConst> bool BasicPrismaticJointInterface<D, ForceConst>::IsLimitEnabled() const { return b2PrismaticJoint_IsLimitEnabled(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicPrismaticJointInterface<D, ForceConst>::SetLimits(float lower, float upper) requires (!ForceConst) { b2PrismaticJoint_SetLimits(static_cast<const D &>(*this).Handle(), lower, upper); }
@@ -2772,6 +3009,8 @@ namespace b2
     template <typename D, bool ForceConst> b2Pos BasicBodyInterface<D, ForceConst>::GetPosition() const { return b2Body_GetPosition(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> b2Rot BasicBodyInterface<D, ForceConst>::GetRotation() const { return b2Body_GetRotation(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetRotationalInertia() const { return b2Body_GetRotationalInertia(static_cast<const D &>(*this).Handle()); }
+    template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::SetSafetyFactor(float safetyFactor) requires (!ForceConst) { b2Body_SetSafetyFactor(static_cast<const D &>(*this).Handle(), safetyFactor); }
+    template <typename D, bool ForceConst> float BasicBodyInterface<D, ForceConst>::GetSafetyFactor() const { return b2Body_GetSafetyFactor(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapeCount() const { return b2Body_GetShapeCount(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> int BasicBodyInterface<D, ForceConst>::GetShapes(b2ShapeId* shapeArray, int capacity) const { return b2Body_GetShapes(static_cast<const D &>(*this).Handle(), shapeArray, capacity); }
     template <typename D, bool ForceConst> void BasicBodyInterface<D, ForceConst>::EnableSleep(bool enableSleep) requires (!ForceConst) { b2Body_EnableSleep(static_cast<const D &>(*this).Handle(), enableSleep); }
@@ -2800,6 +3039,10 @@ namespace b2
     template <typename D, bool ForceConst> JointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const b2FilterJointDef& def) requires (!ForceConst) { return b2CreateFilterJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> MotorJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { MotorJoint ret; ret.id = b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> MotorJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MotorJointDef> auto& def) requires (!ForceConst) { return (MotorJointRef)b2CreateMotorJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> MoverJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2MoverJointDef> auto& def) requires (!ForceConst) { MoverJoint ret; ret.id = b2CreateMoverJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> MoverJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2MoverJointDef> auto& def) requires (!ForceConst) { return (MoverJointRef)b2CreateMoverJoint(static_cast<const D &>(*this).Handle(), &def); }
+    template <typename D, bool ForceConst> PogoJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2PogoJointDef> auto& def) requires (!ForceConst) { PogoJoint ret; ret.id = b2CreatePogoJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
+    template <typename D, bool ForceConst> PogoJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PogoJointDef> auto& def) requires (!ForceConst) { return (PogoJointRef)b2CreatePogoJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> PrismaticJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { PrismaticJoint ret; ret.id = b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
     template <typename D, bool ForceConst> PrismaticJointRef BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::DestroyWithParent, const std::derived_from<b2PrismaticJointDef> auto& def) requires (!ForceConst) { return (PrismaticJointRef)b2CreatePrismaticJoint(static_cast<const D &>(*this).Handle(), &def); }
     template <typename D, bool ForceConst> RevoluteJoint BasicWorldInterface<D, ForceConst>::CreateJoint(Tags::OwningHandle, const std::derived_from<b2RevoluteJointDef> auto& def) requires (!ForceConst) { RevoluteJoint ret; ret.id = b2CreateRevoluteJoint(static_cast<const D &>(*this).Handle(), &def); return ret; }
@@ -2844,7 +3087,7 @@ namespace b2
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, b2AABB aabb, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapAABB(static_cast<const D &>(*this).Handle(), origin, aabb, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,false> fcn) requires (!ForceConst) { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), origin, &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
     template <typename D, bool ForceConst> b2TreeStats BasicWorldInterface<D, ForceConst>::Overlap(b2Pos origin, const b2ShapeProxy& proxy, b2QueryFilter filter, detail::FuncRef<b2OverlapResultFcn,true> fcn) const { return b2World_OverlapShape(static_cast<const D &>(*this).Handle(), origin, &proxy, filter, fcn.GetFunc(), fcn.GetContext()); }
-    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetPreSolveCallback(b2PreSolveFcn* fcn, void* context) requires (!ForceConst) { b2World_SetPreSolveCallback(static_cast<const D &>(*this).Handle(), fcn, context); }
+    template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetPreSolveCallback(b2PreSolveFcn* preSolveFcn, b2PreContinuousFcn* preContinuousFcn, void* context) requires (!ForceConst) { b2World_SetPreSolveCallback(static_cast<const D &>(*this).Handle(), preSolveFcn, preContinuousFcn, context); }
     template <typename D, bool ForceConst> b2Profile BasicWorldInterface<D, ForceConst>::GetProfile() const { return b2World_GetProfile(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::RebuildStaticTree() requires (!ForceConst) { b2World_RebuildStaticTree(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetRestitutionCallback(b2RestitutionCallback* callback) requires (!ForceConst) { b2World_SetRestitutionCallback(static_cast<const D &>(*this).Handle(), callback); }
@@ -2857,6 +3100,7 @@ namespace b2
     template <typename D, bool ForceConst> int BasicWorldInterface<D, ForceConst>::Snapshot(uint8_t* image, int capacity) const { return b2World_Snapshot(static_cast<const D &>(*this).Handle(), image, capacity); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::EnableSpeculative(bool flag) requires (!ForceConst) { b2World_EnableSpeculative(static_cast<const D &>(*this).Handle(), flag); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StartRecording(Recording& recording) requires (!ForceConst) { b2World_StartRecording(static_cast<const D &>(*this).Handle(), recording.UnderlyingPtr()); }
+    template <typename D, bool ForceConst> uint64_t BasicWorldInterface<D, ForceConst>::GetStateHash() const { return b2World_GetStateHash(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::Step(float timeStep, int subStepCount) requires (!ForceConst) { b2World_Step(static_cast<const D &>(*this).Handle(), timeStep, subStepCount); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::StopRecording() requires (!ForceConst) { b2World_StopRecording(static_cast<const D &>(*this).Handle()); }
     template <typename D, bool ForceConst> void BasicWorldInterface<D, ForceConst>::SetUserData(void* userData) requires (!ForceConst) { b2World_SetUserData(static_cast<const D &>(*this).Handle(), userData); }
