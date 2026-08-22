@@ -2,7 +2,7 @@
 
 // box2cpp, C++ bindings for box2d 3.x
 // Generated from box2d commit: 617d32a 2026-08-20
-// Generator version: 0.15
+// Generator version: 0.16
 
 #include <box2d/box2d.h>
 
@@ -658,7 +658,7 @@ namespace b2
         Joint(Joint&& other) noexcept { id = std::exchange(other.id, b2JointId{}); }
         Joint& operator=(Joint other) noexcept { std::swap(id, other.id); return *this; }
 
-        ~Joint() { if (*this) Destroy(true); } // Wake body by default. Call `Destroy(false)` manually if you don't want this.
+        ~Joint() { if (*this) Destroy(); }
     };
 
     template <bool IsConstRef>
