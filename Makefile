@@ -30,11 +30,12 @@ box2d:
 
 # Generate the file.
 include/box2cpp/box2cpp.h test/test_header.h &: box2d $(wildcard box2d/include/box2d/*.h) | include test
-	$(call, ### Strip the newlines inside parentheses, then give the result to awk.)
+	$(call, ### Strip the newlines inside parentheses, then give the result to the main awk program.)
 	$(call, ### `box2d.h` is the primary header. `types.h` and `joint_types.h` are needed for `b2Default...Def` functions.)
 	$(call, ### Yes, `cat` will mangle first/last lines, but it doesn't matter.)
 	cat box2d/include/box2d/* \
-		| perl -pe 's/(\([^)]*)\n/$$1/' \
+		| gawk '{for (i = 1; i <= length($$0); i++) {ch = substr($$0, i, 1); if (ch == "(") x++; else if (ch == ")") x--;} printf "%s%s", $$0, (x == 0 ? "\n" : "")}' \
+		| tee combined_input.h \
 		| gawk -f generator/generate.awk >include/box2cpp/box2cpp.h -vsecond_file=tmp.part2
 	cat tmp.part2 >>include/box2cpp/box2cpp.h
 	rm tmp.part2

@@ -59,7 +59,7 @@ cur_enum_name {
     if ($0 !~ /^\s*$/ && $0 !~ /^\s*\/\//)
     {
         # Extract name and value.
-        match($0, /^\s*b2_(\w+)(\s*=\s*(\w+))?,?$/, elems)
+        match($0, /^\s*b2_(\w+)(\s*=\s*(\w+))?,?(\s*\/\/.*)?$/, elems)
         if (RLENGTH == -1)
         {
             print "Unable to parse enum element `" $0 "` in `" cur_enum_name "`." >"/dev/stderr"
@@ -120,7 +120,7 @@ cur_enum_name {
     match(str, /^((const\s+)?\w+(\s*\*)*)\s*(\w+)\s*\(([^)]*)\)/, elems)
     if (RLENGTH == -1)
     {
-        print "Failed to parse the function declaration." >"/dev/stderr"
+        print "Failed to parse the function declaration: " str >"/dev/stderr"
         exit 1
     }
 
@@ -238,7 +238,8 @@ function func_order_2(f)
 
 function simplify_func_name_for_sorting(f)
 {
-    return gensub(/^(Get|Set|Is|Enable)/, "", 1, gensub(/^(Are|Is)(.*)Enabled$/, "\\2", 1, f))
+    # Add a copy of `f` at the end to disambiguate, in case we got multiple copies of the same string after replacement.
+    return gensub(/^(GetCurrent|GetLower|GetUpper|Get|Set|Is|Are|Enable)/, "", 1, gensub(/^(Are|Is)(.*)Enabled$/, "\\2", 1, f)) "#" f
 }
 
 function sort_funcs_comparator(ai, av, bi, bv,      na, nb, oa, ob)
@@ -466,9 +467,9 @@ function emit_func(func_name, type, func_variant_index, indent)
     {
         # When we don't have a pointer parameter, we have to guess constness from the name.
 
-        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast|Collide|Snapshot)($|[A-Z])/ || clean_func_name == "Draw")
+        if (clean_func_name ~ /^(Get|Is|Compute|Are|Test|Extents|Contains|Union|Center|Cast|RayCast|Collide|Snapshot|Overlap)($|[A-Z])/ || clean_func_name == "Draw")
             is_const = 1
-        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild|Clear|Restore|Start|Stop)($|[A-Z])/ || clean_func_name == "Step")
+        else if (clean_func_name ~ /^(Set|Enable|Apply|Disable|Reset|Wake|Create|Destroy|Enlarge|Explode|Dump|Rebuild|Clear|Restore|Start|Stop|Update)($|[A-Z])/ || clean_func_name == "Step")
             is_const = 0
         else
         {
@@ -588,15 +589,15 @@ function emit_func(func_name, type, func_variant_index, indent)
         emit_func(func_name, type, func_variant_index + 1, indent)
 
     # Add entirely custom function variants if needed.
-    if (func_name == "b2World_Snapshot")
+    if (func_name == "b2World_GetSnapshot")
     {
         print ""
         print "        [[nodiscard]] std::vector<uint8_t> Snapshot() const"
         print "        {"
-        print "            int size = Snapshot(nullptr, 0);"
+        print "            int size = GetSnapshot(nullptr, 0);"
         print "            std::vector<uint8_t> ret((size_t)size);"
         print "            if (!ret.empty()) // Just in case."
-        print "                (void)Snapshot(ret.data(), size);"
+        print "                (void)GetSnapshot(ret.data(), size);"
         print "            return ret;"
         print "        }"
     }
@@ -671,7 +672,7 @@ END {
             funcs[func_name]["params"][i]["is_callback"] = 0
             funcs[func_name]["params"][i]["is_callback_context"] = skip_context_param
             skip_context_param = 0
-            if (param_type ~ /^(b2CastResultFcn|b2OverlapResultFcn)\*$/)
+            if (param_type ~ /^(b2CastResultCallbackFcn|b2OverlapResultCallbackFcn)\*$/)
             {
                 funcs[func_name]["params"][i]["is_callback"] = 1
                 funcs[func_name]["accepts_const_nonconst_callback"] = 1
@@ -712,12 +713,12 @@ END {
             classes_joint_kinds[type] = 1
 
         # Those store a box2d struct by value, and act as a RAII wrapper.
-        if (type == "DynamicTree")
+        if (false)
         {
             classes_by_value_raii_wrappers[type] = 1
             classes_any_raii_wrappers[type] = 1
         }
-        else if (type == "RecPlayer" || type == "Recording")
+        else if (type == "DynamicTree" || type == "Replay" || type == "Recording")
         {
             classes_ptr_raii_wrappers[type] = 1
             classes_any_raii_wrappers[type] = 1
@@ -1076,20 +1077,20 @@ END {
             {
                 # Parametrized ctor.
                 print ""
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
-                print type "(int proxyCapacity) : value(b2" type "_Create(proxyCapacity)) {}"
-                delete funcs["b2" type "_Create"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
+                print type "(int proxyCapacity) : value(b2Create" type "(proxyCapacity)) {}"
+                delete funcs["b2Create" type]
             }
-            else if (type == "RecPlayer")
+            else if (type == "Replay")
             {
                 # Parametrized ctor.
                 # The span type matches what `b2Recording_GetData()` returns.
 
                 # This can return null.
                 print ""
-                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2" type "_Create"]["comment"])
-                print type "(std::span<const uint8_t> data, int workerCount) : value(b2" type "_Create(data.data(), (int)data.size(), workerCount)) {}"
-                delete funcs["b2" type "_Create"]
+                printf "        %s", gensub(/\n/, "\n        ", "g", funcs["b2Create" type]["comment"])
+                print type "(std::span<const uint8_t> data, int workerCount) : value(b2Create" type "(data.data(), (int)data.size(), workerCount)) {}"
+                delete funcs["b2Create" type]
             }
             else if (type == "Recording")
             {
@@ -1101,7 +1102,7 @@ END {
                 print "            if (!value)"
                 print "                throw std::runtime_error(\"Failed to create `b2" type "`.\"); // This should never happen, the underlying box2d function crashes if allocation fails."
                 print "        }"
-                delete funcs["b2" type "_Create"]
+                delete funcs["b2Create" type]
             }
 
             # Work around improperly named `b2DestroyRecording()`. Bug report: https://github.com/erincatto/box2d/issues/1088
@@ -1115,7 +1116,7 @@ END {
                 maybe_address_of = ""
 
             # Copy/move ctors.
-            if (type == "DynamicTree" || type == "RecPlayer" || type == "Recording")
+            if (type == "DynamicTree" || type == "Replay" || type == "Recording")
             {
                 print ""
                 print "        " type "(" type "&& other) noexcept : value(other.value) { other.value = " null_str "; }"
@@ -1140,15 +1141,6 @@ END {
             print "~" type "() { if (*this) " destroy_func "(" maybe_address_of "value); }"
 
             delete funcs[destroy_func]
-
-            # Some custom members.
-            if (type == "DynamicTree")
-            {
-                print ""
-                print "        [[nodiscard]] explicit operator bool() const { return bool(value.nodes); }"
-                print "        [[nodiscard]]       b2DynamicTree *UnderlyingPtr()       { return *this ? &value : nullptr; }"
-                print "        [[nodiscard]] const b2DynamicTree *UnderlyingPtr() const { return *this ? &value : nullptr; }"
-            }
 
             # Ptr wrapper methods.
             if (is_ptr_raii_wrapper)

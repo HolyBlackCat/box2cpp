@@ -3,3 +3,4 @@
 /test/test*
 /tmp.part2
 /test.obj
+/combined_input.h
